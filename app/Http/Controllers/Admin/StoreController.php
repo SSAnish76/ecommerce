@@ -69,17 +69,19 @@ class StoreController extends Controller
             $validated['status'] = $store->status ?? StoreStatus::Active;
         }
 
-        if (! empty($validated['logo_media_id'])) {
-            $store->syncMedia($validated['logo_media_id'], 'logo');
-            $validated['logo_url'] = $store->getFirstMediaPath('logo') ?? $validated['logo_url'];
+        if ($request->has('logo_id')) {
+            $validated['logo_id'] = $request->input('logo_id') ?: null;
+        } elseif ($request->has('logo_media_id')) {
+            $validated['logo_id'] = $request->input('logo_media_id') ?: null;
         }
 
-        if (! empty($validated['favicon_media_id'])) {
-            $store->syncMedia($validated['favicon_media_id'], 'favicon');
-            $validated['favicon_url'] = $store->getFirstMediaPath('favicon') ?? $validated['favicon_url'];
+        if ($request->has('favicon_id')) {
+            $validated['favicon_id'] = $request->input('favicon_id') ?: null;
+        } elseif ($request->has('favicon_media_id')) {
+            $validated['favicon_id'] = $request->input('favicon_media_id') ?: null;
         }
 
-        unset($validated['logo_media_id'], $validated['favicon_media_id']);
+        unset($validated['logo_media_id'], $validated['favicon_media_id'], $validated['logo_url'], $validated['favicon_url']);
 
         $store->update($validated);
         Store::clearCache();

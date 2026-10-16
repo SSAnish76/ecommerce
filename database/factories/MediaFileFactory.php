@@ -29,13 +29,13 @@ class MediaFileFactory extends Factory
     {
         $extension = fake()->randomElement(['png', 'jpg', 'webp', 'pdf', 'docx']);
         $isImage = in_array($extension, ['png', 'jpg', 'webp'], true);
-        $uuid = (string) Str::uuid();
+        $timestampName = time().'_'.fake()->lexify('????????').".{$extension}";
 
         return [
-            'id' => $uuid,
+            'id' => (string) Str::uuid(),
             'disk' => 'public',
             'directory' => 'media/'.date('Y/m'),
-            'filename' => "{$uuid}.{$extension}",
+            'filename' => $timestampName,
             'original_name' => fake()->word().".{$extension}",
             'mime_type' => $isImage ? "image/{$extension}" : 'application/pdf',
             'extension' => $extension,
@@ -43,25 +43,6 @@ class MediaFileFactory extends Factory
             'hash' => fake()->sha256(),
             'collection' => 'default',
             'user_id' => null,
-            'mediable_type' => null,
-            'mediable_id' => null,
-            'meta' => $isImage ? [
-                'width' => 800,
-                'height' => 600,
-                'aspect_ratio' => 1.33,
-            ] : null,
         ];
-    }
-
-    /**
-     * Indicate that the media is attached to a given model.
-     */
-    public function attachedTo(\Illuminate\Database\Eloquent\Model $model, string $collection = 'default'): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'mediable_type' => $model->getMorphClass(),
-            'mediable_id' => (string) $model->getKey(),
-            'collection' => $collection,
-        ]);
     }
 }

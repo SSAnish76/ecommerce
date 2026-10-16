@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use App\Models\MediaFile;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -28,7 +27,6 @@ class MediaController extends Controller
                 $q->where(fn (Builder $sq) => $sq->where('original_name', 'like', "%{$search}%")
                     ->orWhere('filename', 'like', "%{$search}%"));
             })
-            ->when($request->has('attached'), fn (Builder $q) => $request->boolean('attached') ? $q->attached() : $q->unattached())
             ->latest('created_at')
             ->paginate($request->integer('per_page', 24));
 
@@ -45,7 +43,7 @@ class MediaController extends Controller
     }
 
     /**
-     * Dedicated upload endpoint to store a file and return its ID, URL, and metadata.
+     * Dedicated upload endpoint to store a file and return its ID, URL, and attributes.
      */
     public function upload(Request $request, MediaStorageService $storage): JsonResponse
     {
@@ -60,7 +58,6 @@ class MediaController extends Controller
             ],
             'collection' => ['nullable', 'string', 'max:60'],
             'folder' => ['nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_\-\/]+$/'],
-            'meta' => ['nullable', 'array'],
         ], [
             'file.required' => 'Please select a file to upload.',
             'file.file' => 'The uploaded item must be a valid file.',
@@ -72,7 +69,6 @@ class MediaController extends Controller
             file: $request->file('file'),
             collection: (string) ($validated['collection'] ?? 'default'),
             userId: $request->user()?->getAuthIdentifier() ? (string) $request->user()->getAuthIdentifier() : null,
-            meta: (array) ($validated['meta'] ?? []),
             customDirectory: ! empty($validated['folder']) ? (string) $validated['folder'] : null,
         );
 
@@ -159,38 +155,6 @@ class MediaController extends Controller
     }
 
     /**
-     * Attach an unattached media file to a given model entity.
-     */
-    public function attach(Request $request, MediaFile $mediaFile, MediaStorageService $storage): JsonResponse
-    {
-        $validated = $request->validate([
-            'mediable_type' => ['required', 'string'],
-            'mediable_id' => ['required', 'string'],
-            'collection' => ['nullable', 'string', 'max:60'],
-        ]);
-
-        /** @var class-string<Model> $modelClass */
-        $modelClass = $validated['mediable_type'];
-        if (! class_exists($modelClass)) {
-            return response()->json(['success' => false, 'message' => 'Specified model class does not exist.'], 422);
-        }
-
-        $model = $modelClass::findOrFail($validated['mediable_id']);
-
-        $updatedMedia = $storage->attachToModel(
-            media: $mediaFile,
-            model: $model,
-            collection: $validated['collection'] ?? $mediaFile->collection
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Media file attached successfully.',
-            'data' => $this->formatMedia($updatedMedia),
-        ]);
-    }
-
-    /**
      * Delete the specified media file.
      */
     public function destroy(MediaFile $mediaFile, MediaStorageService $storage): JsonResponse
@@ -242,9 +206,7 @@ class MediaController extends Controller
             'human_size' => $media->human_size,
             'url' => $media->url,
             'is_image' => $media->is_image,
-            'is_attached' => $media->is_attached,
             'collection' => $media->collection,
-            'meta' => $media->meta ?? [],
             'created_at' => $media->created_at?->toIso8601String(),
         ];
     }

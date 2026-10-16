@@ -116,7 +116,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/', [MediaController::class, 'index'])->name('index');
             Route::post('/upload', [MediaController::class, 'upload'])->name('upload');
             Route::get('/{mediaFile}', [MediaController::class, 'show'])->name('show');
-            Route::post('/{mediaFile}/attach', [MediaController::class, 'attach'])->name('attach');
             Route::delete('/{mediaFile}', [MediaController::class, 'destroy'])->name('destroy');
         });
     });

@@ -257,7 +257,7 @@ class StorageDriverArchitectureTest extends TestCase
     }
 
     /**
-     * Test storing an image via MediaStorageService automatically optimizes and stores metadata.
+     * Test storing an image via MediaStorageService automatically optimizes and stores file.
      */
     public function test_storing_image_via_service_applies_optimization(): void
     {
@@ -274,13 +274,7 @@ class StorageDriverArchitectureTest extends TestCase
         $this->assertNotNull($media);
         $this->assertSame('catalogs', $media->collection);
         $this->assertTrue($media->is_image);
-        $this->assertIsArray($media->meta);
-
-        // Check metadata contains dimension and optimization details
-        $this->assertArrayHasKey('width', $media->meta);
-        $this->assertArrayHasKey('height', $media->meta);
-        $this->assertLessThanOrEqual(2048, $media->meta['width']);
-        $this->assertSame(2.0, (float) $media->meta['aspect_ratio']);
+        $this->assertMatchesRegularExpression('/^[0-9]+_[a-zA-Z0-9]+\.jpg$/', $media->filename);
 
         // Assert file exists on storage
         Storage::disk('public')->assertExists($media->path);

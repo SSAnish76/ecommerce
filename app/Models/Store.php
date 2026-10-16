@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Casts\MediaPathCast;
 use App\Enums\Store\StoreStatus;
-use App\Traits\HasMedia;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Cache;
 
 class Store extends Model
 {
-    use HasFactory, HasMedia, HasUuids;
+    use HasFactory, HasUuids;
 
     /**
      * @var list<string>
@@ -30,14 +29,22 @@ class Store extends Model
         'state',
         'postal_code',
         'country',
-        'logo_url',
-        'favicon_url',
+        'logo_id',
+        'favicon_id',
         'currency',
         'timezone',
         'tax_number',
         'description',
         'website_url',
         'status',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'logo_url',
+        'favicon_url',
     ];
 
     /**
@@ -49,9 +56,43 @@ class Store extends Model
     {
         return [
             'status' => StoreStatus::class,
-            'logo_url' => MediaPathCast::class,
-            'favicon_url' => MediaPathCast::class,
         ];
+    }
+
+    /**
+     * Get the store brand logo media file.
+     *
+     * @return BelongsTo<MediaFile, $this>
+     */
+    public function logo(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'logo_id');
+    }
+
+    /**
+     * Get the store favicon media file.
+     *
+     * @return BelongsTo<MediaFile, $this>
+     */
+    public function favicon(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'favicon_id');
+    }
+
+    /**
+     * Dynamic accessor for logo URL.
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo?->url;
+    }
+
+    /**
+     * Dynamic accessor for favicon URL.
+     */
+    public function getFaviconUrlAttribute(): ?string
+    {
+        return $this->favicon?->url;
     }
 
     /**
@@ -59,7 +100,7 @@ class Store extends Model
      */
     public function getRawLogoPath(): ?string
     {
-        return $this->getRawOriginal('logo_url');
+        return $this->logo?->path;
     }
 
     /**
@@ -67,7 +108,7 @@ class Store extends Model
      */
     public function getRawFaviconPath(): ?string
     {
-        return $this->getRawOriginal('favicon_url');
+        return $this->favicon?->path;
     }
 
     /**
@@ -91,10 +132,15 @@ class Store extends Model
         $cached = Cache::get(self::CACHE_KEY);
 
         if (is_array($cached)) {
-            return (new static)->newFromBuilder($cached);
+            $store = (new static)->newFromBuilder($cached);
+            $store->loadMissing(['logo', 'favicon']);
+
+            return $store;
         }
 
         if ($cached instanceof self) {
+            $cached->loadMissing(['logo', 'favicon']);
+
             return $cached;
         }
 
@@ -102,17 +148,16 @@ class Store extends Model
             Cache::forget(self::CACHE_KEY);
         }
 
-        $store = static::query()->first();
+        $store = static::query()->with(['logo', 'favicon'])->first();
 
         if ($store === null) {
-            $store = static::query()->firstOrCreate(
-                ['email' => 'support@store.com'],
-                [
-                    'name' => (string) config('app.name', 'E-Commerce Store'),
-                    'legal_name' => (string) config('app.name', 'E-Commerce Store').' Inc.',
-                    'status' => StoreStatus::Active,
-                ]
-            );
+            $store = static::query()->create([
+                'email' => 'support@store.com',
+                'name' => (string) config('app.name', 'E-Commerce Store'),
+                'legal_name' => (string) config('app.name', 'E-Commerce Store').' Inc.',
+                'status' => StoreStatus::Active,
+            ]);
+            $store->loadMissing(['logo', 'favicon']);
         }
 
         Cache::put(self::CACHE_KEY, $store->getRawOriginal(), 3600);

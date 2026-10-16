@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * @property string $id
@@ -25,16 +24,12 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string|null $hash
  * @property string $collection
  * @property string|null $user_id
- * @property string|null $mediable_type
- * @property string|null $mediable_id
- * @property array<string, mixed>|null $meta
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read string $url
  * @property-read string $path
  * @property-read string $human_size
  * @property-read bool $is_image
- * @property-read bool $is_attached
  */
 class MediaFile extends Model
 {
@@ -56,9 +51,6 @@ class MediaFile extends Model
         'hash',
         'collection',
         'user_id',
-        'mediable_type',
-        'mediable_id',
-        'meta',
     ];
 
     /**
@@ -66,7 +58,6 @@ class MediaFile extends Model
      */
     protected $casts = [
         'size' => 'integer',
-        'meta' => 'array',
     ];
 
     /**
@@ -135,24 +126,6 @@ class MediaFile extends Model
     }
 
     /**
-     * Determine if the media file is currently attached to a parent entity.
-     */
-    public function getIsAttachedAttribute(): bool
-    {
-        return ! empty($this->mediable_type) && ! empty($this->mediable_id);
-    }
-
-    /**
-     * Get the owning mediable model.
-     *
-     * @return MorphTo<Model, $this>
-     */
-    public function mediable(): MorphTo
-    {
-        return $this->morphTo();
-    }
-
-    /**
      * Get the user who uploaded the file.
      *
      * @return BelongsTo<User, $this>
@@ -170,26 +143,6 @@ class MediaFile extends Model
     public function scopeCollection(Builder $query, string $collection): void
     {
         $query->where('collection', $collection);
-    }
-
-    /**
-     * Scope query to only unattached/orphaned files.
-     *
-     * @param Builder<$this> $query
-     */
-    public function scopeUnattached(Builder $query): void
-    {
-        $query->whereNull('mediable_id')->whereNull('mediable_type');
-    }
-
-    /**
-     * Scope query to only attached files.
-     *
-     * @param Builder<$this> $query
-     */
-    public function scopeAttached(Builder $query): void
-    {
-        $query->whereNotNull('mediable_id')->whereNotNull('mediable_type');
     }
 
     /**

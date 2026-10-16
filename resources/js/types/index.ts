@@ -219,6 +219,8 @@ export interface Store {
     state?: string | null;
     postal_code?: string | null;
     country?: string | null;
+    logo_id?: string | null;
+    favicon_id?: string | null;
     logo_url?: string | null;
     favicon_url?: string | null;
     currency: string;

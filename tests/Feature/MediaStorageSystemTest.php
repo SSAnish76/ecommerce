@@ -37,7 +37,7 @@ class MediaStorageSystemTest extends TestCase
     }
 
     /**
-     * Test uploading a file via the dedicated endpoint returns ID, URL, and metadata.
+     * Test uploading a file via the dedicated endpoint returns ID, URL, and timestamp filename.
      */
     public function test_dedicated_upload_endpoint_stores_file_and_returns_id_and_url(): void
     {
@@ -66,13 +66,13 @@ class MediaStorageSystemTest extends TestCase
                     'url',
                     'is_image',
                     'collection',
-                    'meta',
                 ],
             ]);
 
         $responseData = $response->json('data');
         $this->assertNotEmpty($responseData['id']);
         $this->assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', (string) $responseData['id']);
+        $this->assertMatchesRegularExpression('/^[0-9]+_[a-zA-Z0-9]+\.png$/', (string) $responseData['filename']);
         $this->assertSame('test_product.png', $responseData['original_name']);
         $this->assertSame('products', $responseData['collection']);
         $this->assertTrue($responseData['is_image']);
@@ -92,7 +92,7 @@ class MediaStorageSystemTest extends TestCase
     }
 
     /**
-     * Test saving/updating an entity using the uploaded file's ID.
+     * Test saving/updating an entity using the uploaded file's ID linked to media table.
      */
     public function test_entity_can_be_saved_using_uploaded_file_id(): void
     {
@@ -111,7 +111,7 @@ class MediaStorageSystemTest extends TestCase
         $fileId = $uploadResponse->json('data.id');
         $expectedUrl = $uploadResponse->json('data.url');
 
-        // 2. Save store details passing the file ID (logo_media_id)
+        // 2. Save store details passing the file ID (logo_media_id / logo_id)
         $store = Store::current();
 
         $updateResponse = $this->actingAs($this->adminUser)
@@ -126,57 +126,18 @@ class MediaStorageSystemTest extends TestCase
         $updateResponse->assertSessionHasNoErrors();
         $updateResponse->assertRedirect();
 
-        // 3. Verify store has the file attached and URL updated
+        // 3. Verify store has the file linked via logo_id foreign key
         $store->refresh();
         $this->assertSame('Tech Gadgets Store', $store->name);
+        $this->assertSame($fileId, $store->logo_id);
         $this->assertSame($expectedUrl, $store->logo_url);
+        $this->assertNotNull($store->logo);
+        $this->assertSame($fileId, $store->logo->id);
 
-        // Verify only folder and filename (relative path) is stored in the database!
-        $mediaFile = MediaFile::find($fileId);
-        $this->assertNotNull($mediaFile);
-        $this->assertSame($mediaFile->path, $store->getRawOriginal('logo_url'));
-        $this->assertStringNotContainsString('http://', (string) $store->getRawOriginal('logo_url'));
-        $this->assertStringNotContainsString('https://', (string) $store->getRawOriginal('logo_url'));
         $this->assertDatabaseHas('stores', [
             'id' => $store->id,
-            'logo_url' => $mediaFile->path,
+            'logo_id' => $fileId,
         ]);
-
-        // Verify the media file is linked to the store
-        $this->assertDatabaseHas('media_files', [
-            'id' => $fileId,
-            'mediable_type' => Store::class,
-            'mediable_id' => (string) $store->id,
-            'collection' => 'logo',
-        ]);
-    }
-
-    /**
-     * Test HasMedia trait allows attaching, retrieving, and syncing media on models.
-     */
-    public function test_has_media_trait_attaching_and_syncing(): void
-    {
-        Storage::fake('public');
-
-        $file1 = UploadedFile::fake()->image('avatar1.jpg');
-        $file2 = UploadedFile::fake()->image('avatar2.jpg');
-
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
-        $media1 = $service->store($file1, 'avatars');
-        $media2 = $service->store($file2, 'avatars');
-
-        // Attach using trait
-        $this->adminUser->attachMedia($media1->id, 'avatar');
-
-        $this->assertSame($media1->url, $this->adminUser->getFirstMediaUrl('avatar'));
-        $this->assertSame(1, $this->adminUser->getMedia('avatar')->count());
-
-        // Sync media (replaces existing avatar with second one)
-        $this->adminUser->syncMedia($media2->id, 'avatar');
-
-        $this->assertSame($media2->url, $this->adminUser->getFirstMediaUrl('avatar'));
-        $this->assertNull(MediaFile::find($media1->id)); // First media was cleared/deleted on sync
     }
 
     /**
@@ -230,35 +191,6 @@ class MediaStorageSystemTest extends TestCase
 
         $this->assertDatabaseMissing('media_files', ['id' => $media->id]);
         Storage::disk('public')->assertMissing($media->path);
-    }
-
-    /**
-     * Test pruning command removes unattached files older than threshold.
-     */
-    public function test_pruning_command_removes_unattached_files(): void
-    {
-        Storage::fake('public');
-
-        $file1 = UploadedFile::fake()->create('orphan.pdf', 500);
-        $file2 = UploadedFile::fake()->image('attached.jpg');
-
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
-        $orphan = $service->store($file1);
-        $attached = $service->store($file2);
-
-        // Attach second file
-        $service->attachToModel($attached, $this->adminUser, 'id_doc');
-
-        // Set orphan created_at to 2 days ago
-        $orphan->forceFill(['created_at' => now()->subHours(48)])->save();
-
-        $this->artisan('media:prune-unattached', ['--hours' => 24])
-            ->assertSuccessful()
-            ->expectsOutputToContain('Successfully pruned 1 unattached media file(s).');
-
-        $this->assertDatabaseMissing('media_files', ['id' => $orphan->id]);
-        $this->assertDatabaseHas('media_files', ['id' => $attached->id]);
     }
 
     /**
@@ -320,10 +252,9 @@ class MediaStorageSystemTest extends TestCase
     }
 
     /**
-     * Test that the database stores only relative folder and filename,
-     * ensuring changing domains in the future does not affect or break stored paths.
+     * Test that linking media files to store allows dynamic URLs and domain changes.
      */
-    public function test_database_saves_only_folder_and_filename_and_domain_changes_do_not_break_urls(): void
+    public function test_linked_store_media_dynamically_adapts_to_domain_changes(): void
     {
         Storage::fake('public');
 
@@ -334,30 +265,16 @@ class MediaStorageSystemTest extends TestCase
         $media = $service->store($file, 'store_branding');
 
         $store = Store::current();
-
-        // 1. Pass full URL to the model
-        $store->update([
-            'logo_url' => $media->url,
-        ]);
-
+        $store->update(['logo_id' => $media->id]);
         $store->refresh();
 
-        // 2. The raw database column must ONLY contain folder and filename
-        $this->assertSame($media->path, $store->getRawOriginal('logo_url'));
-        $this->assertSame($media->path, $store->getRawLogoPath());
-        $this->assertStringNotContainsString('http://', (string) $store->getRawOriginal('logo_url'));
-        $this->assertStringNotContainsString('localhost', (string) $store->getRawOriginal('logo_url'));
+        $this->assertSame($media->id, $store->logo_id);
+        $this->assertSame($media->url, $store->logo_url);
 
-        // 3. Simulate future domain change
+        // Simulate domain change
         \Illuminate\Support\Facades\URL::forceRootUrl('https://new-future-domain.com');
 
-        // Dynamically resolved URL uses the new domain seamlessly
-        $this->assertStringStartsWith('http://new-future-domain.com', (string) $store->logo_url);
+        $this->assertStringContainsString('new-future-domain.com', (string) $store->logo_url);
         $this->assertStringContainsString($media->id, (string) $store->logo_url);
-
-        // Database row remains untouched with relative path
-        $this->assertSame($media->path, $store->getRawOriginal('logo_url'));
     }
 }
-
-

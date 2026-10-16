@@ -23,8 +23,8 @@ return new class extends Migration
             $table->string('state')->nullable();
             $table->string('postal_code')->nullable();
             $table->string('country')->nullable();
-            $table->text('logo_url')->nullable();
-            $table->text('favicon_url')->nullable();
+            $table->foreignUuid('logo_id')->nullable()->nullOnDelete()->constrained('media_files');
+            $table->foreignUuid('favicon_id')->nullable()->nullOnDelete()->constrained('media_files');
             $table->string('currency', 10)->default('USD');
             $table->string('timezone', 80)->default('UTC');
             $table->string('tax_number', 60)->nullable();

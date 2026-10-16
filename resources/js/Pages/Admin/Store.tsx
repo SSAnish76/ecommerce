@@ -62,8 +62,10 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
         country: store.country || '',
         logo_url: store.logo_url || '',
         favicon_url: store.favicon_url || '',
-        logo_media_id: null as string | null,
-        favicon_media_id: null as string | null,
+        logo_id: store.logo_id || null,
+        favicon_id: store.favicon_id || null,
+        logo_media_id: store.logo_id || null,
+        favicon_media_id: store.favicon_id || null,
         currency: store.currency || 'USD',
         timezone: store.timezone || 'UTC',
         tax_number: store.tax_number || '',
@@ -309,6 +311,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                             onUploadSuccess={(media) => {
                                                 form.setData((data) => ({
                                                     ...data,
+                                                    logo_id: media.id,
                                                     logo_media_id: media.id,
                                                     logo_url: media.url,
                                                 }));
@@ -316,6 +319,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                             onRemove={() => {
                                                 form.setData((data) => ({
                                                     ...data,
+                                                    logo_id: null,
                                                     logo_media_id: null,
                                                     logo_url: '',
                                                 }));
@@ -340,6 +344,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                             onUploadSuccess={(media) => {
                                                 form.setData((data) => ({
                                                     ...data,
+                                                    favicon_id: media.id,
                                                     favicon_media_id: media.id,
                                                     favicon_url: media.url,
                                                 }));
@@ -347,6 +352,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                             onRemove={() => {
                                                 form.setData((data) => ({
                                                     ...data,
+                                                    favicon_id: null,
                                                     favicon_media_id: null,
                                                     favicon_url: '',
                                                 }));
