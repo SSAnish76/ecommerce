@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Storage\Drivers;
 
+use App\Models\MediaFile;
 use DateTimeInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
@@ -68,9 +69,14 @@ interface StorageDriverInterface
     public function mimeType(string $path): ?string;
 
     /**
+     * Get the base media URL for this storage driver.
+     */
+    public function baseUrl(): string;
+
+    /**
      * Get the publicly accessible URL for a path.
      */
-    public function url(string $path): string;
+    public function url(string $path, ?MediaFile $media = null): string;
 
     /**
      * Generate a temporary signed URL for a path.

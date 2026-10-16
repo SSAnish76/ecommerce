@@ -90,6 +90,11 @@ class StorageDriverArchitectureTest extends TestCase
                 return true;
             }
 
+            public function baseUrl(): string
+            {
+                return 'https://mockcloud.example.com';
+            }
+
             public function put(string $path, mixed $contents, array $options = []): bool
             {
                 return true;

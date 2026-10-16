@@ -6,7 +6,7 @@ namespace App\Services\Storage\Drivers;
 
 use App\Models\MediaFile;
 use DateTimeInterface;
-use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -27,8 +27,9 @@ class LocalStorageDriver implements StorageDriverInterface
         return true;
     }
 
-    public function filesystem(): Filesystem
+    public function filesystem(): FilesystemAdapter
     {
+        /** @var FilesystemAdapter */
         return Storage::disk($this->disk);
     }
 
@@ -49,6 +50,9 @@ class LocalStorageDriver implements StorageDriverInterface
         return $this->exists($path) ? $this->filesystem()->get($path) : null;
     }
 
+    /**
+     * @return resource|null
+     */
     public function readStream(string $path)
     {
         return $this->exists($path) ? $this->filesystem()->readStream($path) : null;
@@ -74,9 +78,16 @@ class LocalStorageDriver implements StorageDriverInterface
         return $this->exists($path) ? $this->filesystem()->mimeType($path) : null;
     }
 
+    public function baseUrl(): string
+    {
+        return url('/media/view');
+    }
+
     public function url(string $path, ?MediaFile $media = null): string
     {
-        return route('media.view', ['mediaFile' => $media?->id ?? basename($path)]);
+        $identifier = $media?->id ?? basename($path);
+
+        return rtrim($this->baseUrl(), '/').'/'.$identifier;
     }
 
     public function temporaryUrl(string $path, DateTimeInterface $expiration, array $options = []): string

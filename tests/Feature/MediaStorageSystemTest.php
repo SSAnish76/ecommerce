@@ -277,4 +277,25 @@ class MediaStorageSystemTest extends TestCase
         $this->assertStringContainsString('new-future-domain.com', (string) $store->logo_url);
         $this->assertStringContainsString($media->id, (string) $store->logo_url);
     }
+
+    /**
+     * Test stripUrl removes driver base URL for database and appendUrl attaches it for frontend.
+     */
+    public function test_strip_url_removes_driver_base_url_for_database_and_append_url_adds_it(): void
+    {
+        /** @var MediaStorageService $service */
+        $service = app(MediaStorageService::class);
+
+        $baseUrl = $service->baseUrl('public');
+        $relativePath = 'media/2026/10/product.png';
+        $fullUrl = $baseUrl.'/'.$relativePath;
+
+        // Removing driver URL when storing in DB
+        $stripped = $service->stripUrl($fullUrl, 'public');
+        $this->assertSame($relativePath, $stripped);
+
+        // Appending driver URL when sending to frontend
+        $appended = $service->appendUrl($stripped, 'public');
+        $this->assertSame($baseUrl.'/product.png', $appended);
+    }
 }

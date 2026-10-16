@@ -82,6 +82,54 @@ class MediaStorageService
     }
 
     /**
+     * Get the base media URL for a specific driver.
+     */
+    public function baseUrl(?string $disk = null): string
+    {
+        return $this->driver($disk)->baseUrl();
+    }
+
+    /**
+     * Strip the driver's media base URL from a given URL or path to save only relative path in database.
+     */
+    public function stripUrl(?string $urlOrPath, ?string $disk = null): ?string
+    {
+        if ($urlOrPath === null || trim($urlOrPath) === '') {
+            return null;
+        }
+
+        $trimmed = trim($urlOrPath);
+        $baseUrl = $this->baseUrl($disk);
+
+        if (str_starts_with($trimmed, $baseUrl)) {
+            return ltrim(substr($trimmed, strlen($baseUrl)), '/');
+        }
+
+        $parsedPath = parse_url($baseUrl, PHP_URL_PATH);
+        if ($parsedPath && str_starts_with($trimmed, $parsedPath)) {
+            return ltrim(substr($trimmed, strlen($parsedPath)), '/');
+        }
+
+        if (str_starts_with($trimmed, '/storage/')) {
+            return ltrim(substr($trimmed, strlen('/storage/')), '/');
+        }
+
+        return ltrim($trimmed, '/');
+    }
+
+    /**
+     * Append the driver's media base URL to a relative path when returning to frontend.
+     */
+    public function appendUrl(?string $path, ?string $disk = null): ?string
+    {
+        if ($path === null || trim($path) === '') {
+            return null;
+        }
+
+        return $this->driver($disk)->url($path);
+    }
+
+    /**
      * Store an uploaded file into designated storage driver and persist a MediaFile record.
      */
     public function store(
@@ -145,136 +193,6 @@ class MediaStorageService
     public function getTemporaryUrl(MediaFile $media, DateTimeInterface $expiration): string
     {
         return $this->driver($media->disk)->temporaryUrl($media->path, $expiration);
-    }
-
-    /**
-     * Resolve a stored path, filename, or legacy URL into an absolute URL using current domain.
-     */
-    public function resolveUrl(?string $pathOrUrl, ?string $disk = null): ?string
-    {
-        if ($pathOrUrl === null || trim($pathOrUrl) === '') {
-            return null;
-        }
-
-        $trimmed = trim($pathOrUrl);
-
-        // If it's a media view route URL, extract identifier and re-resolve
-        if (preg_match('~/media/view/([^/?#]+)~', $trimmed, $matches)) {
-            $identifier = $matches[1];
-            $media = $this->resolveMediaFileQuietly($identifier);
-            if ($media) {
-                return $this->getUrl($media);
-            }
-
-            return route('media.view', ['mediaFile' => $identifier]);
-        }
-
-        // If it's an external HTTP/HTTPS URL
-        if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://')) {
-            $parsed = parse_url($trimmed);
-            $currentHost = request()?->getHost() ?: parse_url((string) config('app.url'), PHP_URL_HOST);
-            $urlHost = $parsed['host'] ?? null;
-
-            if ($urlHost && $currentHost && strcasecmp((string) $urlHost, (string) $currentHost) !== 0 && ! str_contains($trimmed, '/storage/')) {
-                return $trimmed;
-            }
-
-            if (isset($parsed['path']) && str_starts_with($parsed['path'], '/storage/')) {
-                $trimmed = substr($parsed['path'], strlen('/storage/'));
-            }
-        }
-
-        $cleanPath = ltrim($trimmed, '/');
-
-        // Look for matching MediaFile by filename or UUID
-        $filename = basename($cleanPath);
-        $media = MediaFile::query()
-            ->where('filename', $filename)
-            ->first();
-
-        if ($media) {
-            return $this->getUrl($media);
-        }
-
-        // If file exists on designated disk
-        $driver = $this->driver($disk);
-        if ($driver->exists($cleanPath)) {
-            return $driver->url($cleanPath);
-        }
-
-        return asset('storage/'.$cleanPath);
-    }
-
-    /**
-     * Normalize any URL, UUID, or path into a domain-agnostic relative storage path ('folder/filename').
-     */
-    public function normalizePath(?string $pathOrUrl): ?string
-    {
-        if ($pathOrUrl === null || trim($pathOrUrl) === '') {
-            return null;
-        }
-
-        $value = trim($pathOrUrl);
-
-        if (preg_match('~/media/view/([^/?#]+)~', $value, $matches)) {
-            $identifier = $matches[1];
-            $media = $this->resolveMediaFileQuietly($identifier);
-            if ($media) {
-                return $media->path;
-            }
-
-            return $identifier;
-        }
-
-        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
-            $media = MediaFile::find($value);
-            if ($media) {
-                return $media->path;
-            }
-        }
-
-        if (preg_match('~/storage/(.+)$~', $value, $matches)) {
-            return ltrim($matches[1], '/');
-        }
-
-        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
-            $parsed = parse_url($value);
-            $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
-            $requestHost = request()?->getHost();
-            $urlHost = $parsed['host'] ?? null;
-
-            $isInternalHost = ($urlHost && ($urlHost === $appHost || $urlHost === $requestHost || $urlHost === 'localhost' || $urlHost === '127.0.0.1'));
-
-            if (! $isInternalHost) {
-                return $value;
-            }
-
-            $urlPath = ltrim($parsed['path'] ?? '', '/');
-            if (str_starts_with($urlPath, 'storage/')) {
-                return substr($urlPath, strlen('storage/'));
-            }
-
-            return $urlPath;
-        }
-
-        return ltrim($value, '/');
-    }
-
-    /**
-     * Quietly resolve a MediaFile by ID or filename without throwing exceptions.
-     */
-    public function resolveMediaFileQuietly(string $identifier): ?MediaFile
-    {
-        $media = MediaFile::find($identifier);
-        if ($media) {
-            return $media;
-        }
-
-        $filename = basename($identifier);
-
-        return MediaFile::query()
-            ->where('filename', $filename)
-            ->first();
     }
 
     /**
