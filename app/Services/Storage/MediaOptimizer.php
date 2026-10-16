@@ -172,7 +172,7 @@ class MediaOptimizer
             @unlink($temp);
 
             return [
-                'width ' => $origWidth,
+                'width' => $origWidth,
                 'height' => $origHeight,
                 'aspect_ratio' => round($origWidth / $origHeight, 2),
                 'optimized' => false,
