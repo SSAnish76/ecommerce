@@ -35,6 +35,7 @@ class DatabaseMigrationsAndSeedersTest extends TestCase
         $this->assertTrue(Schema::hasTable('role_permissions'));
         $this->assertTrue(Schema::hasTable('stores'));
         $this->assertTrue(Schema::hasTable('settings'));
+        $this->assertTrue(Schema::hasTable('media_files'));
 
         // Legacy tables removed
         $this->assertFalse(Schema::hasTable('permissions'));
