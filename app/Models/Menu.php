@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\Menu\MenuStatus;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+#[Fillable(['slug', 'parent_slug', 'name', 'description', 'href', 'icon', 'sort_order', 'status', 'is_crud', 'is_import_export'])]
+class Menu extends Model
+{
+    use HasFactory;
+
+    /**
+     * The primary key for the model.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'slug';
+
+    /**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * The data type of the primary key ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => MenuStatus::class,
+            'is_crud' => 'boolean',
+            'is_import_export' => 'boolean',
+        ];
+    }
+
+    /**
+     * Determine whether the menu is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === MenuStatus::Active;
+    }
+
+    /**
+     * Get the parent menu if this is a sub-menu.
+     *
+     * @return BelongsTo<Menu, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class, 'parent_slug', 'slug');
+    }
+
+    /**
+     * Get direct sub-menus / children.
+     *
+     * @return HasMany<Menu, $this>
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(Menu::class, 'parent_slug', 'slug')
+            ->orderBy('sort_order');
+    }
+
+    /**
+     * Get the roles that have access to this menu.
+     *
+     * @return BelongsToMany<Role, $this>
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'menu_role', 'menu_slug', 'role_id', 'slug', 'id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the role permissions for this menu.
+     *
+     * @return HasMany<RolePermission, $this>
+     */
+    public function rolePermissions(): HasMany
+    {
+        return $this->hasMany(RolePermission::class, 'menu_slug', 'slug');
+    }
+}
