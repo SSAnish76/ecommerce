@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Services\Storage\MediaStorageService;
 use Database\Factories\MediaFileFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -66,22 +65,11 @@ class MediaFile extends Model
      * @var list<string>
      */
     protected $appends = [
+        'path',
         'url',
         'human_size',
         'is_image',
     ];
-
-    /**
-     * Boot the model. Automatically delete physical storage file upon deletion.
-     */
-    protected static function booted(): void
-    {
-        static::deleting(function (self $media): void {
-            /** @var MediaStorageService $storage */
-            $storage = app(MediaStorageService::class);
-            $storage->deletePhysicalFile($media);
-        });
-    }
 
     /**
      * Get the relative storage path of the file on disk.
@@ -98,10 +86,7 @@ class MediaFile extends Model
      */
     public function getUrlAttribute(): string
     {
-        /** @var MediaStorageService $storage */
-        $storage = app(MediaStorageService::class);
-
-        return $storage->getUrl($this);
+        return route('media.view', $this);
     }
 
     /**

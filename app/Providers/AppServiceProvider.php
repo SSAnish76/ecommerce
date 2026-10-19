@@ -14,9 +14,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(\App\Services\NotificationDispatcher::class);
-        $this->app->singleton(\App\Services\Storage\StorageConfigurator::class);
-        $this->app->singleton(\App\Services\Storage\MediaOptimizer::class);
-        $this->app->singleton(\App\Services\Storage\MediaStorageService::class);
+        $this->app->singleton(\App\Services\FileStorageService::class);
     }
 
     /**

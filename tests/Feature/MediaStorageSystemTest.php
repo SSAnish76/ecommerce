@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\MediaFile;
-use App\Models\Setting;
 use App\Models\Store;
 use App\Models\User;
-use App\Services\Storage\MediaStorageService;
-use App\Services\Storage\StorageConfigurator;
+use App\Services\FileStorageService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -72,7 +69,7 @@ class MediaStorageSystemTest extends TestCase
         $responseData = $response->json('data');
         $this->assertNotEmpty($responseData['id']);
         $this->assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', (string) $responseData['id']);
-        $this->assertMatchesRegularExpression('/^[0-9]+_[a-zA-Z0-9]+\.png$/', (string) $responseData['filename']);
+        $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}\.png$/i', (string) $responseData['filename']);
         $this->assertSame('test_product.png', $responseData['original_name']);
         $this->assertSame('products', $responseData['collection']);
         $this->assertTrue($responseData['is_image']);
@@ -141,34 +138,6 @@ class MediaStorageSystemTest extends TestCase
     }
 
     /**
-     * Test storage configurator respects database settings.
-     */
-    public function test_storage_configurator_reads_settings_dynamically(): void
-    {
-        Setting::set('storage_settings', [
-            'default_disk' => 's3',
-            's3' => [
-                'key' => 'AKIAEXAMPLE123456789',
-                'secret' => 'super-secret-aws-key',
-                'region' => 'eu-central-1',
-                'bucket' => 'my-custom-ecommerce-bucket',
-                'url' => 'https://cdn.example.com',
-                'endpoint' => '',
-            ],
-        ]);
-
-        /** @var StorageConfigurator $configurator */
-        $configurator = app(StorageConfigurator::class);
-        $disk = $configurator->resolveDefaultDisk();
-
-        $this->assertSame('s3', $disk);
-        $this->assertSame('AKIAEXAMPLE123456789', Config::get('filesystems.disks.s3.key'));
-        $this->assertSame('super-secret-aws-key', Config::get('filesystems.disks.s3.secret'));
-        $this->assertSame('eu-central-1', Config::get('filesystems.disks.s3.region'));
-        $this->assertSame('my-custom-ecommerce-bucket', Config::get('filesystems.disks.s3.bucket'));
-    }
-
-    /**
      * Test media file deletion removes database record and disk file.
      */
     public function test_deleting_media_file_removes_physical_file(): void
@@ -177,8 +146,8 @@ class MediaStorageSystemTest extends TestCase
 
         $file = UploadedFile::fake()->image('delete_me.jpg');
 
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
+        /** @var FileStorageService $service */
+        $service = app(FileStorageService::class);
         $media = $service->store($file);
 
         Storage::disk('public')->assertExists($media->path);
@@ -216,8 +185,8 @@ class MediaStorageSystemTest extends TestCase
 
         $file = UploadedFile::fake()->image('preview_test.jpg', 400, 400);
 
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
+        /** @var FileStorageService $service */
+        $service = app(FileStorageService::class);
         $media = $service->store($file);
 
         $response = $this->get(route('media.view', ['mediaFile' => $media->id]));
@@ -236,8 +205,8 @@ class MediaStorageSystemTest extends TestCase
 
         $file = UploadedFile::fake()->create('sample.txt', 200, 'text/plain');
 
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
+        /** @var FileStorageService $service */
+        $service = app(FileStorageService::class);
         $media = $service->store($file);
 
         // View by ID
@@ -260,8 +229,8 @@ class MediaStorageSystemTest extends TestCase
 
         $file = UploadedFile::fake()->image('brand_logo.png', 200, 200);
 
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
+        /** @var FileStorageService $service */
+        $service = app(FileStorageService::class);
         $media = $service->store($file, 'store_branding');
 
         $store = Store::current();
@@ -278,24 +247,4 @@ class MediaStorageSystemTest extends TestCase
         $this->assertStringContainsString($media->id, (string) $store->logo_url);
     }
 
-    /**
-     * Test stripUrl removes driver base URL for database and appendUrl attaches it for frontend.
-     */
-    public function test_strip_url_removes_driver_base_url_for_database_and_append_url_adds_it(): void
-    {
-        /** @var MediaStorageService $service */
-        $service = app(MediaStorageService::class);
-
-        $baseUrl = $service->baseUrl('public');
-        $relativePath = 'media/2026/10/product.png';
-        $fullUrl = $baseUrl.'/'.$relativePath;
-
-        // Removing driver URL when storing in DB
-        $stripped = $service->stripUrl($fullUrl, 'public');
-        $this->assertSame($relativePath, $stripped);
-
-        // Appending driver URL when sending to frontend
-        $appended = $service->appendUrl($stripped, 'public');
-        $this->assertSame($baseUrl.'/product.png', $appended);
-    }
 }

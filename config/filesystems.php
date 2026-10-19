@@ -15,6 +15,8 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    'max_upload_size' => 25 * 1024 * 1024,
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

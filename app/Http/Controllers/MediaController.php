@@ -5,26 +5,25 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\MediaFile;
-use App\Services\Storage\MediaStorageService;
+use App\Services\FileStorageService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController extends Controller
 {
-    /**
-     * Display a paginated listing of media files.
-     */
     public function index(Request $request): JsonResponse
     {
         $collection = $request->string('collection')->trim()->value();
         $search = $request->string('search')->trim()->value();
 
         $files = MediaFile::query()
-            ->when($collection !== '', fn (Builder $q) => $q->where('collection', $collection))
-            ->when($search !== '', function (Builder $q) use ($search): void {
-                $q->where(fn (Builder $sq) => $sq->where('original_name', 'like', "%{$search}%")
+            ->when($collection !== '', fn (Builder $query) => $query->where('collection', $collection))
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(fn (Builder $searchQuery) => $searchQuery
+                    ->where('original_name', 'like', "%{$search}%")
                     ->orWhere('filename', 'like', "%{$search}%"));
             })
             ->latest('created_at')
@@ -42,34 +41,21 @@ class MediaController extends Controller
         ]);
     }
 
-    /**
-     * Dedicated upload endpoint to store a file and return its ID, URL, and attributes.
-     */
-    public function upload(Request $request, MediaStorageService $storage): JsonResponse
+    public function upload(Request $request, FileStorageService $storage): JsonResponse
     {
-        $maxKb = $storage->configurator()->getMaxUploadKilobytes();
-
+        $maxUploadKilobytes = $storage->maxUploadKilobytes();
         $validated = $request->validate([
-            'file' => [
-                'required',
-                'file',
-                "max:{$maxKb}",
-                'mimes:jpg,jpeg,png,webp,gif,svg,ico,pdf,doc,docx,xls,xlsx,txt,csv,zip',
-            ],
+            'file' => ['required', 'file', "max:{$maxUploadKilobytes}", 'mimes:jpg,jpeg,png,webp,gif,svg,ico,pdf,doc,docx,xls,xlsx,txt,csv,zip'],
             'collection' => ['nullable', 'string', 'max:60'],
             'folder' => ['nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_\-\/]+$/'],
-        ], [
-            'file.required' => 'Please select a file to upload.',
-            'file.file' => 'The uploaded item must be a valid file.',
-            'file.max' => 'The file size exceeds the maximum allowed storage limit.',
-            'file.mimes' => 'The file format is not supported. Please upload a supported image or document.',
         ]);
 
+        $directory = trim((string) ($validated['folder'] ?? ''), '/');
         $mediaFile = $storage->store(
-            file: $request->file('file'),
+            file: $validated['file'],
             collection: (string) ($validated['collection'] ?? 'default'),
             userId: $request->user()?->getAuthIdentifier() ? (string) $request->user()->getAuthIdentifier() : null,
-            customDirectory: ! empty($validated['folder']) ? (string) $validated['folder'] : null,
+            directory: $directory !== '' ? $directory : null,
         );
 
         return response()->json([
@@ -79,116 +65,65 @@ class MediaController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified media file metadata.
-     */
     public function show(MediaFile $mediaFile): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $this->formatMedia($mediaFile),
+        return response()->json(['success' => true, 'data' => $this->formatMedia($mediaFile)]);
+    }
+
+    public function view(string|int $mediaFile, FileStorageService $storage): StreamedResponse|JsonResponse
+    {
+        $media = $this->resolveMedia((string) $mediaFile);
+
+        if (! $media) {
+            return response()->json(['success' => false, 'message' => 'Media file not found.'], 404);
+        }
+
+        $storage->configureDisk($media->disk);
+
+        if (! Storage::disk($media->disk)->exists($media->path)) {
+            return response()->json(['success' => false, 'message' => 'Media file not found.'], 404);
+        }
+
+        return Storage::disk($media->disk)->response($media->path, $media->original_name, [
+            'Content-Type' => $media->mime_type,
+            'Content-Disposition' => 'inline; filename="'.addcslashes(basename($media->original_name), '"\\').'"',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
-    /**
-     * View or stream the media file inline in the browser.
-     */
-    public function view(string|int $mediaFile, MediaStorageService $storage): StreamedResponse|JsonResponse
+    public function download(string|int $mediaFile, FileStorageService $storage): StreamedResponse|JsonResponse
     {
-        $media = $this->resolveMedia($mediaFile);
+        $media = $this->resolveMedia((string) $mediaFile);
+
         if (! $media) {
             return response()->json(['success' => false, 'message' => 'Media file not found.'], 404);
         }
 
-        $driver = $storage->driver($media->disk);
-        if (! $driver->exists($media->path)) {
-            return response()->json(['success' => false, 'message' => 'File not found in storage.'], 404);
-        }
+        $storage->configureDisk($media->disk);
 
-        return response()->stream(
-            function () use ($driver, $media): void {
-                $stream = $driver->readStream($media->path);
-                if (is_resource($stream)) {
-                    fpassthru($stream);
-                    fclose($stream);
-                }
-            },
-            200,
-            [
-                'Content-Type' => $media->mime_type,
-                'Content-Length' => (string) $media->size,
-                'Content-Disposition' => 'inline; filename="'.addslashes($media->original_name).'"',
-                'Cache-Control' => 'public, max-age=86400',
-            ]
-        );
-    }
-
-    /**
-     * Stream or download the media file from disk as an attachment.
-     */
-    public function download(string|int $mediaFile, MediaStorageService $storage): StreamedResponse|JsonResponse
-    {
-        $media = $this->resolveMedia($mediaFile);
-        if (! $media) {
+        if (! Storage::disk($media->disk)->exists($media->path)) {
             return response()->json(['success' => false, 'message' => 'Media file not found.'], 404);
         }
 
-        $driver = $storage->driver($media->disk);
-        if (! $driver->exists($media->path)) {
-            return response()->json(['success' => false, 'message' => 'File not found in storage.'], 404);
-        }
-
-        return response()->streamDownload(
-            function () use ($driver, $media): void {
-                $stream = $driver->readStream($media->path);
-                if (is_resource($stream)) {
-                    fpassthru($stream);
-                    fclose($stream);
-                }
-            },
-            $media->original_name,
-            [
-                'Content-Type' => $media->mime_type,
-                'Content-Length' => (string) $media->size,
-            ]
-        );
+        return Storage::disk($media->disk)->download($media->path, $media->original_name, [
+            'Content-Type' => $media->mime_type,
+        ]);
     }
 
-    /**
-     * Delete the specified media file.
-     */
-    public function destroy(MediaFile $mediaFile, MediaStorageService $storage): JsonResponse
+    public function destroy(MediaFile $mediaFile, FileStorageService $storage): JsonResponse
     {
         $storage->delete($mediaFile);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Media file deleted successfully.',
-        ]);
+        return response()->json(['success' => true, 'message' => 'Media file deleted successfully.']);
     }
 
-    /**
-     * Find a MediaFile by ID, filename, or path.
-     */
-    protected function resolveMedia(string|int $mediaFile): ?MediaFile
+    protected function resolveMedia(string $identifier): ?MediaFile
     {
-        $identifier = (string) $mediaFile;
-
-        $media = MediaFile::find($identifier);
-        if ($media) {
-            return $media;
-        }
-
-        $filename = basename($identifier);
-
-        return MediaFile::query()
-            ->where('filename', $filename)
-            ->first();
+        return MediaFile::find($identifier)
+            ?? MediaFile::query()->where('filename', basename($identifier))->first();
     }
 
     /**
-     * Format a MediaFile model into an array response structure.
-     *
      * @return array<string, mixed>
      */
     protected function formatMedia(MediaFile $media): array
