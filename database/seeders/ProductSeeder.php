@@ -9,6 +9,7 @@ use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\MediaFile;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -64,9 +65,22 @@ class ProductSeeder extends Seeder
             ]
         );
 
+        $iphoneMedia = MediaFile::firstOrCreate(
+            ['filename' => 'iphone-16-pro-max.jpg'],
+            [
+                'disk' => 'public',
+                'directory' => 'media/products',
+                'original_name' => 'iphone-16-pro-max.jpg',
+                'mime_type' => 'image/jpeg',
+                'extension' => 'jpg',
+                'size' => 102400,
+                'collection' => 'products',
+            ]
+        );
+
         ProductImage::updateOrCreate(
             ['product_id' => $iphone->id, 'sort_order' => 1],
-            ['image_path' => 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800', 'alt_text' => 'iPhone 16 Pro Max Natural Titanium', 'is_primary' => true]
+            ['media_id' => $iphoneMedia->id, 'alt_text' => 'iPhone 16 Pro Max Natural Titanium', 'is_primary' => true]
         );
 
         // iPhone Variants
@@ -120,9 +134,22 @@ class ProductSeeder extends Seeder
             ]
         );
 
+        $sonyMedia = MediaFile::firstOrCreate(
+            ['filename' => 'sony-wh-1000xm5.jpg'],
+            [
+                'disk' => 'public',
+                'directory' => 'media/products',
+                'original_name' => 'sony-wh-1000xm5.jpg',
+                'mime_type' => 'image/jpeg',
+                'extension' => 'jpg',
+                'size' => 102400,
+                'collection' => 'products',
+            ]
+        );
+
         ProductImage::updateOrCreate(
             ['product_id' => $sonyHeadphones->id, 'sort_order' => 1],
-            ['image_path' => 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800', 'alt_text' => 'Sony WH-1000XM5 Headphones', 'is_primary' => true]
+            ['media_id' => $sonyMedia->id, 'alt_text' => 'Sony WH-1000XM5 Headphones', 'is_primary' => true]
         );
 
         // 3. Nike Air Max Alpha
@@ -157,9 +184,22 @@ class ProductSeeder extends Seeder
             ]
         );
 
+        $nikeMedia = MediaFile::firstOrCreate(
+            ['filename' => 'nike-air-max-alpha.jpg'],
+            [
+                'disk' => 'public',
+                'directory' => 'media/products',
+                'original_name' => 'nike-air-max-alpha.jpg',
+                'mime_type' => 'image/jpeg',
+                'extension' => 'jpg',
+                'size' => 102400,
+                'collection' => 'products',
+            ]
+        );
+
         ProductImage::updateOrCreate(
             ['product_id' => $nikeShoes->id, 'sort_order' => 1],
-            ['image_path' => 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800', 'alt_text' => 'Nike Air Max Red Shoes', 'is_primary' => true]
+            ['media_id' => $nikeMedia->id, 'alt_text' => 'Nike Air Max Red Shoes', 'is_primary' => true]
         );
 
         // Shoe variants (Sizes)

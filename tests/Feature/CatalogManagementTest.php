@@ -6,10 +6,13 @@ namespace Tests\Feature;
 
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\MediaFile;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CatalogManagementTest extends TestCase
@@ -118,7 +121,7 @@ class CatalogManagementTest extends TestCase
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('products', ['sku' => 'KEY-MECH-RGB']);
-        $this->assertDatabaseHas('product_images', ['image_path' => 'https://example.com/keyboard.jpg']);
+        $this->assertDatabaseHas('product_images', ['alt_text' => 'Keyboard Front', 'is_primary' => true]);
         $this->assertDatabaseHas('product_variants', ['sku' => 'KEY-MECH-RED']);
     }
 
@@ -140,5 +143,117 @@ class CatalogManagementTest extends TestCase
             'stock_quantity' => 45,
             'low_stock_threshold' => 8,
         ]);
+    }
+
+    public function test_admin_can_create_brand_with_uploaded_file(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image('brand-logo.png');
+
+        // Step 1: Upload via media endpoint (same as Store file upload)
+        $uploadRes = $this->actingAs($this->adminUser)->postJson('/admin/media/upload', [
+            'file' => $file,
+            'collection' => 'brands',
+        ]);
+        $uploadRes->assertStatus(201);
+        $mediaId = $uploadRes->json('data.id');
+
+        // Step 2: Pass logo_id when creating brand
+        $response = $this->actingAs($this->adminUser)->post('/admin/brands', [
+            'name' => 'Uploaded Brand',
+            'logo_id' => $mediaId,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $brand = Brand::where('name', 'Uploaded Brand')->first();
+        $this->assertNotNull($brand);
+        $this->assertEquals($mediaId, $brand->logo_id);
+        $this->assertNotNull($brand->logo);
+        $this->assertNotNull($brand->logo_url);
+    }
+
+    public function test_admin_can_create_category_with_uploaded_file(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image('category-banner.jpg');
+
+        // Step 1: Upload via media endpoint
+        $uploadRes = $this->actingAs($this->adminUser)->postJson('/admin/media/upload', [
+            'file' => $file,
+            'collection' => 'categories',
+        ]);
+        $uploadRes->assertStatus(201);
+        $mediaId = $uploadRes->json('data.id');
+
+        // Step 2: Pass image_id when creating category
+        $response = $this->actingAs($this->adminUser)->post('/admin/categories', [
+            'name' => 'Uploaded Category',
+            'image_id' => $mediaId,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $category = Category::where('name', 'Uploaded Category')->first();
+        $this->assertNotNull($category);
+        $this->assertEquals($mediaId, $category->image_id);
+        $this->assertNotNull($category->image);
+        $this->assertNotNull($category->image_url);
+    }
+
+    public function test_admin_can_create_product_with_uploaded_images(): void
+    {
+        Storage::fake('public');
+
+        $brand = Brand::factory()->create();
+        $category = Category::factory()->create();
+        $file1 = UploadedFile::fake()->image('gallery1.png');
+        $file2 = UploadedFile::fake()->image('gallery2.png');
+
+        // Step 1: Upload files via media endpoint
+        $upload1 = $this->actingAs($this->adminUser)->postJson('/admin/media/upload', [
+            'file' => $file1,
+            'collection' => 'products',
+        ]);
+        $upload1->assertStatus(201);
+        $media1Id = $upload1->json('data.id');
+
+        $upload2 = $this->actingAs($this->adminUser)->postJson('/admin/media/upload', [
+            'file' => $file2,
+            'collection' => 'products',
+        ]);
+        $upload2->assertStatus(201);
+        $media2Id = $upload2->json('data.id');
+
+        // Step 2: Pass images with media_id when creating product
+        $response = $this->actingAs($this->adminUser)->post('/admin/products', [
+            'name' => 'Uploaded Product',
+            'sku' => 'UPLOAD-PROD-01',
+            'brand_id' => $brand->id,
+            'category_id' => $category->id,
+            'mrp' => 99.00,
+            'retail_price' => 79.00,
+            'stock_quantity' => 15,
+            'low_stock_threshold' => 3,
+            'images' => [
+                ['media_id' => $media1Id, 'alt_text' => 'Front view', 'is_primary' => true],
+                ['media_id' => $media2Id, 'alt_text' => 'Back view', 'is_primary' => false],
+            ],
+        ]);
+
+        $response->assertRedirect('/admin/products');
+        $response->assertSessionHas('success');
+
+        $product = Product::with('images.media')->where('sku', 'UPLOAD-PROD-01')->first();
+        $this->assertNotNull($product);
+        $this->assertCount(2, $product->images);
+        $this->assertEquals($media1Id, $product->images[0]->media_id);
+        $this->assertNotNull($product->images[0]->media);
+        $this->assertNotNull($product->images[0]->url);
+        $this->assertTrue($product->images->where('is_primary', true)->count() >= 1);
     }
 }

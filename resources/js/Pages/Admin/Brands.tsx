@@ -16,6 +16,7 @@ import {
     TableHeaderCell,
     EmptyState,
     PageHeader,
+    FileUpload,
 } from '../../Components/UI';
 import {
     Sparkles,
@@ -59,23 +60,43 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
     const [deletingBrand, setDeletingBrand] = useState<Brand | null>(null);
 
     // Create Form
-    const createForm = useForm({
+    const createForm = useForm<{
+        name: string;
+        slug: string;
+        website: string;
+        description: string;
+        logo_id: string | null;
+        logo_url: string;
+        sort_order: number;
+        is_active: boolean;
+    }>({
         name: '',
         slug: '',
         website: '',
         description: '',
-        logo_path: '',
+        logo_id: null,
+        logo_url: '',
         sort_order: 0,
         is_active: true,
     });
 
     // Edit Form
-    const editForm = useForm({
+    const editForm = useForm<{
+        name: string;
+        slug: string;
+        website: string;
+        description: string;
+        logo_id: string | null;
+        logo_url: string;
+        sort_order: number;
+        is_active: boolean;
+    }>({
         name: '',
         slug: '',
         website: '',
         description: '',
-        logo_path: '',
+        logo_id: null,
+        logo_url: '',
         sort_order: 0,
         is_active: true,
     });
@@ -112,7 +133,8 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
             slug: brand.slug,
             website: brand.website || '',
             description: brand.description || '',
-            logo_path: brand.logo_path || '',
+            logo_id: brand.logo_id || null,
+            logo_url: brand.logo_url || '',
             sort_order: brand.sort_order || 0,
             is_active: brand.is_active,
         });
@@ -248,9 +270,9 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 overflow-hidden shrink-0">
-                                                {brand.logo_path ? (
+                                                {brand.logo_url ? (
                                                     <img
-                                                        src={brand.logo_path}
+                                                        src={brand.logo_url}
                                                         alt={brand.name}
                                                         className="w-full h-full object-contain"
                                                     />
@@ -398,12 +420,27 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                         placeholder="https://example.com"
                     />
 
-                    <Input
-                        label="Logo Image URL"
-                        value={createForm.data.logo_path}
-                        onChange={(e) => createForm.setData('logo_path', e.target.value)}
-                        error={createForm.errors.logo_path}
-                        placeholder="https://cdn.example.com/logo.png"
+                    <FileUpload
+                        label="Brand Logo"
+                        helperText="Upload brand logo (SVG, PNG, JPG, or WEBP)"
+                        value={createForm.data.logo_url}
+                        collection="brands"
+                        accept="image/*"
+                        error={createForm.errors.logo_url}
+                        onUploadSuccess={(media) => {
+                            createForm.setData((data) => ({
+                                ...data,
+                                logo_id: media.id,
+                                logo_url: media.url,
+                            }));
+                        }}
+                        onRemove={() => {
+                            createForm.setData((data) => ({
+                                ...data,
+                                logo_id: null,
+                                logo_url: '',
+                            }));
+                        }}
                     />
 
                     <div>
@@ -482,11 +519,27 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                         error={editForm.errors.website}
                     />
 
-                    <Input
-                        label="Logo Image URL"
-                        value={editForm.data.logo_path}
-                        onChange={(e) => editForm.setData('logo_path', e.target.value)}
-                        error={editForm.errors.logo_path}
+                    <FileUpload
+                        label="Brand Logo"
+                        helperText="Upload brand logo (SVG, PNG, JPG, or WEBP)"
+                        value={editForm.data.logo_url}
+                        collection="brands"
+                        accept="image/*"
+                        error={editForm.errors.logo_url}
+                        onUploadSuccess={(media) => {
+                            editForm.setData((data) => ({
+                                ...data,
+                                logo_id: media.id,
+                                logo_url: media.url,
+                            }));
+                        }}
+                        onRemove={() => {
+                            editForm.setData((data) => ({
+                                ...data,
+                                logo_id: null,
+                                logo_url: '',
+                            }));
+                        }}
                     />
 
                     <div>

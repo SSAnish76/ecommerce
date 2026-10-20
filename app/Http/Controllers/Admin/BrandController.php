@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Models\MediaFile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class BrandController extends Controller
         $status = $request->string('status')->trim()->value();
 
         $brands = Brand::query()
+            ->with('logo')
             ->withCount('products')
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
@@ -58,16 +60,18 @@ class BrandController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        /** @var array{name: string, slug?: ?string, description?: ?string, logo_path?: ?string, website?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{name: string, slug?: ?string, description?: ?string, logo_id?: ?string, website?: ?string, is_active?: bool, sort_order?: int} $validated */
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:brands,slug'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'logo_path' => ['nullable', 'string', 'max:1000'],
+            'logo_id' => ['nullable'],
             'website' => ['nullable', 'url', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $logoId = $request->input('logo_id') ?: null;
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
@@ -83,7 +87,7 @@ class BrandController extends Controller
             'name' => $validated['name'],
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
-            'logo_path' => $validated['logo_path'] ?? null,
+            'logo_id' => $logoId,
             'website' => $validated['website'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
             'sort_order' => $validated['sort_order'] ?? 0,
@@ -97,16 +101,18 @@ class BrandController extends Controller
      */
     public function update(Request $request, Brand $brand): RedirectResponse
     {
-        /** @var array{name: string, slug?: ?string, description?: ?string, logo_path?: ?string, website?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{name: string, slug?: ?string, description?: ?string, logo_id?: ?string, website?: ?string, is_active?: bool, sort_order?: int} $validated */
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('brands', 'slug')->ignore($brand->id)],
             'description' => ['nullable', 'string', 'max:1000'],
-            'logo_path' => ['nullable', 'string', 'max:1000'],
+            'logo_id' => ['nullable'],
             'website' => ['nullable', 'url', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $logoId = array_key_exists('logo_id', $validated) ? ($validated['logo_id'] ?: null) : $brand->logo_id;
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
@@ -114,7 +120,7 @@ class BrandController extends Controller
             'name' => $validated['name'],
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
-            'logo_path' => $validated['logo_path'] ?? null,
+            'logo_id' => $logoId,
             'website' => $validated['website'] ?? null,
             'is_active' => $validated['is_active'] ?? $brand->is_active,
             'sort_order' => $validated['sort_order'] ?? $brand->sort_order,

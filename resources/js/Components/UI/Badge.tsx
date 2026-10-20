@@ -2,7 +2,19 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-    variant?: 'default' | 'indigo' | 'purple' | 'emerald' | 'amber' | 'rose' | 'sky';
+    variant?:
+        | 'default'
+        | 'indigo'
+        | 'purple'
+        | 'emerald'
+        | 'amber'
+        | 'rose'
+        | 'sky'
+        | 'neutral'
+        | 'success'
+        | 'warning'
+        | 'danger'
+        | 'primary';
     size?: 'sm' | 'md';
     dot?: boolean;
     icon?: React.ReactNode;
@@ -17,7 +29,21 @@ export const Badge: React.FC<BadgeProps> = ({
     className,
     ...props
 }) => {
-    const variants = {
+    type CoreVariant = 'default' | 'indigo' | 'purple' | 'emerald' | 'amber' | 'rose' | 'sky';
+    const resolvedVariant: CoreVariant =
+        variant === 'neutral'
+            ? 'default'
+            : variant === 'success'
+              ? 'emerald'
+              : variant === 'warning'
+                ? 'amber'
+                : variant === 'danger'
+                  ? 'rose'
+                  : variant === 'primary'
+                    ? 'indigo'
+                    : variant;
+
+    const variants: Record<CoreVariant, string> = {
         default:
             'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
         indigo:
@@ -34,7 +60,7 @@ export const Badge: React.FC<BadgeProps> = ({
             'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-200/80 dark:border-sky-800/60',
     };
 
-    const dotColors = {
+    const dotColors: Record<CoreVariant, string> = {
         default: 'bg-slate-500',
         indigo: 'bg-indigo-500',
         purple: 'bg-purple-500',
@@ -53,13 +79,13 @@ export const Badge: React.FC<BadgeProps> = ({
         <span
             className={cn(
                 'inline-flex items-center border select-none transition-colors leading-none',
-                variants[variant],
+                variants[resolvedVariant],
                 sizes[size],
                 className
             )}
             {...props}
         >
-            {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColors[variant])} />}
+            {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColors[resolvedVariant])} />}
             {icon && <span className="shrink-0">{icon}</span>}
             <span>{children}</span>
         </span>

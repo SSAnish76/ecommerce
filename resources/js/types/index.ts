@@ -239,7 +239,8 @@ export interface Brand {
     name: string;
     slug: string;
     description?: string | null;
-    logo_path?: string | null;
+    logo_id?: string | null;
+    logo_url?: string | null;
     website?: string | null;
     is_active: boolean;
     sort_order: number;
@@ -254,7 +255,8 @@ export interface Category {
     name: string;
     slug: string;
     description?: string | null;
-    image_path?: string | null;
+    image_id?: string | null;
+    image_url?: string | null;
     is_active: boolean;
     sort_order: number;
     parent?: { id: number; name: string } | null;
@@ -267,7 +269,8 @@ export interface Category {
 export interface ProductImage {
     id?: number;
     product_id?: number;
-    image_path: string;
+    media_id?: string | null;
+    url?: string | null;
     alt_text?: string | null;
     is_primary: boolean;
     sort_order: number;

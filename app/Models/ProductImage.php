@@ -19,11 +19,44 @@ class ProductImage extends Model
      */
     protected $fillable = [
         'product_id',
-        'image_path',
+        'media_id',
         'alt_text',
         'is_primary',
         'sort_order',
     ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'url',
+    ];
+
+    /**
+     * Get the media file for this product image.
+     *
+     * @return BelongsTo<MediaFile, $this>
+     */
+    public function media(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'media_id');
+    }
+
+    /**
+     * Dynamic accessor for image URL.
+     */
+    public function getUrlAttribute(): ?string
+    {
+        if ($this->relationLoaded('media')) {
+            return $this->media?->url;
+        }
+
+        if (! empty($this->media_id)) {
+            return MediaFile::find($this->media_id)?->url;
+        }
+
+        return null;
+    }
 
     /**
      * Get the attributes that should be cast.

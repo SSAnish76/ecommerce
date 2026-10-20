@@ -16,6 +16,7 @@ import {
     TableHeaderCell,
     EmptyState,
     PageHeader,
+    FileUpload,
 } from '../../Components/UI';
 import {
     FolderTree,
@@ -69,7 +70,8 @@ export default function CategoriesPage({
         name: string;
         slug: string;
         description: string;
-        image_path: string;
+        image_id: string | null;
+        image_url: string;
         sort_order: number;
         is_active: boolean;
     }>({
@@ -77,7 +79,8 @@ export default function CategoriesPage({
         name: '',
         slug: '',
         description: '',
-        image_path: '',
+        image_id: null,
+        image_url: '',
         sort_order: 0,
         is_active: true,
     });
@@ -88,7 +91,8 @@ export default function CategoriesPage({
         name: string;
         slug: string;
         description: string;
-        image_path: string;
+        image_id: string | null;
+        image_url: string;
         sort_order: number;
         is_active: boolean;
     }>({
@@ -96,7 +100,8 @@ export default function CategoriesPage({
         name: '',
         slug: '',
         description: '',
-        image_path: '',
+        image_id: null,
+        image_url: '',
         sort_order: 0,
         is_active: true,
     });
@@ -134,7 +139,8 @@ export default function CategoriesPage({
             name: cat.name,
             slug: cat.slug,
             description: cat.description || '',
-            image_path: cat.image_path || '',
+            image_id: cat.image_id || null,
+            image_url: cat.image_url || '',
             sort_order: cat.sort_order || 0,
             is_active: cat.is_active,
         });
@@ -288,9 +294,9 @@ export default function CategoriesPage({
                                                 <CornerDownRight className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
                                             )}
                                             <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
-                                                {cat.image_path ? (
+                                                {cat.image_url ? (
                                                     <img
-                                                        src={cat.image_path}
+                                                        src={cat.image_url}
                                                         alt={cat.name}
                                                         className="w-full h-full object-cover rounded-xl"
                                                     />
@@ -442,12 +448,27 @@ export default function CategoriesPage({
                         placeholder="auto-generated from name if empty"
                     />
 
-                    <Input
-                        label="Banner / Image URL"
-                        value={createForm.data.image_path}
-                        onChange={(e) => createForm.setData('image_path', e.target.value)}
-                        error={createForm.errors.image_path}
-                        placeholder="https://cdn.example.com/category.jpg"
+                    <FileUpload
+                        label="Category Image / Banner"
+                        helperText="Upload category thumbnail or banner (JPG, PNG, WEBP)"
+                        value={createForm.data.image_url}
+                        collection="categories"
+                        accept="image/*"
+                        error={createForm.errors.image_url}
+                        onUploadSuccess={(media) => {
+                            createForm.setData((data) => ({
+                                ...data,
+                                image_id: media.id,
+                                image_url: media.url,
+                            }));
+                        }}
+                        onRemove={() => {
+                            createForm.setData((data) => ({
+                                ...data,
+                                image_id: null,
+                                image_url: '',
+                            }));
+                        }}
                     />
 
                     <div>
@@ -534,11 +555,27 @@ export default function CategoriesPage({
                         error={editForm.errors.slug}
                     />
 
-                    <Input
-                        label="Banner / Image URL"
-                        value={editForm.data.image_path}
-                        onChange={(e) => editForm.setData('image_path', e.target.value)}
-                        error={editForm.errors.image_path}
+                    <FileUpload
+                        label="Category Image / Banner"
+                        helperText="Upload category thumbnail or banner (JPG, PNG, WEBP)"
+                        value={editForm.data.image_url}
+                        collection="categories"
+                        accept="image/*"
+                        error={editForm.errors.image_url}
+                        onUploadSuccess={(media) => {
+                            editForm.setData((data) => ({
+                                ...data,
+                                image_id: media.id,
+                                image_url: media.url,
+                            }));
+                        }}
+                        onRemove={() => {
+                            editForm.setData((data) => ({
+                                ...data,
+                                image_id: null,
+                                image_url: '',
+                            }));
+                        }}
                     />
 
                     <div>

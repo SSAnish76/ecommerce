@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\MediaFile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class CategoryController extends Controller
         $parentId = $request->query('parent_id');
 
         $categories = Category::query()
-            ->with(['parent:id,name'])
+            ->with(['parent:id,name', 'image'])
             ->withCount(['children', 'products'])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
@@ -75,16 +76,18 @@ class CategoryController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        /** @var array{parent_id?: ?int, name: string, slug?: ?string, description?: ?string, image_path?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{parent_id?: ?int, name: string, slug?: ?string, description?: ?string, image_id?: ?string, is_active?: bool, sort_order?: int} $validated */
         $validated = $request->validate([
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'image_path' => ['nullable', 'string', 'max:1000'],
+            'image_id' => ['nullable'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $imageId = $request->input('image_id') ?: null;
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
@@ -100,7 +103,7 @@ class CategoryController extends Controller
             'name' => $validated['name'],
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
-            'image_path' => $validated['image_path'] ?? null,
+            'image_id' => $imageId,
             'is_active' => $validated['is_active'] ?? true,
             'sort_order' => $validated['sort_order'] ?? 0,
         ]);
@@ -113,7 +116,7 @@ class CategoryController extends Controller
      */
     public function update(Request $request, Category $category): RedirectResponse
     {
-        /** @var array{parent_id?: ?int, name: string, slug?: ?string, description?: ?string, image_path?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{parent_id?: ?int, name: string, slug?: ?string, description?: ?string, image_id?: ?string, is_active?: bool, sort_order?: int} $validated */
         $validated = $request->validate([
             'parent_id' => [
                 'nullable',
@@ -125,10 +128,12 @@ class CategoryController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($category->id)],
             'description' => ['nullable', 'string', 'max:1000'],
-            'image_path' => ['nullable', 'string', 'max:1000'],
+            'image_id' => ['nullable'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $imageId = array_key_exists('image_id', $validated) ? ($validated['image_id'] ?: null) : $category->image_id;
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
@@ -137,7 +142,7 @@ class CategoryController extends Controller
             'name' => $validated['name'],
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
-            'image_path' => $validated['image_path'] ?? null,
+            'image_id' => $imageId,
             'is_active' => $validated['is_active'] ?? $category->is_active,
             'sort_order' => $validated['sort_order'] ?? $category->sort_order,
         ]);

@@ -64,8 +64,6 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
         favicon_url: store.favicon_url || '',
         logo_id: store.logo_id || null,
         favicon_id: store.favicon_id || null,
-        logo_media_id: store.logo_id || null,
-        favicon_media_id: store.favicon_id || null,
         currency: store.currency || 'USD',
         timezone: store.timezone || 'UTC',
         tax_number: store.tax_number || '',
@@ -312,7 +310,6 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                                 form.setData((data) => ({
                                                     ...data,
                                                     logo_id: media.id,
-                                                    logo_media_id: media.id,
                                                     logo_url: media.url,
                                                 }));
                                             }}
@@ -320,15 +317,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                                 form.setData((data) => ({
                                                     ...data,
                                                     logo_id: null,
-                                                    logo_media_id: null,
                                                     logo_url: '',
-                                                }));
-                                            }}
-                                            onUrlChange={(url) => {
-                                                form.setData((data) => ({
-                                                    ...data,
-                                                    logo_media_id: null,
-                                                    logo_url: url,
                                                 }));
                                             }}
                                         />
@@ -345,7 +334,6 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                                 form.setData((data) => ({
                                                     ...data,
                                                     favicon_id: media.id,
-                                                    favicon_media_id: media.id,
                                                     favicon_url: media.url,
                                                 }));
                                             }}
@@ -353,15 +341,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                                 form.setData((data) => ({
                                                     ...data,
                                                     favicon_id: null,
-                                                    favicon_media_id: null,
                                                     favicon_url: '',
-                                                }));
-                                            }}
-                                            onUrlChange={(url) => {
-                                                form.setData((data) => ({
-                                                    ...data,
-                                                    favicon_media_id: null,
-                                                    favicon_url: url,
                                                 }));
                                             }}
                                         />

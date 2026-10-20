@@ -26,10 +26,43 @@ class Category extends Model
         'name',
         'slug',
         'description',
-        'image_path',
+        'image_id',
         'is_active',
         'sort_order',
     ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'image_url',
+    ];
+
+    /**
+     * Get the category image media file.
+     *
+     * @return BelongsTo<MediaFile, $this>
+     */
+    public function image(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'image_id');
+    }
+
+    /**
+     * Dynamic accessor for category image URL.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if ($this->relationLoaded('image')) {
+            return $this->image?->url;
+        }
+
+        if (! empty($this->image_id)) {
+            return MediaFile::find($this->image_id)?->url;
+        }
+
+        return null;
+    }
 
     /**
      * Get the attributes that should be cast.

@@ -8,6 +8,7 @@ use Database\Factories\BrandFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Brand extends Model
@@ -24,11 +25,44 @@ class Brand extends Model
         'name',
         'slug',
         'description',
-        'logo_path',
+        'logo_id',
         'website',
         'is_active',
         'sort_order',
     ];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'logo_url',
+    ];
+
+    /**
+     * Get the brand logo media file.
+     *
+     * @return BelongsTo<MediaFile, $this>
+     */
+    public function logo(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'logo_id');
+    }
+
+    /**
+     * Dynamic accessor for logo URL.
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        if ($this->relationLoaded('logo')) {
+            return $this->logo?->url;
+        }
+
+        if (! empty($this->logo_id)) {
+            return MediaFile::find($this->logo_id)?->url;
+        }
+
+        return null;
+    }
 
     /**
      * Get the attributes that should be cast.

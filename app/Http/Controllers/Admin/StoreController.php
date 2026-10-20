@@ -51,10 +51,8 @@ class StoreController extends Controller
             'state' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:30'],
             'country' => ['nullable', 'string', 'max:100'],
-            'logo_url' => ['nullable', 'string', 'max:2048'],
-            'favicon_url' => ['nullable', 'string', 'max:2048'],
-            'logo_media_id' => ['nullable'],
-            'favicon_media_id' => ['nullable'],
+            'logo_id' => ['nullable'],
+            'favicon_id' => ['nullable'],
             'currency' => ['required', 'string', 'max:10'],
             'timezone' => ['required', 'string', 'max:80'],
             'tax_number' => ['nullable', 'string', 'max:60'],
@@ -71,17 +69,11 @@ class StoreController extends Controller
 
         if ($request->has('logo_id')) {
             $validated['logo_id'] = $request->input('logo_id') ?: null;
-        } elseif ($request->has('logo_media_id')) {
-            $validated['logo_id'] = $request->input('logo_media_id') ?: null;
         }
 
         if ($request->has('favicon_id')) {
             $validated['favicon_id'] = $request->input('favicon_id') ?: null;
-        } elseif ($request->has('favicon_media_id')) {
-            $validated['favicon_id'] = $request->input('favicon_media_id') ?: null;
         }
-
-        unset($validated['logo_media_id'], $validated['favicon_media_id'], $validated['logo_url'], $validated['favicon_url']);
 
         $store->update($validated);
         Store::clearCache();

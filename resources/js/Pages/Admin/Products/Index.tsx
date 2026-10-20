@@ -252,9 +252,9 @@ export default function ProductsIndexPage({
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
-                                                    {prod.primary_image ? (
+                                                    {prod.primary_image?.url ? (
                                                         <img
-                                                            src={prod.primary_image.image_path}
+                                                            src={prod.primary_image.url}
                                                             alt={prod.name}
                                                             className="w-full h-full object-cover"
                                                         />

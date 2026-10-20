@@ -10,6 +10,7 @@ use App\Enums\Product\StockVisibility;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\MediaFile;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -39,7 +40,7 @@ class ProductController extends Controller
             ->with([
                 'brand:id,name',
                 'category:id,name',
-                'primaryImage',
+                'primaryImage.media',
             ])
             ->withCount('variants')
             ->when($search !== '', function (Builder $query) use ($search): void {
@@ -136,8 +137,12 @@ class ProductController extends Controller
             'refund_policy' => ['nullable', 'string'],
             // Images array
             'images' => ['nullable', 'array'],
-            'images.*.image_path' => ['required', 'string'],
-            'images.*.alt_text' => ['nullable', 'string'],
+            'images.*.image_path' => ['nullable', 'string', 'max:2048'],
+            'images.*.image_url' => ['nullable', 'string', 'max:2048'],
+            'images.*.url' => ['nullable', 'string', 'max:2048'],
+            'images.*.media_id' => ['nullable'],
+            'images.*.image_id' => ['nullable'],
+            'images.*.alt_text' => ['nullable', 'string', 'max:255'],
             'images.*.is_primary' => ['boolean'],
             // Variants array
             'variants' => ['nullable', 'array'],
@@ -160,7 +165,47 @@ class ProductController extends Controller
             $counter++;
         }
 
-        DB::transaction(function () use ($validated, $slug): void {
+        /** @var list<array{media_id: string, alt_text?: ?string, is_primary?: bool}> $processedImages */
+        $processedImages = [];
+
+        if (! empty($validated['images'])) {
+            foreach ($validated['images'] as $img) {
+                $mediaId = $img['media_id'] ?? ($img['image_id'] ?? null);
+
+                if (! $mediaId && ! empty($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? null)))) {
+                    $rawUrl = (string) ($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? '')));
+                    $filename = basename(parse_url($rawUrl, PHP_URL_PATH) ?: 'image.jpg');
+                    $mediaFile = MediaFile::firstOrCreate(
+                        ['filename' => $filename],
+                        [
+                            'disk' => 'public',
+                            'directory' => 'media',
+                            'original_name' => $filename,
+                            'mime_type' => 'image/jpeg',
+                            'extension' => pathinfo($filename, PATHINFO_EXTENSION) ?: 'jpg',
+                            'size' => 1024,
+                            'collection' => 'products',
+                        ]
+                    );
+                    $mediaId = $mediaFile->id;
+                }
+
+                if ($mediaId !== null) {
+                    $processedImages[] = [
+                        'media_id' => (string) $mediaId,
+                        'alt_text' => $img['alt_text'] ?? null,
+                        'is_primary' => ! empty($img['is_primary']),
+                    ];
+                }
+            }
+        }
+
+        // Ensure at least one image is primary if images exist
+        if (count($processedImages) > 0 && ! collect($processedImages)->contains('is_primary', true)) {
+            $processedImages[0]['is_primary'] = true;
+        }
+
+        DB::transaction(function () use ($validated, $slug, $processedImages): void {
             $product = Product::create([
                 'name' => $validated['name'],
                 'slug' => $slug,
@@ -187,16 +232,14 @@ class ProductController extends Controller
             ]);
 
             // Save gallery images
-            if (! empty($validated['images'])) {
-                foreach ($validated['images'] as $idx => $img) {
-                    ProductImage::create([
-                        'product_id' => $product->id,
-                        'image_path' => $img['image_path'],
-                        'alt_text' => $img['alt_text'] ?? $product->name,
-                        'is_primary' => $img['is_primary'] ?? ($idx === 0),
-                        'sort_order' => $idx + 1,
-                    ]);
-                }
+            foreach ($processedImages as $idx => $img) {
+                ProductImage::create([
+                    'product_id' => $product->id,
+                    'media_id' => $img['media_id'],
+                    'alt_text' => $img['alt_text'] ?? $product->name,
+                    'is_primary' => $img['is_primary'] ?? ($idx === 0),
+                    'sort_order' => $idx + 1,
+                ]);
             }
 
             // Save variants if product has variants
@@ -226,7 +269,7 @@ class ProductController extends Controller
      */
     public function edit(Product $product): Response
     {
-        $product->load(['images', 'variants', 'brand:id,name', 'category:id,name']);
+        $product->load(['images.media', 'variants', 'brand:id,name', 'category:id,name']);
 
         $brands = Brand::query()->active()->orderBy('name')->get(['id', 'name']);
         $categories = Category::query()->active()->with('parent:id,name')->orderBy('name')->get(['id', 'name', 'parent_id']);
@@ -271,8 +314,12 @@ class ProductController extends Controller
             'refund_policy' => ['nullable', 'string'],
             // Images array
             'images' => ['nullable', 'array'],
-            'images.*.image_path' => ['required', 'string'],
-            'images.*.alt_text' => ['nullable', 'string'],
+            'images.*.image_path' => ['nullable', 'string', 'max:2048'],
+            'images.*.image_url' => ['nullable', 'string', 'max:2048'],
+            'images.*.url' => ['nullable', 'string', 'max:2048'],
+            'images.*.media_id' => ['nullable'],
+            'images.*.image_id' => ['nullable'],
+            'images.*.alt_text' => ['nullable', 'string', 'max:255'],
             'images.*.is_primary' => ['boolean'],
             // Variants array
             'variants' => ['nullable', 'array'],
@@ -289,7 +336,47 @@ class ProductController extends Controller
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
-        DB::transaction(function () use ($validated, $slug, $product): void {
+        $syncImages = array_key_exists('images', $validated);
+        /** @var list<array{media_id: string, alt_text?: ?string, is_primary?: bool}> $processedImages */
+        $processedImages = [];
+
+        if (! empty($validated['images'])) {
+            foreach ($validated['images'] as $img) {
+                $mediaId = $img['media_id'] ?? ($img['image_id'] ?? null);
+
+                if (! $mediaId && ! empty($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? null)))) {
+                    $rawUrl = (string) ($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? '')));
+                    $filename = basename(parse_url($rawUrl, PHP_URL_PATH) ?: 'image.jpg');
+                    $mediaFile = MediaFile::firstOrCreate(
+                        ['filename' => $filename],
+                        [
+                            'disk' => 'public',
+                            'directory' => 'media',
+                            'original_name' => $filename,
+                            'mime_type' => 'image/jpeg',
+                            'extension' => pathinfo($filename, PATHINFO_EXTENSION) ?: 'jpg',
+                            'size' => 1024,
+                            'collection' => 'products',
+                        ]
+                    );
+                    $mediaId = $mediaFile->id;
+                }
+
+                if ($mediaId !== null) {
+                    $processedImages[] = [
+                        'media_id' => (string) $mediaId,
+                        'alt_text' => $img['alt_text'] ?? null,
+                        'is_primary' => ! empty($img['is_primary']),
+                    ];
+                }
+            }
+        }
+
+        if (count($processedImages) > 0 && ! collect($processedImages)->contains('is_primary', true)) {
+            $processedImages[0]['is_primary'] = true;
+        }
+
+        DB::transaction(function () use ($validated, $slug, $product, $syncImages, $processedImages): void {
             $product->update([
                 'name' => $validated['name'],
                 'slug' => $slug,
@@ -316,12 +403,12 @@ class ProductController extends Controller
             ]);
 
             // Sync images if provided
-            if (isset($validated['images'])) {
+            if ($syncImages) {
                 $product->images()->delete();
-                foreach ($validated['images'] as $idx => $img) {
+                foreach ($processedImages as $idx => $img) {
                     ProductImage::create([
                         'product_id' => $product->id,
-                        'image_path' => $img['image_path'],
+                        'media_id' => $img['media_id'],
                         'alt_text' => $img['alt_text'] ?? $product->name,
                         'is_primary' => $img['is_primary'] ?? ($idx === 0),
                         'sort_order' => $idx + 1,

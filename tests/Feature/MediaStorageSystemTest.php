@@ -108,7 +108,7 @@ class MediaStorageSystemTest extends TestCase
         $fileId = $uploadResponse->json('data.id');
         $expectedUrl = $uploadResponse->json('data.url');
 
-        // 2. Save store details passing the file ID (logo_media_id / logo_id)
+        // 2. Save store details passing the file ID (logo_id)
         $store = Store::current();
 
         $updateResponse = $this->actingAs($this->adminUser)
@@ -117,7 +117,7 @@ class MediaStorageSystemTest extends TestCase
                 'email' => 'contact@techstore.com',
                 'currency' => 'USD',
                 'timezone' => 'America/New_York',
-                'logo_media_id' => $fileId,
+                'logo_id' => $fileId,
             ]);
 
         $updateResponse->assertSessionHasNoErrors();
