@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
-import { Product, ProductVariant, PageProps } from '../../../types';
+import { Product, ProductVariant, ProductImage, Category, PageProps } from '../../../types';
 import {
     Button,
     Input,
@@ -51,10 +51,31 @@ const getCsrfToken = (): string => {
     return '';
 };
 
+export interface ProductImageFormItem {
+    media_id: string | null;
+    url: string;
+    alt_text: string;
+    is_primary: boolean;
+}
+
+export interface ProductVariantFormItem {
+    sku: string;
+    name: string;
+    price: string | number;
+    mrp: string | number;
+    sale_price: string | number;
+    stock_quantity: number;
+    low_stock_threshold: number;
+    is_active: boolean;
+}
+
 interface CreateOrEditProps {
-    product: (Product & { images?: any[]; variants?: ProductVariant[] }) | null;
+    product: (Product & {
+        images?: (ProductImage & { media?: { id: string } })[];
+        variants?: ProductVariant[];
+    }) | null;
     brands: { id: string; name: string }[];
-    categories: { id: string; name: string; parent_id?: string | null }[];
+    categories: (Category | { id: string; name: string; parent_id?: string | null; parent?: { id: string; name: string } | null })[];
     statuses: { value: string; label: string }[];
     stockVisibilities: { value: string; label: string }[];
     locationTypes: { value: string; label: string }[];
@@ -96,16 +117,16 @@ export default function CreateOrEditProductPage({
         return_policy: product?.return_policy || '',
         refund_policy: product?.refund_policy || '',
         // Dynamic images array
-        images: product?.images?.length
-            ? product.images.map((img: any) => ({
+        images: (product?.images?.length
+            ? product.images.map((img) => ({
                   media_id: img.media_id || img.media?.id || null,
                   url: img.url || '',
                   alt_text: img.alt_text || '',
                   is_primary: Boolean(img.is_primary),
               }))
-            : [],
+            : []) as ProductImageFormItem[],
         // Dynamic variants array
-        variants: product?.variants?.length
+        variants: (product?.variants?.length
             ? product.variants.map((v) => ({
                   sku: v.sku,
                   name: v.name,
@@ -116,7 +137,7 @@ export default function CreateOrEditProductPage({
                   low_stock_threshold: v.low_stock_threshold || 5,
                   is_active: v.is_active,
               }))
-            : [],
+            : []) as ProductVariantFormItem[],
     });
 
     // Specifications helpers
@@ -213,8 +234,9 @@ export default function CreateOrEditProductPage({
                         };
                     });
                 }
-            } catch (err: any) {
-                setUploadError(err.message || 'Error uploading one or more images.');
+            } catch (err: unknown) {
+                const errorMsg = err instanceof Error ? err.message : 'Error uploading one or more images.';
+                setUploadError(errorMsg);
             } finally {
                 setUploadingCount((prev) => Math.max(0, prev - 1));
             }
@@ -263,8 +285,9 @@ export default function CreateOrEditProductPage({
                     return { ...prev, images: updated };
                 });
             }
-        } catch (err: any) {
-            setUploadError(err.message || 'Error replacing image.');
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Error replacing image.';
+            setUploadError(errorMsg);
         } finally {
             setUploadingCount((prev) => Math.max(0, prev - 1));
             setReplacingIndex(null);

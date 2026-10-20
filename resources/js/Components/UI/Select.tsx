@@ -90,7 +90,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         // Current internal/controlled value
         const isControlled = value !== undefined;
         const [internalValue, setInternalValue] = useState<string | number>(
-            defaultValue !== undefined ? defaultValue : allOptions[0]?.value ?? ''
+            defaultValue !== undefined
+                ? (Array.isArray(defaultValue) ? defaultValue[0] ?? '' : defaultValue)
+                : (allOptions[0]?.value ?? '')
         );
         const currentValue = String(isControlled ? (value ?? '') : internalValue);
 

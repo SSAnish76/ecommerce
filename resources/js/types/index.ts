@@ -272,6 +272,7 @@ export interface ProductImage {
     alt_text?: string | null;
     is_primary: boolean;
     sort_order: number;
+    media?: { id?: string; url?: string; file_name?: string } | null;
 }
 
 export interface ProductVariant {

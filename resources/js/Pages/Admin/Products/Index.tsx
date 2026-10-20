@@ -50,7 +50,7 @@ interface PaginatedProducts {
 interface ProductsIndexProps {
     products: PaginatedProducts;
     brands: { id: string; name: string }[];
-    categories: { id: string; name: string; parent_id?: string | null }[];
+    categories: { id: string; name: string; parent_id?: string | null; parent?: { id: string; name: string } | null }[];
     statuses: { value: string; label: string }[];
     filters: {
         search: string;
