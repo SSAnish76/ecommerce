@@ -870,10 +870,10 @@ export default function CategoriesPage({
                         value={String(createForm.data.parent_id)}
                         onChange={(e) => createForm.setData('parent_id', e.target.value)}
                         options={[
-                            { value: '', label: 'None (Top-Level Root Category)' },
+                            { value: '', label: 'None (Top-Level Category)' },
                             ...parentOptions.map((p) => ({
                                 value: String(p.id),
-                                label: `Root: ${p.name}`,
+                                label: p.name,
                             })),
                         ]}
                         error={createForm.errors.parent_id}
@@ -977,12 +977,12 @@ export default function CategoriesPage({
                         value={String(editForm.data.parent_id)}
                         onChange={(e) => editForm.setData('parent_id', e.target.value)}
                         options={[
-                            { value: '', label: 'None (Top-Level Root Category)' },
+                            { value: '', label: 'None (Top-Level Category)' },
                             ...parentOptions
                                 .filter((p) => p.id !== editingCategory?.id)
                                 .map((p) => ({
                                     value: String(p.id),
-                                    label: `Root: ${p.name}`,
+                                    label: p.name,
                                 })),
                         ]}
                         error={editForm.errors.parent_id}
