@@ -202,9 +202,10 @@ export default function UsersPage({
                         <Button
                             variant="primary"
                             size="sm"
-                            leftIcon={<Plus className="w-4 h-4" />}
+                            pill
+                            leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
                             onClick={() => setIsCreateOpen(true)}
-                            className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                            className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap"
                         >
                             Add
                         </Button>

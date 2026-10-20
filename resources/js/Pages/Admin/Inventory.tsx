@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Product, ProductVariant, PageProps } from '../../types';
 import {
@@ -63,6 +63,7 @@ export default function InventoryPage({
     filters,
 }: InventoryProps) {
     const { auth } = usePage<PageProps>().props;
+    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('products.create');
     const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('inventory.edit');
 
     const [search, setSearch] = useState(filters.search || '');
@@ -188,6 +189,22 @@ export default function InventoryPage({
                             Real-time stock counts, minimum threshold triggers, low-stock re-order alerts, and granular SKU variant tracking.
                         </p>
                     </div>
+
+                    {canCreate && (
+                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                            <Link href="/admin/products/create">
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    pill
+                                    leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+                                    className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap"
+                                >
+                                    Add
+                                </Button>
+                            </Link>
+                        </div>
+                    )}
                 </div>
 
                 {/* Filters & Actions Bar */}

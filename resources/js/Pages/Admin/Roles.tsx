@@ -540,9 +540,10 @@ export default function RolesPage({
                             onClick={handleOpenCreate}
                             variant="primary"
                             size="sm"
-                            className="inline-flex items-center gap-1.5 self-start sm:self-auto shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                            pill
+                            leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+                            className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap self-start sm:self-auto"
                         >
-                            <Plus className="w-4 h-4" />
                             Add
                         </Button>
                     )}

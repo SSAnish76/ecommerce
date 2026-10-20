@@ -197,8 +197,9 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                 onClick={() => setIsCreateOpen(true)}
                                 variant="primary"
                                 size="sm"
-                                leftIcon={<Plus className="w-4 h-4" />}
-                                className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                                pill
+                                leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+                                className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap"
                             >
                                 Add
                             </Button>
@@ -344,8 +345,9 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                         onClick={() => setIsCreateOpen(true)}
                                         variant="primary"
                                         size="sm"
-                                        leftIcon={<Plus className="w-4 h-4" />}
-                                        className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                                        pill
+                                        leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+                                        className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap"
                                     >
                                         Add
                                     </Button>
