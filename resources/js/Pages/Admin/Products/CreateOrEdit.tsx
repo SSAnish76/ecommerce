@@ -400,18 +400,19 @@ export default function CreateOrEditProductPage({
 
                     <div className="flex items-center gap-2 self-end sm:self-center">
                         <Link href="/admin/products">
-                            <Button variant="secondary" size="sm" type="button" className="rounded-xl">
+                            <Button variant="secondary" size="sm" pill type="button" className="rounded-full px-4 py-1.5 font-medium">
                                 Cancel
                             </Button>
                         </Link>
                         <Button
                             variant="primary"
                             size="sm"
+                            pill
                             type="submit"
                             isLoading={form.processing}
-                            className="flex items-center gap-1.5 shadow-sm rounded-xl font-semibold"
+                            leftIcon={<Save className="w-4 h-4" />}
+                            className="shadow-md shadow-indigo-600/20 font-medium px-5 py-2 rounded-full whitespace-nowrap"
                         >
-                            <Save className="w-4 h-4" />
                             <span>{isEdit ? 'Save Changes' : 'Publish Product'}</span>
                         </Button>
                     </div>
@@ -680,11 +681,12 @@ export default function CreateOrEditProductPage({
                                         type="button"
                                         variant="primary"
                                         size="sm"
+                                        pill
+                                        leftIcon={<Upload className="w-3.5 h-3.5" />}
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="flex items-center gap-1.5 text-xs rounded-xl"
+                                        className="shadow-md shadow-indigo-600/20 font-medium px-4 py-1.5 rounded-full whitespace-nowrap text-xs"
                                         disabled={uploadingCount > 0}
                                     >
-                                        <Upload className="w-3.5 h-3.5" />
                                         Upload Photos
                                     </Button>
                                 </div>
@@ -866,12 +868,13 @@ export default function CreateOrEditProductPage({
                                 </div>
                                 <Button
                                     type="button"
-                                    variant="secondary"
+                                    variant="primary"
                                     size="sm"
+                                    pill
+                                    leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
                                     onClick={addSpec}
-                                    className="flex items-center gap-1.5 rounded-xl text-xs"
+                                    className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap text-xs"
                                 >
-                                    <Plus className="w-3.5 h-3.5" />
                                     Add Spec
                                 </Button>
                             </div>
@@ -945,12 +948,13 @@ export default function CreateOrEditProductPage({
                                         </span>
                                         <Button
                                             type="button"
-                                            variant="secondary"
+                                            variant="primary"
                                             size="sm"
+                                            pill
+                                            leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
                                             onClick={addVariant}
-                                            className="flex items-center gap-1.5 rounded-xl text-xs"
+                                            className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap text-xs"
                                         >
-                                            <Plus className="w-3.5 h-3.5" />
                                             Add Variant Option
                                         </Button>
                                     </div>

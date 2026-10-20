@@ -18,6 +18,7 @@ import {
     SlugInput,
     ImagePicker,
     CopyButton,
+    Toggle,
 } from '../../Components/UI';
 import {
     Search,
@@ -616,23 +617,15 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                         }}
                     />
 
-                    <div className="pt-1">
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={createForm.data.is_active}
-                                onChange={(e) => createForm.setData('is_active', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                            />
-                            <div>
-                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                    Active in Storefront
-                                </span>
-                                <span className="text-[11px] text-slate-500">
-                                    Visible on catalog filters & search
-                                </span>
-                            </div>
-                        </label>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                        <Toggle
+                            id="brand-create-is-active"
+                            label="Active in Storefront"
+                            description="Visible on catalog filters & search"
+                            checked={createForm.data.is_active}
+                            onChange={(checked) => createForm.setData('is_active', checked)}
+                            className="py-0.5"
+                        />
                     </div>
 
                     <div>
@@ -706,23 +699,15 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                         }}
                     />
 
-                    <div className="pt-1">
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={editForm.data.is_active}
-                                onChange={(e) => editForm.setData('is_active', e.target.checked)}
-                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                            />
-                            <div>
-                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                    Active in Storefront
-                                </span>
-                                <span className="text-[11px] text-slate-500">
-                                    Visible on catalog filters & search
-                                </span>
-                            </div>
-                        </label>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                        <Toggle
+                            id="brand-edit-is-active"
+                            label="Active in Storefront"
+                            description="Visible on catalog filters & search"
+                            checked={editForm.data.is_active}
+                            onChange={(checked) => editForm.setData('is_active', checked)}
+                            className="py-0.5"
+                        />
                     </div>
 
                     <div>

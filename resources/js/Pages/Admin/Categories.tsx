@@ -18,6 +18,7 @@ import {
     SlugInput,
     ImagePicker,
     CopyButton,
+    Toggle,
 } from '../../Components/UI';
 import {
     FolderTree,
@@ -911,34 +912,24 @@ export default function CategoriesPage({
                         }}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                            label="Sort Order Priority"
-                            type="number"
-                            value={String(createForm.data.sort_order)}
-                            onChange={(e) => createForm.setData('sort_order', Number(e.target.value))}
-                            error={createForm.errors.sort_order}
-                            placeholder="0"
-                        />
+                    <Input
+                        label="Sort Order Priority"
+                        type="number"
+                        value={String(createForm.data.sort_order)}
+                        onChange={(e) => createForm.setData('sort_order', Number(e.target.value))}
+                        error={createForm.errors.sort_order}
+                        placeholder="0"
+                    />
 
-                        <div className="flex flex-col justify-end pb-2">
-                            <label className="flex items-center gap-2.5 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={createForm.data.is_active}
-                                    onChange={(e) => createForm.setData('is_active', e.target.checked)}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                                />
-                                <div>
-                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                        Active in Store Navigation
-                                    </span>
-                                    <span className="text-[11px] text-slate-500">
-                                        Customers can browse this category
-                                    </span>
-                                </div>
-                            </label>
-                        </div>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                        <Toggle
+                            id="category-create-is-active"
+                            label="Active in Storefront"
+                            description="Visible on navigation & category filters"
+                            checked={createForm.data.is_active}
+                            onChange={(checked) => createForm.setData('is_active', checked)}
+                            className="py-0.5"
+                        />
                     </div>
 
                     <div>
@@ -1028,33 +1019,23 @@ export default function CategoriesPage({
                         }}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                            label="Sort Order Priority"
-                            type="number"
-                            value={String(editForm.data.sort_order)}
-                            onChange={(e) => editForm.setData('sort_order', Number(e.target.value))}
-                            error={editForm.errors.sort_order}
-                        />
+                    <Input
+                        label="Sort Order Priority"
+                        type="number"
+                        value={String(editForm.data.sort_order)}
+                        onChange={(e) => editForm.setData('sort_order', Number(e.target.value))}
+                        error={editForm.errors.sort_order}
+                    />
 
-                        <div className="flex flex-col justify-end pb-2">
-                            <label className="flex items-center gap-2.5 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={editForm.data.is_active}
-                                    onChange={(e) => editForm.setData('is_active', e.target.checked)}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                                />
-                                <div>
-                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                        Active in Store Navigation
-                                    </span>
-                                    <span className="text-[11px] text-slate-500">
-                                        Customers can browse this category
-                                    </span>
-                                </div>
-                            </label>
-                        </div>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                        <Toggle
+                            id="category-edit-is-active"
+                            label="Active in Storefront"
+                            description="Visible on navigation & category filters"
+                            checked={editForm.data.is_active}
+                            onChange={(checked) => editForm.setData('is_active', checked)}
+                            className="py-0.5"
+                        />
                     </div>
 
                     <div>
