@@ -21,6 +21,7 @@ import {
 import {
     Users as UsersIcon,
     Search,
+    Plus,
     UserPlus,
     Pencil,
     Trash2,
@@ -200,11 +201,12 @@ export default function UsersPage({
                     canCreate && (
                         <Button
                             variant="primary"
-                            size="md"
-                            leftIcon={<UserPlus className="w-4 h-4" />}
+                            size="sm"
+                            leftIcon={<Plus className="w-4 h-4" />}
                             onClick={() => setIsCreateOpen(true)}
+                            className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
                         >
-                            Add New User
+                            Add
                         </Button>
                     )
                 }

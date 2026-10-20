@@ -173,9 +173,13 @@ export default function ProductsIndexPage({
                         <div className="flex items-center gap-3 shrink-0">
                             {canCreate && (
                                 <Link href="/admin/products/create">
-                                    <Button variant="primary" className="flex items-center gap-2 shadow-sm font-semibold rounded-xl">
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        className="inline-flex items-center gap-1.5 shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                                    >
                                         <Plus className="w-4 h-4" />
-                                        Add New Product
+                                        Add
                                     </Button>
                                 </Link>
                             )}
@@ -378,8 +382,9 @@ export default function ProductsIndexPage({
 
                 {/* Product Content: Grid Cards vs Data Table */}
                 {products.data.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-8 sm:p-12 text-center shadow-2xs">
                         <EmptyState
+                            icon={Boxes}
                             title="No products found"
                             description={
                                 activeFilterCount > 0
@@ -387,11 +392,24 @@ export default function ProductsIndexPage({
                                     : 'Your catalog has no products yet. Add your first product to start merchandising!'
                             }
                             action={
-                                canCreate ? (
+                                activeFilterCount > 0 ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleReset}
+                                        className="shadow-2xs font-semibold rounded-xl whitespace-nowrap"
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                ) : canCreate ? (
                                     <Link href="/admin/products/create">
-                                        <Button variant="primary" size="sm" className="mt-2">
-                                            <Plus className="w-4 h-4 mr-1.5" />
-                                            Add First Product
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            leftIcon={<Plus className="w-4 h-4" />}
+                                            className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                                        >
+                                            Add
                                         </Button>
                                     </Link>
                                 ) : undefined

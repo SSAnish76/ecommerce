@@ -52,8 +52,13 @@ export default function Dashboard({
 
                     <div className="flex items-center gap-3 shrink-0">
                         <Link href="/admin/users">
-                            <Button variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>
-                                Add User
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<Plus className="w-4 h-4" />}
+                                className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                            >
+                                Add
                             </Button>
                         </Link>
                         <Button

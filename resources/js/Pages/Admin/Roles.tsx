@@ -538,10 +538,12 @@ export default function RolesPage({
                     {canManageRoles && (
                         <Button
                             onClick={handleOpenCreate}
-                            className="flex items-center gap-2 self-start sm:self-auto"
+                            variant="primary"
+                            size="sm"
+                            className="inline-flex items-center gap-1.5 self-start sm:self-auto shadow-xs font-semibold rounded-xl whitespace-nowrap"
                         >
                             <Plus className="w-4 h-4" />
-                            Create Role
+                            Add
                         </Button>
                     )}
                 </div>

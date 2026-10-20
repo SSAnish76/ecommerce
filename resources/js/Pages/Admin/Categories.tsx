@@ -218,15 +218,15 @@ export default function CategoriesPage({
 
             <div className="space-y-6">
                 {/* Clean Header with Simple Category Count */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
                     <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                                 Categories
                             </h1>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            <Badge variant="emerald" size="sm" className="font-semibold">
                                 {categories.total} {categories.total === 1 ? 'Category' : 'Categories'}
-                            </span>
+                            </Badge>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                             Organize your storefront navigation, nested taxonomy, product grouping, and mega-menu categories.
@@ -234,44 +234,50 @@ export default function CategoriesPage({
                     </div>
 
                     {canCreate && (
-                        <Button
-                            onClick={() => openCreateWithParent()}
-                            variant="primary"
-                            className="flex items-center gap-2 shadow-xs font-semibold rounded-xl shrink-0"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add New Category
-                        </Button>
+                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                            <Button
+                                onClick={() => openCreateWithParent()}
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<Plus className="w-4 h-4" />}
+                                className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                            >
+                                Add
+                            </Button>
+                        </div>
                     )}
                 </div>
 
                 {/* Filter & View Toolbar */}
-                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
                     <form onSubmit={handleSearch} className="flex flex-col lg:flex-row items-center gap-3">
                         <div className="relative flex-1 w-full">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search by category name or description..."
-                                className="pl-9 pr-8 w-full text-xs"
+                                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                                rightIcon={
+                                    search ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearch('');
+                                                router.get(
+                                                    '/admin/categories',
+                                                    { status: statusFilter, parent_id: parentFilter },
+                                                    { preserveState: true }
+                                                );
+                                            }}
+                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer text-xs"
+                                            title="Clear search"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : undefined
+                                }
+                                className="w-full text-xs"
                             />
-                            {search && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSearch('');
-                                        router.get(
-                                            '/admin/categories',
-                                            { status: statusFilter, parent_id: parentFilter },
-                                            { preserveState: true }
-                                        );
-                                    }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                                >
-                                    ✕
-                                </button>
-                            )}
                         </div>
 
                         {/* Parent Category Filter Dropdown */}
@@ -378,8 +384,9 @@ export default function CategoriesPage({
 
                 {/* Categories Content: Hierarchy View or Detailed Table */}
                 {categories.data.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-8 sm:p-12 text-center shadow-2xs">
                         <EmptyState
+                            icon={FolderTree}
                             title="No categories found"
                             description={
                                 search || statusFilter || parentFilter
@@ -387,15 +394,24 @@ export default function CategoriesPage({
                                     : 'No categories created yet. Create your first root category to start organizing products.'
                             }
                             action={
-                                canCreate ? (
+                                search || statusFilter || parentFilter ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleReset}
+                                        className="shadow-2xs font-semibold rounded-xl whitespace-nowrap"
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                ) : canCreate ? (
                                     <Button
                                         onClick={() => openCreateWithParent()}
                                         variant="primary"
                                         size="sm"
-                                        className="mt-2"
+                                        leftIcon={<Plus className="w-4 h-4" />}
+                                        className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
                                     >
-                                        <Plus className="w-4 h-4 mr-1.5" />
-                                        Add First Category
+                                        Add
                                     </Button>
                                 ) : undefined
                             }

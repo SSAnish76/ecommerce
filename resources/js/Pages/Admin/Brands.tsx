@@ -22,6 +22,7 @@ import {
 import {
     Search,
     Plus,
+    Layers,
     Pencil,
     Trash2,
     RotateCcw,
@@ -175,15 +176,15 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
 
             <div className="space-y-6">
                 {/* Clean Header with Simple Brand Count */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
                     <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                                 Brands
                             </h1>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            <Badge variant="indigo" size="sm" className="font-semibold">
                                 {brands.total} {brands.total === 1 ? 'Brand' : 'Brands'}
-                            </span>
+                            </Badge>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                             Curate manufacturers, storefront logos, and merchant profiles for customer discovery.
@@ -191,40 +192,46 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                     </div>
 
                     {canCreate && (
-                        <Button
-                            onClick={() => setIsCreateOpen(true)}
-                            variant="primary"
-                            className="flex items-center gap-2 shadow-xs font-semibold rounded-xl shrink-0"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add New Brand
-                        </Button>
+                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                            <Button
+                                onClick={() => setIsCreateOpen(true)}
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<Plus className="w-4 h-4" />}
+                                className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                            >
+                                Add
+                            </Button>
+                        </div>
                     )}
                 </div>
 
                 {/* Filter & View Toolbar */}
-                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2.5 flex-1">
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2.5 flex-1 w-full">
                         <div className="relative flex-1 w-full">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search by brand name or description..."
-                                className="pl-9 pr-8 w-full text-xs"
+                                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                                rightIcon={
+                                    search ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearch('');
+                                                router.get('/admin/brands', { status: statusFilter }, { preserveState: true });
+                                            }}
+                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer text-xs"
+                                            title="Clear search"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : undefined
+                                }
+                                className="w-full text-xs"
                             />
-                            {search && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSearch('');
-                                        router.get('/admin/brands', { status: statusFilter }, { preserveState: true });
-                                    }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                                >
-                                    ✕
-                                </button>
-                            )}
                         </div>
 
                         {/* Status Filter Tabs */}
@@ -313,8 +320,9 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
 
                 {/* Brands Content: Grid or Table */}
                 {brands.data.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-8 sm:p-12 text-center shadow-2xs">
                         <EmptyState
+                            icon={Layers}
                             title="No brands found"
                             description={
                                 search || statusFilter
@@ -322,15 +330,24 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                     : 'No brands currently exist. Add your first brand to start building your catalog.'
                             }
                             action={
-                                canCreate ? (
+                                search || statusFilter ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleReset}
+                                        className="shadow-2xs font-semibold rounded-xl whitespace-nowrap"
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                ) : canCreate ? (
                                     <Button
                                         onClick={() => setIsCreateOpen(true)}
                                         variant="primary"
                                         size="sm"
-                                        className="mt-2"
+                                        leftIcon={<Plus className="w-4 h-4" />}
+                                        className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
                                     >
-                                        <Plus className="w-4 h-4 mr-1.5" />
-                                        Add First Brand
+                                        Add
                                     </Button>
                                 ) : undefined
                             }

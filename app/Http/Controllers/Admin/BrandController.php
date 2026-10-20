@@ -41,7 +41,7 @@ class BrandController extends Controller
                 }
             })
             ->orderBy('name')
-            ->paginate(12)
+            ->paginate(3)
             ->withQueryString();
 
         return Inertia::render('Admin/Brands', [
