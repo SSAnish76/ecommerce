@@ -460,7 +460,7 @@ export default function CategoriesPage({
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2.5 self-end sm:self-center">
+                                        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
                                             {/* Status Badge */}
                                             <button
                                                 type="button"
@@ -469,7 +469,7 @@ export default function CategoriesPage({
                                                 className="cursor-pointer"
                                                 title="Toggle active status"
                                             >
-                                                <Badge variant={root.is_active ? 'success' : 'neutral'}>
+                                                <Badge variant={root.is_active ? 'success' : 'neutral'} size="sm">
                                                     <span
                                                         className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
                                                             root.is_active ? 'bg-emerald-500' : 'bg-slate-400'
@@ -479,43 +479,44 @@ export default function CategoriesPage({
                                                 </Badge>
                                             </button>
 
-
                                             {canCreate && (
                                                 <Button
                                                     size="sm"
                                                     variant="secondary"
                                                     onClick={() => openCreateWithParent(root.id)}
-                                                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg"
+                                                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                                                    className="border border-slate-200/80 dark:border-slate-700/80 font-semibold rounded-xl shadow-2xs whitespace-nowrap text-xs"
                                                     title="Add Subcategory under this root"
                                                 >
-                                                    <Plus className="w-3.5 h-3.5" />
-                                                    <span>+ Subcategory</span>
+                                                    Subcategory
                                                 </Button>
                                             )}
 
-                                            {canEdit && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => openEdit(root)}
-                                                    className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600"
-                                                    title="Edit Root Category"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </Button>
-                                            )}
+                                            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 pl-2 ml-0.5">
+                                                {canEdit && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => openEdit(root)}
+                                                        className="p-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg"
+                                                        title="Edit Root Category"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </Button>
+                                                )}
 
-                                            {canDelete && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => setDeletingCategory(root)}
-                                                    className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600"
-                                                    title="Delete Root Category"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            )}
+                                                {canDelete && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => setDeletingCategory(root)}
+                                                        className="p-1.5 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg"
+                                                        title="Delete Root Category"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 

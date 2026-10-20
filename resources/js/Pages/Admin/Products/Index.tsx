@@ -107,21 +107,7 @@ export default function ProductsIndexPage({
         );
     };
 
-    const handleQuickStockFilter = (stockVal: string) => {
-        const nextStock = stockFilter === stockVal ? '' : stockVal;
-        setStockFilter(nextStock);
-        router.get(
-            '/admin/products',
-            {
-                search,
-                status: statusFilter,
-                brand_id: brandFilter,
-                category_id: categoryFilter,
-                stock: nextStock,
-            },
-            { preserveState: true, replace: true }
-        );
-    };
+
 
     const handleReset = () => {
         setSearch('');
@@ -154,105 +140,35 @@ export default function ProductsIndexPage({
             <Head title="Product Catalog - Admin" />
 
             <div className="space-y-6">
-                {/* Modern Hero Banner */}
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-slate-50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/20 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-xs">
-                    <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                        <div className="space-y-2">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
-                                <ShoppingBag className="w-3.5 h-3.5" />
-                                <span>Storefront Merchandising</span>
-                            </div>
-                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {/* Clean Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                                 Product Catalog
                             </h1>
-                            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-                                Manage retail pricing, wholesale MRP, image galleries, variants, warehouse stock levels, and storefront visibility.
-                            </p>
+                            <Badge variant="indigo" size="sm" className="font-semibold">
+                                {totalCount} {totalCount === 1 ? 'Product' : 'Products'}
+                            </Badge>
                         </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                            {canCreate && (
-                                <Link href="/admin/products/create">
-                                    <Button
-                                        variant="primary"
-                                        size="sm"
-                                        className="inline-flex items-center gap-1.5 shadow-xs font-semibold rounded-xl whitespace-nowrap"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Add
-                                    </Button>
-                                </Link>
-                            )}
-                        </div>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                            Manage retail pricing, wholesale MRP, image galleries, variants, warehouse stock levels, and storefront visibility.
+                        </p>
                     </div>
 
-                    {/* Stock Telemetry Metric Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 mt-6 border-t border-slate-200/60 dark:border-slate-800/80">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                                <Boxes className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <div className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                                    {totalCount}
-                                </div>
-                                <div className="text-[11px] text-slate-500 font-medium">Total Products</div>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickStockFilter('in')}
-                            className={`flex items-center gap-3 text-left p-1 rounded-xl transition-all ${
-                                stockFilter === 'in' ? 'bg-emerald-50/80 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                            }`}
-                        >
-                            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                                <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400 leading-tight">
-                                    {inStockCount}
-                                </div>
-                                <div className="text-[11px] text-slate-500 font-medium">Healthy Stock</div>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickStockFilter('low')}
-                            className={`flex items-center gap-3 text-left p-1 rounded-xl transition-all ${
-                                stockFilter === 'low' ? 'bg-amber-50/80 dark:bg-amber-950/40 ring-1 ring-amber-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                            }`}
-                        >
-                            <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                                <AlertTriangle className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <div className="text-lg font-bold text-amber-700 dark:text-amber-400 leading-tight">
-                                    {lowStockCount}
-                                </div>
-                                <div className="text-[11px] text-slate-500 font-medium">Low Stock Alert</div>
-                            </div>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickStockFilter('out')}
-                            className={`flex items-center gap-3 text-left p-1 rounded-xl transition-all ${
-                                stockFilter === 'out' ? 'bg-rose-50/80 dark:bg-rose-950/40 ring-1 ring-rose-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                            }`}
-                        >
-                            <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
-                                <XCircle className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <div className="text-lg font-bold text-rose-700 dark:text-rose-400 leading-tight">
-                                    {outOfStockCount}
-                                </div>
-                                <div className="text-[11px] text-slate-500 font-medium">Out of Stock</div>
-                            </div>
-                        </button>
+                    <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                        {canCreate && (
+                            <Link href="/admin/products/create">
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    leftIcon={<Plus className="w-4 h-4" />}
+                                    className="shadow-xs font-semibold rounded-xl whitespace-nowrap"
+                                >
+                                    Add
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 
@@ -260,34 +176,37 @@ export default function ProductsIndexPage({
                 <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
                     <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
                         <div className="relative lg:col-span-4">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search by product title or SKU..."
-                                className="pl-9 pr-8 w-full text-xs"
+                                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                                rightIcon={
+                                    search ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearch('');
+                                                router.get(
+                                                    '/admin/products',
+                                                    {
+                                                        status: statusFilter,
+                                                        brand_id: brandFilter,
+                                                        category_id: categoryFilter,
+                                                        stock: stockFilter,
+                                                    },
+                                                    { preserveState: true }
+                                                );
+                                            }}
+                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer text-xs"
+                                            title="Clear search"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : undefined
+                                }
+                                className="w-full text-xs"
                             />
-                            {search && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSearch('');
-                                        router.get(
-                                            '/admin/products',
-                                            {
-                                                status: statusFilter,
-                                                brand_id: brandFilter,
-                                                category_id: categoryFilter,
-                                                stock: stockFilter,
-                                            },
-                                            { preserveState: true }
-                                        );
-                                    }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                                >
-                                    ✕
-                                </button>
-                            )}
                         </div>
 
                         <div className="lg:col-span-2">

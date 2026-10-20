@@ -145,15 +145,7 @@ export default function InventoryPage({
         );
     };
 
-    const handleQuickMetricFilter = (statusVal: string) => {
-        const nextStatus = stockFilter === statusVal ? '' : statusVal;
-        setStockFilter(nextStatus);
-        router.get(
-            '/admin/inventory',
-            { search, stock_status: nextStatus },
-            { preserveState: true, replace: true }
-        );
-    };
+
 
     const handleReset = () => {
         setSearch('');
@@ -181,98 +173,20 @@ export default function InventoryPage({
             <Head title="Inventory Stock Management - Admin" />
 
             <div className="space-y-6">
-                {/* Modern Hero Banner */}
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-slate-50 to-amber-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-amber-950/20 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-xs">
-                    <div className="space-y-2 mb-6">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/80 border border-amber-200/80 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-semibold">
-                            <Boxes className="w-3.5 h-3.5" />
-                            <span>Warehouse Stock Control</span>
+                {/* Clean Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                                Warehouse Stock &amp; Inventory
+                            </h1>
+                            <Badge variant="amber" size="sm" className="font-semibold">
+                                {metrics.total_products} {metrics.total_products === 1 ? 'Item' : 'Items'}
+                            </Badge>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                            Warehouse Stock &amp; Replenishment
-                        </h1>
-                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                             Real-time stock counts, minimum threshold triggers, low-stock re-order alerts, and granular SKU variant tracking.
                         </p>
-                    </div>
-
-                    {/* Stock Telemetry Metric Cards */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-6 border-t border-slate-200/60 dark:border-slate-800/80">
-                        <button
-                            type="button"
-                            onClick={() => handleQuickMetricFilter('')}
-                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
-                                stockFilter === ''
-                                    ? 'border-indigo-500 ring-2 ring-indigo-500/10'
-                                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-slate-500">Catalog SKUs</span>
-                                <Boxes className="w-4 h-4 text-slate-400" />
-                            </div>
-                            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                                {metrics.total_products}
-                            </div>
-                            <span className="text-[11px] text-slate-500">All managed items</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickMetricFilter('in')}
-                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
-                                stockFilter === 'in'
-                                    ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/20'
-                                    : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Healthy Stock</span>
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            </div>
-                            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                                {metrics.in_stock}
-                            </div>
-                            <span className="text-[11px] text-slate-500">Above minimum threshold</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickMetricFilter('low')}
-                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
-                                stockFilter === 'low'
-                                    ? 'border-amber-500 ring-2 ring-amber-500/10 bg-amber-50/20'
-                                    : 'border-slate-200 dark:border-slate-800 hover:border-amber-300'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Low Stock Alert</span>
-                                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            </div>
-                            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                                {metrics.low_stock}
-                            </div>
-                            <span className="text-[11px] text-amber-600 font-medium">Re-order recommended</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleQuickMetricFilter('out')}
-                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
-                                stockFilter === 'out'
-                                    ? 'border-rose-500 ring-2 ring-rose-500/10 bg-rose-50/20'
-                                    : 'border-slate-200 dark:border-slate-800 hover:border-rose-300'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Out of Stock</span>
-                                <XCircle className="w-4 h-4 text-rose-500" />
-                            </div>
-                            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
-                                {metrics.out_of_stock}
-                            </div>
-                            <span className="text-[11px] text-rose-600 font-medium">Unavailable for purchase</span>
-                        </button>
                     </div>
                 </div>
 
@@ -280,29 +194,32 @@ export default function InventoryPage({
                 <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
                     <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2.5 flex-1 w-full">
                         <div className="relative flex-1 w-full">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search inventory by product name, SKU, or variant..."
-                                className="pl-9 pr-8 w-full text-xs"
+                                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                                rightIcon={
+                                    search ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearch('');
+                                                router.get(
+                                                    '/admin/inventory',
+                                                    { stock_status: stockFilter },
+                                                    { preserveState: true }
+                                                );
+                                            }}
+                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer text-xs"
+                                            title="Clear search"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : undefined
+                                }
+                                className="w-full text-xs"
                             />
-                            {search && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSearch('');
-                                        router.get(
-                                            '/admin/inventory',
-                                            { stock_status: stockFilter },
-                                            { preserveState: true }
-                                        );
-                                    }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                                >
-                                    ✕
-                                </button>
-                            )}
                         </div>
 
                         <div className="w-full sm:w-52 shrink-0">
