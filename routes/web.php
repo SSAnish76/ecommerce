@@ -4,7 +4,11 @@ use App\Http\Controllers\Admin\Auth\AuthController;
 use App\Http\Controllers\Admin\Auth\PasswordResetController;
 use App\Http\Controllers\Admin\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Admin\Auth\TwoFactorManagementController;
+use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StoreController;
@@ -70,6 +74,77 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
             ->middleware('permission:users.roles')
             ->name('roles.destroy');
+
+        // Catalog: Products Management
+        Route::get('/products', [ProductController::class, 'index'])
+            ->middleware('permission:products.view')
+            ->name('products.index');
+        Route::get('/products/create', [ProductController::class, 'create'])
+            ->middleware('permission:products.create')
+            ->name('products.create');
+        Route::post('/products', [ProductController::class, 'store'])
+            ->middleware('permission:products.create')
+            ->name('products.store');
+        Route::get('/products/{product}/edit', [ProductController::class, 'edit'])
+            ->middleware('permission:products.edit')
+            ->name('products.edit');
+        Route::put('/products/{product}', [ProductController::class, 'update'])
+            ->middleware('permission:products.edit')
+            ->name('products.update');
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])
+            ->middleware('permission:products.delete')
+            ->name('products.destroy');
+        Route::patch('/products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])
+            ->middleware('permission:products.edit')
+            ->name('products.toggle-status');
+
+        // Catalog: Categories & Subcategories
+        Route::get('/categories', [CategoryController::class, 'index'])
+            ->middleware('permission:categories.view')
+            ->name('categories.index');
+        Route::post('/categories', [CategoryController::class, 'store'])
+            ->middleware('permission:categories.create')
+            ->name('categories.store');
+        Route::put('/categories/{category}', [CategoryController::class, 'update'])
+            ->middleware('permission:categories.edit')
+            ->name('categories.update');
+        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])
+            ->middleware('permission:categories.delete')
+            ->name('categories.destroy');
+        Route::patch('/categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])
+            ->middleware('permission:categories.edit')
+            ->name('categories.toggle-status');
+
+        // Catalog: Brands Management
+        Route::get('/brands', [BrandController::class, 'index'])
+            ->middleware('permission:brands.view')
+            ->name('brands.index');
+        Route::post('/brands', [BrandController::class, 'store'])
+            ->middleware('permission:brands.create')
+            ->name('brands.store');
+        Route::put('/brands/{brand}', [BrandController::class, 'update'])
+            ->middleware('permission:brands.edit')
+            ->name('brands.update');
+        Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])
+            ->middleware('permission:brands.delete')
+            ->name('brands.destroy');
+        Route::patch('/brands/{brand}/toggle-status', [BrandController::class, 'toggleStatus'])
+            ->middleware('permission:brands.edit')
+            ->name('brands.toggle-status');
+
+        // Catalog: Inventory Management
+        Route::get('/inventory', [InventoryController::class, 'index'])
+            ->middleware('permission:inventory.view')
+            ->name('inventory.index');
+        Route::put('/inventory/product/{product}', [InventoryController::class, 'updateStock'])
+            ->middleware('permission:inventory.edit')
+            ->name('inventory.update-product');
+        Route::put('/inventory/variant/{variant}', [InventoryController::class, 'updateVariantStock'])
+            ->middleware('permission:inventory.edit')
+            ->name('inventory.update-variant');
+        Route::post('/inventory/batch-update', [InventoryController::class, 'batchUpdate'])
+            ->middleware('permission:inventory.edit')
+            ->name('inventory.batch-update');
 
         // Analytics
         Route::get('/analytics', function () {

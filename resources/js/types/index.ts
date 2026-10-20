@@ -233,3 +233,92 @@ export interface Store {
     created_at?: string;
     updated_at?: string;
 }
+
+export interface Brand {
+    id: number;
+    name: string;
+    slug: string;
+    description?: string | null;
+    logo_path?: string | null;
+    website?: string | null;
+    is_active: boolean;
+    sort_order: number;
+    products_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Category {
+    id: number;
+    parent_id?: number | null;
+    name: string;
+    slug: string;
+    description?: string | null;
+    image_path?: string | null;
+    is_active: boolean;
+    sort_order: number;
+    parent?: { id: number; name: string } | null;
+    children_count?: number;
+    products_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface ProductImage {
+    id?: number;
+    product_id?: number;
+    image_path: string;
+    alt_text?: string | null;
+    is_primary: boolean;
+    sort_order: number;
+}
+
+export interface ProductVariant {
+    id?: number;
+    product_id?: number;
+    sku: string;
+    name: string;
+    attributes?: Record<string, string> | null;
+    mrp?: number | string | null;
+    price: number | string;
+    sale_price?: number | string | null;
+    stock_quantity: number;
+    low_stock_threshold?: number;
+    is_active: boolean;
+    image_path?: string | null;
+}
+
+export interface Product {
+    id: number;
+    name: string;
+    slug: string;
+    sku: string;
+    short_description?: string | null;
+    description?: string | null;
+    specifications?: Record<string, string> | null;
+    brand_id?: number | null;
+    category_id?: number | null;
+    brand?: { id: number; name: string } | null;
+    category?: { id: number; name: string } | null;
+    mrp: number | string;
+    retail_price: number | string;
+    sale_price?: number | string | null;
+    discount_percentage?: number | string | null;
+    stock_quantity: number;
+    low_stock_threshold: number;
+    stock_visibility: string;
+    has_variants: boolean;
+    status: string;
+    is_featured: boolean;
+    location_availability_type: string;
+    delivery_radius_km?: number | string | null;
+    return_policy?: string | null;
+    refund_policy?: string | null;
+    primary_image?: ProductImage | null;
+    images?: ProductImage[];
+    variants?: ProductVariant[];
+    variants_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+

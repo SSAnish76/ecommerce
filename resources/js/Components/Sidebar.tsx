@@ -54,6 +54,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     Store: StoreIcon,
     Settings,
     ShieldCheck,
+    Sparkles,
 };
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {

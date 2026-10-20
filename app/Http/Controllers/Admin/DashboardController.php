@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\Activity\ActivityStatus;
 use App\Enums\Order\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,6 +20,9 @@ class DashboardController extends Controller
     public function index(): Response
     {
         $userCount = User::query()->count();
+        $productCount = Product::query()->count();
+        $lowStockCount = Product::query()->lowStock()->count();
+
         $recentUsers = User::query()
             ->with(['roles:id,name,is_system,status'])
             ->latest('id')
@@ -35,12 +39,12 @@ class DashboardController extends Controller
                 'description' => 'vs last month ($42,120)',
             ],
             [
-                'title' => 'Total Orders',
-                'value' => '1,428',
-                'change' => '+8.1%',
-                'isPositive' => true,
+                'title' => 'Catalog Products',
+                'value' => (string) $productCount,
+                'change' => $lowStockCount > 0 ? "{$lowStockCount} low stock" : 'Stock healthy',
+                'isPositive' => $lowStockCount === 0,
                 'icon' => 'ShoppingBag',
-                'description' => 'vs last month (1,320)',
+                'description' => "{$productCount} active catalog items",
             ],
             [
                 'title' => 'Active Customers',

@@ -79,7 +79,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // Manager - Daily operations
         $managerMenuSlugs = [
             'dashboard', 'analytics',
-            'catalog', 'products', 'categories', 'inventory',
+            'catalog', 'products', 'categories', 'brands', 'inventory',
             'sales', 'orders', 'customers', 'coupons',
             'platform', 'store', 'settings', 'profile',
         ];
