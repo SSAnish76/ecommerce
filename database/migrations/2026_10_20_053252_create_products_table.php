@@ -12,15 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('products', function (Blueprint $table): void {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('sku')->unique()->index();
             $table->text('short_description')->nullable();
             $table->longText('description')->nullable();
             $table->json('specifications')->nullable();
-            $table->foreignId('brand_id')->nullable()->constrained('brands')->nullOnDelete();
-            $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
+            $table->foreignUuid('brand_id')->nullable()->constrained('brands')->nullOnDelete();
+            $table->foreignUuid('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->decimal('mrp', 10, 2)->default(0.00);
             $table->decimal('retail_price', 10, 2)->default(0.00);
             $table->decimal('sale_price', 10, 2)->nullable();

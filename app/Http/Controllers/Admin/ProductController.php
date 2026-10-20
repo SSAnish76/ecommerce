@@ -53,10 +53,10 @@ class ProductController extends Controller
                 $query->where('status', $status);
             })
             ->when($brandId !== null && $brandId !== '', function (Builder $query) use ($brandId): void {
-                $query->where('brand_id', (int) $brandId);
+                $query->where('brand_id', $brandId);
             })
             ->when($categoryId !== null && $categoryId !== '', function (Builder $query) use ($categoryId): void {
-                $query->where('category_id', (int) $categoryId);
+                $query->where('category_id', $categoryId);
             })
             ->when($stockFilter !== '', function (Builder $query) use ($stockFilter): void {
                 if ($stockFilter === 'low') {
@@ -67,7 +67,7 @@ class ProductController extends Controller
                     $query->where('stock_quantity', '>', 0);
                 }
             })
-            ->latest('id')
+            ->latest()
             ->paginate(12)
             ->withQueryString();
 
@@ -119,8 +119,8 @@ class ProductController extends Controller
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'specifications' => ['nullable', 'array'],
-            'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'brand_id' => ['nullable', 'string', 'exists:brands,id'],
+            'category_id' => ['nullable', 'string', 'exists:categories,id'],
             'mrp' => ['required', 'numeric', 'min:0'],
             'retail_price' => ['required', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
@@ -296,8 +296,8 @@ class ProductController extends Controller
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'specifications' => ['nullable', 'array'],
-            'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'brand_id' => ['nullable', 'string', 'exists:brands,id'],
+            'category_id' => ['nullable', 'string', 'exists:categories,id'],
             'mrp' => ['required', 'numeric', 'min:0'],
             'retail_price' => ['required', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],

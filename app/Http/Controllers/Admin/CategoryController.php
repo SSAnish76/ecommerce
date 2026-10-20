@@ -45,7 +45,7 @@ class CategoryController extends Controller
                 if ($parentId === 'root') {
                     $query->whereNull('parent_id');
                 } else {
-                    $query->where('parent_id', (int) $parentId);
+                    $query->where('parent_id', $parentId);
                 }
             })
             ->orderBy('sort_order')
@@ -75,9 +75,9 @@ class CategoryController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        /** @var array{parent_id?: ?int, name: string, slug?: ?string, description?: ?string, image_id?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{parent_id?: ?string, name: string, slug?: ?string, description?: ?string, image_id?: ?string, is_active?: bool, sort_order?: int} $validated */
         $validated = $request->validate([
-            'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'parent_id' => ['nullable', 'string', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -115,11 +115,11 @@ class CategoryController extends Controller
      */
     public function update(Request $request, Category $category): RedirectResponse
     {
-        /** @var array{parent_id?: ?int, name: string, slug?: ?string, description?: ?string, image_id?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{parent_id?: ?string, name: string, slug?: ?string, description?: ?string, image_id?: ?string, is_active?: bool, sort_order?: int} $validated */
         $validated = $request->validate([
             'parent_id' => [
                 'nullable',
-                'integer',
+                'string',
                 'exists:categories,id',
                 // Cannot be parent of itself
                 Rule::notIn([$category->id]),

@@ -67,12 +67,12 @@ export default function InventoryPage({
 
     const [search, setSearch] = useState(filters.search || '');
     const [stockFilter, setStockFilter] = useState(filters.stock_status || '');
-    const [expandedProductIds, setExpandedProductIds] = useState<Record<number, boolean>>({});
+    const [expandedProductIds, setExpandedProductIds] = useState<Record<string, boolean>>({});
     const [copiedSku, setCopiedSku] = useState<string | null>(null);
 
     // Single item edit modal
     const [editingItem, setEditingItem] = useState<{
-        id: number;
+        id: string;
         type: 'product' | 'variant';
         name: string;
         sku: string;
@@ -85,7 +85,7 @@ export default function InventoryPage({
         low_stock_threshold: 5,
     });
 
-    const toggleExpand = (productId: number) => {
+    const toggleExpand = (productId: string) => {
         setExpandedProductIds((prev) => ({
             ...prev,
             [productId]: !prev[productId],
@@ -97,7 +97,7 @@ export default function InventoryPage({
         if (anyExpanded) {
             setExpandedProductIds({});
         } else {
-            const all: Record<number, boolean> = {};
+            const all: Record<string, boolean> = {};
             products.data.forEach((p) => {
                 if (p.has_variants) all[p.id] = true;
             });
@@ -106,7 +106,7 @@ export default function InventoryPage({
     };
 
     const openEdit = (item: {
-        id: number;
+        id: string;
         type: 'product' | 'variant';
         name: string;
         sku: string;

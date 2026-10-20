@@ -53,8 +53,8 @@ const getCsrfToken = (): string => {
 
 interface CreateOrEditProps {
     product: (Product & { images?: any[]; variants?: ProductVariant[] }) | null;
-    brands: { id: number; name: string }[];
-    categories: { id: number; name: string; parent_id?: number | null }[];
+    brands: { id: string; name: string }[];
+    categories: { id: string; name: string; parent_id?: string | null }[];
     statuses: { value: string; label: string }[];
     stockVisibilities: { value: string; label: string }[];
     locationTypes: { value: string; label: string }[];

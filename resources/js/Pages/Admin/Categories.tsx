@@ -45,7 +45,7 @@ interface PaginatedCategories {
 
 interface CategoriesProps {
     categories: PaginatedCategories;
-    parentOptions: { id: number; name: string }[];
+    parentOptions: { id: string; name: string }[];
     filters: {
         search: string;
         status?: string;
@@ -74,7 +74,7 @@ export default function CategoriesPage({
 
     // Create Form
     const createForm = useForm<{
-        parent_id: string | number;
+        parent_id: string;
         name: string;
         slug: string;
         description: string;
@@ -95,7 +95,7 @@ export default function CategoriesPage({
 
     // Edit Form
     const editForm = useForm<{
-        parent_id: string | number;
+        parent_id: string;
         name: string;
         slug: string;
         description: string;
@@ -150,10 +150,10 @@ export default function CategoriesPage({
     };
 
 
-    const openCreateWithParent = (parentId?: number) => {
+    const openCreateWithParent = (parentId?: string) => {
         createForm.reset();
         if (parentId) {
-            createForm.setData('parent_id', String(parentId));
+            createForm.setData('parent_id', parentId);
         }
         setIsCreateOpen(true);
     };

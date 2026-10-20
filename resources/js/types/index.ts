@@ -235,7 +235,7 @@ export interface Store {
 }
 
 export interface Brand {
-    id: number;
+    id: string;
     name: string;
     slug: string;
     description?: string | null;
@@ -248,8 +248,8 @@ export interface Brand {
 }
 
 export interface Category {
-    id: number;
-    parent_id?: number | null;
+    id: string;
+    parent_id?: string | null;
     name: string;
     slug: string;
     description?: string | null;
@@ -257,7 +257,7 @@ export interface Category {
     image_url?: string | null;
     is_active: boolean;
     sort_order: number;
-    parent?: { id: number; name: string } | null;
+    parent?: { id: string; name: string } | null;
     children_count?: number;
     products_count?: number;
     created_at?: string;
@@ -265,8 +265,8 @@ export interface Category {
 }
 
 export interface ProductImage {
-    id?: number;
-    product_id?: number;
+    id?: string;
+    product_id?: string;
     media_id?: string | null;
     url?: string | null;
     alt_text?: string | null;
@@ -275,8 +275,8 @@ export interface ProductImage {
 }
 
 export interface ProductVariant {
-    id?: number;
-    product_id?: number;
+    id?: string;
+    product_id?: string;
     sku: string;
     name: string;
     attributes?: Record<string, string> | null;
@@ -290,17 +290,17 @@ export interface ProductVariant {
 }
 
 export interface Product {
-    id: number;
+    id: string;
     name: string;
     slug: string;
     sku: string;
     short_description?: string | null;
     description?: string | null;
     specifications?: Record<string, string> | null;
-    brand_id?: number | null;
-    category_id?: number | null;
-    brand?: { id: number; name: string } | null;
-    category?: { id: number; name: string } | null;
+    brand_id?: string | null;
+    category_id?: string | null;
+    brand?: { id: string; name: string } | null;
+    category?: { id: string; name: string } | null;
     mrp: number | string;
     retail_price: number | string;
     sale_price?: number | string | null;

@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('product_variants', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('product_id')->constrained('products')->cascadeOnDelete();
             $table->string('sku')->unique()->index();
             $table->string('name');
             $table->json('attributes')->nullable();

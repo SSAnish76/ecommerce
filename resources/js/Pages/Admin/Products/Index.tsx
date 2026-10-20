@@ -49,8 +49,8 @@ interface PaginatedProducts {
 
 interface ProductsIndexProps {
     products: PaginatedProducts;
-    brands: { id: number; name: string }[];
-    categories: { id: number; name: string; parent_id?: number | null }[];
+    brands: { id: string; name: string }[];
+    categories: { id: string; name: string; parent_id?: string | null }[];
     statuses: { value: string; label: string }[];
     filters: {
         search: string;

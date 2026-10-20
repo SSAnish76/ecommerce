@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('product_images', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('product_id')->constrained('products')->cascadeOnDelete();
             $table->string('image_path');
             $table->string('alt_text')->nullable();
             $table->boolean('is_primary')->default(false);

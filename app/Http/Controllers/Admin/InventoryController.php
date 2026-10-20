@@ -120,10 +120,10 @@ class InventoryController extends Controller
      */
     public function batchUpdate(Request $request): RedirectResponse
     {
-        /** @var array{items: list<array{id: int, type: string, stock_quantity: int}>} $validated */
+        /** @var array{items: list<array{id: string, type: string, stock_quantity: int}>} $validated */
         $validated = $request->validate([
             'items' => ['required', 'array'],
-            'items.*.id' => ['required', 'integer'],
+            'items.*.id' => ['required', 'string'],
             'items.*.type' => ['required', 'string', 'in:product,variant'],
             'items.*.stock_quantity' => ['required', 'integer', 'min:0'],
         ]);

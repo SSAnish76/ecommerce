@@ -69,7 +69,7 @@ class BrandController extends Controller
 
         $logoId = $request->input('logo_id') ?: null;
 
-        $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
+        $slug = !empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
         // Ensure unique slug
         $originalSlug = $slug;
@@ -106,7 +106,7 @@ class BrandController extends Controller
 
         $logoId = array_key_exists('logo_id', $validated) ? ($validated['logo_id'] ?: null) : $brand->logo_id;
 
-        $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
+        $slug = !empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
 
         $brand->update([
             'name' => $validated['name'],
@@ -139,7 +139,7 @@ class BrandController extends Controller
      */
     public function toggleStatus(Brand $brand): RedirectResponse
     {
-        $brand->update(['is_active' => ! $brand->is_active]);
+        $brand->update(['is_active' => !$brand->is_active]);
 
         $statusStr = $brand->is_active ? 'activated' : 'deactivated';
 
