@@ -72,7 +72,7 @@ class ProductController extends Controller
             ->withQueryString();
 
         $brands = Brand::query()->active()->orderBy('name')->get(['id', 'name']);
-        $categories = Category::query()->active()->orderBy('name')->get(['id', 'name', 'parent_id']);
+        $categories = Category::query()->active()->with('parent:id,name')->orderBy('name')->get(['id', 'name', 'parent_id']);
 
         return Inertia::render('Admin/Products/Index', [
             'products' => $products,

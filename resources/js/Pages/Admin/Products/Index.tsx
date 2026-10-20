@@ -218,9 +218,11 @@ export default function ProductsIndexPage({
                                     { value: '', label: 'All Categories' },
                                     ...categories.map((c) => ({
                                         value: String(c.id),
-                                        label: c.parent_id ? `— ${c.name}` : c.name,
+                                        label: c.parent ? `${c.parent.name} › ${c.name}` : (c.parent_id ? `— ${c.name}` : c.name),
                                     })),
                                 ]}
+                                clearable
+                                searchable={categories.length > 5}
                             />
                         </div>
 
@@ -235,6 +237,8 @@ export default function ProductsIndexPage({
                                         label: b.name,
                                     })),
                                 ]}
+                                clearable
+                                searchable={brands.length > 5}
                             />
                         </div>
 

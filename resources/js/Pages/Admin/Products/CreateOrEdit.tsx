@@ -1132,10 +1132,12 @@ export default function CreateOrEditProductPage({
                                     { value: '', label: 'Select Category' },
                                     ...categories.map((c) => ({
                                         value: String(c.id),
-                                        label: c.parent_id ? `— ${c.name}` : c.name,
+                                        label: c.parent ? `${c.parent.name} › ${c.name}` : (c.parent_id ? `— ${c.name}` : c.name),
                                     })),
                                 ]}
                                 error={form.errors.category_id}
+                                clearable
+                                searchable={categories.length > 5}
                             />
 
                             <Select
@@ -1150,6 +1152,8 @@ export default function CreateOrEditProductPage({
                                     })),
                                 ]}
                                 error={form.errors.brand_id}
+                                clearable
+                                searchable={brands.length > 5}
                             />
                         </div>
 
