@@ -241,9 +241,7 @@ export interface Brand {
     description?: string | null;
     logo_id?: string | null;
     logo_url?: string | null;
-    website?: string | null;
     is_active: boolean;
-    sort_order: number;
     products_count?: number;
     created_at?: string;
     updated_at?: string;

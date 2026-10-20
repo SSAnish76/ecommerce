@@ -15,7 +15,6 @@ import {
     TableCell,
     TableHeaderCell,
     EmptyState,
-    PageHeader,
 } from '../../Components/UI';
 import {
     Boxes,
@@ -27,6 +26,13 @@ import {
     Layers,
     Save,
     Pencil,
+    ChevronDown,
+    ChevronRight,
+    TrendingUp,
+    ShieldAlert,
+    Copy,
+    Check,
+    Plus,
 } from 'lucide-react';
 
 interface PaginatedProducts {
@@ -61,6 +67,8 @@ export default function InventoryPage({
 
     const [search, setSearch] = useState(filters.search || '');
     const [stockFilter, setStockFilter] = useState(filters.stock_status || '');
+    const [expandedProductIds, setExpandedProductIds] = useState<Record<number, boolean>>({});
+    const [copiedSku, setCopiedSku] = useState<string | null>(null);
 
     // Single item edit modal
     const [editingItem, setEditingItem] = useState<{
@@ -76,6 +84,26 @@ export default function InventoryPage({
         stock_quantity: 0,
         low_stock_threshold: 5,
     });
+
+    const toggleExpand = (productId: number) => {
+        setExpandedProductIds((prev) => ({
+            ...prev,
+            [productId]: !prev[productId],
+        }));
+    };
+
+    const toggleExpandAll = () => {
+        const anyExpanded = products.data.some((p) => p.has_variants && expandedProductIds[p.id]);
+        if (anyExpanded) {
+            setExpandedProductIds({});
+        } else {
+            const all: Record<number, boolean> = {};
+            products.data.forEach((p) => {
+                if (p.has_variants) all[p.id] = true;
+            });
+            setExpandedProductIds(all);
+        }
+    };
 
     const openEdit = (item: {
         id: number;
@@ -117,11 +145,33 @@ export default function InventoryPage({
         );
     };
 
+    const handleQuickMetricFilter = (statusVal: string) => {
+        const nextStatus = stockFilter === statusVal ? '' : statusVal;
+        setStockFilter(nextStatus);
+        router.get(
+            '/admin/inventory',
+            { search, stock_status: nextStatus },
+            { preserveState: true, replace: true }
+        );
+    };
+
     const handleReset = () => {
         setSearch('');
         setStockFilter('');
         router.get('/admin/inventory', {}, { preserveState: true, replace: true });
     };
+
+    const handleCopySku = (sku: string) => {
+        navigator.clipboard?.writeText(sku);
+        setCopiedSku(sku);
+        setTimeout(() => setCopiedSku(null), 2000);
+    };
+
+    const quickAdjustQuantity = (delta: number) => {
+        editForm.setData('stock_quantity', Math.max(0, editForm.data.stock_quantity + delta));
+    };
+
+    const anyVariantsExist = products.data.some((p) => p.has_variants);
 
     return (
         <AdminLayout
@@ -131,93 +181,162 @@ export default function InventoryPage({
             <Head title="Inventory Stock Management - Admin" />
 
             <div className="space-y-6">
-                <PageHeader
-                    title="Warehouse Stock & Replenishment"
-                    description="Live stock tracking, threshold warnings, low-stock replenishment, and variant stock breakdown"
-                    badge="Fulfillment"
-                />
-
-                {/* Stock Telemetry Metric Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-500">Catalog Items</span>
-                            <Boxes className="w-4 h-4 text-slate-400" />
+                {/* Modern Hero Banner */}
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-slate-50 to-amber-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-amber-950/20 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-xs">
+                    <div className="space-y-2 mb-6">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/80 border border-amber-200/80 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+                            <Boxes className="w-3.5 h-3.5" />
+                            <span>Warehouse Stock Control</span>
                         </div>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                            {metrics.total_products}
-                        </div>
-                        <span className="text-[11px] text-slate-500">Active SKUs tracked</span>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                            Warehouse Stock &amp; Replenishment
+                        </h1>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+                            Real-time stock counts, minimum threshold triggers, low-stock re-order alerts, and granular SKU variant tracking.
+                        </p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Healthy Stock</span>
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                            {metrics.in_stock}
-                        </div>
-                        <span className="text-[11px] text-slate-500">Above minimum threshold</span>
-                    </div>
+                    {/* Stock Telemetry Metric Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-6 border-t border-slate-200/60 dark:border-slate-800/80">
+                        <button
+                            type="button"
+                            onClick={() => handleQuickMetricFilter('')}
+                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
+                                stockFilter === ''
+                                    ? 'border-indigo-500 ring-2 ring-indigo-500/10'
+                                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-slate-500">Catalog SKUs</span>
+                                <Boxes className="w-4 h-4 text-slate-400" />
+                            </div>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                                {metrics.total_products}
+                            </div>
+                            <span className="text-[11px] text-slate-500">All managed items</span>
+                        </button>
 
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Low Stock Alert</span>
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                            {metrics.low_stock}
-                        </div>
-                        <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">Re-order required</span>
-                    </div>
+                        <button
+                            type="button"
+                            onClick={() => handleQuickMetricFilter('in')}
+                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
+                                stockFilter === 'in'
+                                    ? 'border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/20'
+                                    : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Healthy Stock</span>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            </div>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                                {metrics.in_stock}
+                            </div>
+                            <span className="text-[11px] text-slate-500">Above minimum threshold</span>
+                        </button>
 
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Out of Stock</span>
-                            <XCircle className="w-4 h-4 text-rose-500" />
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                            {metrics.out_of_stock}
-                        </div>
-                        <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">Unavailable to order</span>
+                        <button
+                            type="button"
+                            onClick={() => handleQuickMetricFilter('low')}
+                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
+                                stockFilter === 'low'
+                                    ? 'border-amber-500 ring-2 ring-amber-500/10 bg-amber-50/20'
+                                    : 'border-slate-200 dark:border-slate-800 hover:border-amber-300'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Low Stock Alert</span>
+                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                            </div>
+                            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                                {metrics.low_stock}
+                            </div>
+                            <span className="text-[11px] text-amber-600 font-medium">Re-order recommended</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleQuickMetricFilter('out')}
+                            className={`p-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border transition-all text-left shadow-2xs ${
+                                stockFilter === 'out'
+                                    ? 'border-rose-500 ring-2 ring-rose-500/10 bg-rose-50/20'
+                                    : 'border-slate-200 dark:border-slate-800 hover:border-rose-300'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Out of Stock</span>
+                                <XCircle className="w-4 h-4 text-rose-500" />
+                            </div>
+                            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+                                {metrics.out_of_stock}
+                            </div>
+                            <span className="text-[11px] text-rose-600 font-medium">Unavailable for purchase</span>
+                        </button>
                     </div>
                 </div>
 
-                {/* Filters */}
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-3">
+                {/* Filters & Actions Bar */}
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2.5 flex-1 w-full">
                         <div className="relative flex-1 w-full">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search inventory by product name or SKU..."
-                                className="pl-9 w-full"
+                                placeholder="Search inventory by product name, SKU, or variant..."
+                                className="pl-9 pr-8 w-full text-xs"
                             />
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearch('');
+                                        router.get(
+                                            '/admin/inventory',
+                                            { stock_status: stockFilter },
+                                            { preserveState: true }
+                                        );
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
-                        <div className="w-full sm:w-48">
+
+                        <div className="w-full sm:w-52 shrink-0">
                             <Select
                                 value={stockFilter}
-                                onChange={(e) => setStockFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setStockFilter(e.target.value);
+                                    router.get(
+                                        '/admin/inventory',
+                                        { search, stock_status: e.target.value },
+                                        { preserveState: true }
+                                    );
+                                }}
                                 options={[
                                     { value: '', label: 'All Stock Health' },
-                                    { value: 'low', label: 'Low Stock Alerts' },
-                                    { value: 'out', label: 'Out of Stock' },
-                                    { value: 'in', label: 'Healthy In Stock' },
+                                    { value: 'low', label: 'Low Stock Alerts Only' },
+                                    { value: 'out', label: 'Out of Stock Only' },
+                                    { value: 'in', label: 'Healthy In-Stock Only' },
                                 ]}
                             />
                         </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <Button type="submit" variant="secondary" className="w-full sm:w-auto">
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                            <Button type="submit" variant="secondary" size="sm" className="w-full sm:w-auto">
                                 Filter
                             </Button>
+
                             {(search || stockFilter) && (
                                 <Button
                                     type="button"
                                     variant="ghost"
+                                    size="sm"
                                     onClick={handleReset}
-                                    className="p-2"
+                                    className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                                     title="Reset filters"
                                 >
                                     <RotateCcw className="w-4 h-4" />
@@ -225,18 +344,31 @@ export default function InventoryPage({
                             )}
                         </div>
                     </form>
+
+                    {anyVariantsExist && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={toggleExpandAll}
+                            className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 shrink-0 self-end sm:self-auto"
+                        >
+                            <Layers className="w-3.5 h-3.5" />
+                            <span>Toggle Variant Rows</span>
+                        </Button>
+                    )}
                 </div>
 
                 {/* Inventory Table */}
                 <TableContainer>
                     <TableHead>
                         <TableRow>
-                            <TableHeaderCell>Product / Variant</TableHeaderCell>
+                            <TableHeaderCell>Product / Variant Listing</TableHeaderCell>
                             <TableHeaderCell>SKU</TableHeaderCell>
-                            <TableHeaderCell>Brand / Category</TableHeaderCell>
-                            <TableHeaderCell>Available Stock</TableHeaderCell>
-                            <TableHeaderCell>Alert Threshold</TableHeaderCell>
-                            <TableHeaderCell>Health Status</TableHeaderCell>
+                            <TableHeaderCell>Classification</TableHeaderCell>
+                            <TableHeaderCell>Current Stock</TableHeaderCell>
+                            <TableHeaderCell>Min Threshold</TableHeaderCell>
+                            <TableHeaderCell>Stock Health</TableHeaderCell>
                             <TableHeaderCell className="text-right">Quick Adjust</TableHeaderCell>
                         </TableRow>
                     </TableHead>
@@ -246,7 +378,7 @@ export default function InventoryPage({
                                 <TableCell colSpan={7}>
                                     <EmptyState
                                         title="No inventory records found"
-                                        description="Try adjusting your search criteria."
+                                        description="Try adjusting your search criteria or clear the stock health filter."
                                     />
                                 </TableCell>
                             </TableRow>
@@ -256,48 +388,106 @@ export default function InventoryPage({
                                     prod.stock_quantity > 0 &&
                                     prod.stock_quantity <= prod.low_stock_threshold;
                                 const isOutOfStock = prod.stock_quantity <= 0;
+                                const isExpanded = Boolean(expandedProductIds[prod.id]);
+                                const hasVariants = Boolean(prod.has_variants && prod.variants?.length);
 
                                 return (
                                     <React.Fragment key={`prod-${prod.id}`}>
-                                        <TableRow className="bg-slate-50/30 dark:bg-slate-900/40 font-medium">
+                                        <TableRow className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 bg-slate-50/30 dark:bg-slate-900/30">
                                             <TableCell>
-                                                <div className="font-semibold text-slate-900 dark:text-white">
-                                                    {prod.name}
+                                                <div className="flex items-center gap-2.5">
+                                                    {hasVariants ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleExpand(prod.id)}
+                                                            className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                            title={isExpanded ? 'Collapse variants' : 'Expand variants'}
+                                                        >
+                                                            {isExpanded ? (
+                                                                <ChevronDown className="w-4 h-4 text-indigo-600" />
+                                                            ) : (
+                                                                <ChevronRight className="w-4 h-4" />
+                                                            )}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="w-4" />
+                                                    )}
+
+                                                    <div>
+                                                        <div className="font-semibold text-slate-900 dark:text-white text-sm">
+                                                            {prod.name}
+                                                        </div>
+                                                        {hasVariants && (
+                                                            <div className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">
+                                                                <Layers className="w-3 h-3" />
+                                                                <span>{prod.variants?.length} Options Tracked</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                {prod.has_variants && (
-                                                    <span className="text-[11px] text-indigo-600 dark:text-indigo-400 flex items-center gap-1 mt-0.5">
-                                                        <Layers className="w-3 h-3" />
-                                                        {prod.variants?.length ?? 0} Child Variants Below
-                                                    </span>
-                                                )}
                                             </TableCell>
+
                                             <TableCell>
-                                                <span className="font-mono text-xs">{prod.sku}</span>
+                                                <div className="flex items-center gap-1 font-mono text-xs text-slate-600 dark:text-slate-300">
+                                                    <span>{prod.sku}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleCopySku(prod.sku)}
+                                                        className="text-slate-400 hover:text-indigo-600"
+                                                    >
+                                                        {copiedSku === prod.sku ? (
+                                                            <Check className="w-3 h-3 text-emerald-500" />
+                                                        ) : (
+                                                            <Copy className="w-3 h-3" />
+                                                        )}
+                                                    </button>
+                                                </div>
                                             </TableCell>
+
                                             <TableCell>
                                                 <div className="text-xs text-slate-500">
-                                                    {prod.brand?.name || '—'} / {prod.category?.name || '—'}
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                                                        {prod.brand?.name || '—'}
+                                                    </span>
+                                                    <span className="text-slate-400 mx-1">/</span>
+                                                    <span>{prod.category?.name || '—'}</span>
                                                 </div>
                                             </TableCell>
+
                                             <TableCell>
-                                                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                                                    {prod.stock_quantity}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                                                        {prod.stock_quantity}
+                                                    </span>
+                                                    <span className="text-[11px] text-slate-400">units</span>
+                                                </div>
                                             </TableCell>
+
                                             <TableCell>
-                                                <span className="text-xs text-slate-500 font-mono">
+                                                <span className="text-xs font-mono text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                                                     {prod.low_stock_threshold}
                                                 </span>
                                             </TableCell>
+
                                             <TableCell>
                                                 {isOutOfStock ? (
-                                                    <Badge variant="danger">Out of Stock</Badge>
+                                                    <Badge variant="danger">
+                                                        <XCircle className="w-3 h-3 mr-1" />
+                                                        Out of Stock
+                                                    </Badge>
                                                 ) : isLowStock ? (
-                                                    <Badge variant="warning">Low Stock</Badge>
+                                                    <Badge variant="warning">
+                                                        <AlertTriangle className="w-3 h-3 mr-1" />
+                                                        Low Stock Alert
+                                                    </Badge>
                                                 ) : (
-                                                    <Badge variant="success">Healthy</Badge>
+                                                    <Badge variant="success">
+                                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                                        Healthy
+                                                    </Badge>
                                                 )}
                                             </TableCell>
+
                                             <TableCell className="text-right">
                                                 {canEdit && (
                                                     <Button
@@ -313,19 +503,19 @@ export default function InventoryPage({
                                                                 low_stock_threshold: prod.low_stock_threshold,
                                                             })
                                                         }
-                                                        className="text-indigo-600 dark:text-indigo-400 p-1.5"
+                                                        className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 p-1.5 text-xs font-medium"
                                                     >
-                                                        <Pencil className="w-4 h-4 mr-1" />
-                                                        Adjust
+                                                        <Pencil className="w-3.5 h-3.5 mr-1" />
+                                                        Adjust Stock
                                                     </Button>
                                                 )}
                                             </TableCell>
                                         </TableRow>
 
-                                        {/* Render Variant Sub-rows if available */}
-                                        {prod.has_variants &&
-                                            prod.variants &&
-                                            prod.variants.map((v) => {
+                                        {/* Child Variant Rows (visible if expanded or default) */}
+                                        {hasVariants &&
+                                            (isExpanded || Object.keys(expandedProductIds).length === 0) &&
+                                            prod.variants!.map((v) => {
                                                 const vLow =
                                                     v.stock_quantity > 0 &&
                                                     v.stock_quantity <= (v.low_stock_threshold || 5);
@@ -334,49 +524,71 @@ export default function InventoryPage({
                                                 return (
                                                     <TableRow
                                                         key={`var-${v.id}`}
-                                                        className="bg-white dark:bg-slate-950 text-xs text-slate-600 dark:text-slate-400"
+                                                        className="bg-white dark:bg-slate-950/80 hover:bg-slate-50/80 dark:hover:bg-slate-900/60 text-xs"
                                                     >
-                                                        <TableCell className="pl-8">
+                                                        <TableCell className="pl-10">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-slate-300 dark:text-slate-700">↳</span>
-                                                                <span className="font-medium text-slate-700 dark:text-slate-300">
+                                                                <span className="text-slate-300 dark:text-slate-600 font-mono text-sm">
+                                                                    ↳
+                                                                </span>
+                                                                <span className="font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
                                                                     {v.name}
                                                                 </span>
                                                             </div>
                                                         </TableCell>
+
                                                         <TableCell>
-                                                            <span className="font-mono text-[11px] text-slate-500">
-                                                                {v.sku}
-                                                            </span>
+                                                            <div className="flex items-center gap-1 font-mono text-[11px] text-slate-500">
+                                                                <span>{v.sku}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleCopySku(v.sku)}
+                                                                    className="hover:text-slate-700"
+                                                                >
+                                                                    {copiedSku === v.sku ? (
+                                                                        <Check className="w-3 h-3 text-emerald-500" />
+                                                                    ) : (
+                                                                        <Copy className="w-3 h-3" />
+                                                                    )}
+                                                                </button>
+                                                            </div>
                                                         </TableCell>
+
                                                         <TableCell>
-                                                            <span className="text-[11px] text-slate-400">Variant</span>
+                                                            <span className="text-[11px] text-slate-400">Variant Option</span>
                                                         </TableCell>
+
                                                         <TableCell>
                                                             <span className="font-bold text-slate-800 dark:text-slate-200">
                                                                 {v.stock_quantity}
                                                             </span>
                                                         </TableCell>
+
                                                         <TableCell>
-                                                            <span className="font-mono text-slate-400">
+                                                            <span className="font-mono text-slate-400 text-[11px]">
                                                                 {v.low_stock_threshold ?? 5}
                                                             </span>
                                                         </TableCell>
+
                                                         <TableCell>
                                                             {vOut ? (
-                                                                <span className="text-rose-600 dark:text-rose-400 font-semibold text-[11px]">
+                                                                <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-bold text-[11px]">
+                                                                    <XCircle className="w-3 h-3" />
                                                                     Out of Stock
                                                                 </span>
                                                             ) : vLow ? (
-                                                                <span className="text-amber-600 dark:text-amber-400 font-semibold text-[11px]">
+                                                                <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold text-[11px]">
+                                                                    <AlertTriangle className="w-3 h-3" />
                                                                     Low ({v.stock_quantity})
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-emerald-600 dark:text-emerald-400 text-[11px]">
-                                                                    In Stock
+                                                                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+                                                                    <CheckCircle2 className="w-3 h-3" />
+                                                                    Healthy
                                                                 </span>
                                                             )}
                                                         </TableCell>
+
                                                         <TableCell className="text-right">
                                                             {canEdit && v.id && (
                                                                 <Button
@@ -386,13 +598,13 @@ export default function InventoryPage({
                                                                         openEdit({
                                                                             id: v.id!,
                                                                             type: 'variant',
-                                                                            name: `${prod.name} - ${v.name}`,
+                                                                            name: `${prod.name} — ${v.name}`,
                                                                             sku: v.sku,
                                                                             stock_quantity: v.stock_quantity,
                                                                             low_stock_threshold: v.low_stock_threshold ?? 5,
                                                                         })
                                                                     }
-                                                                    className="text-slate-600 dark:text-slate-400 p-1 text-xs"
+                                                                    className="text-slate-500 hover:text-indigo-600 p-1 text-xs"
                                                                 >
                                                                     Adjust
                                                                 </Button>
@@ -410,22 +622,22 @@ export default function InventoryPage({
 
                 {/* Pagination */}
                 {products.last_page > 1 && (
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-2">
+                    <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-3 gap-3">
                         <span>
-                            Showing {products.data.length} of {products.total} products
+                            Showing {products.data.length} of {products.total} inventory catalog items
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1.5 flex-wrap justify-center">
                             {products.links.map((link, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url || link.active}
-                                    className={`px-3 py-1.5 rounded-lg border transition-colors ${
+                                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                                         link.active
-                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                             : link.url
-                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                                            : 'border-transparent text-slate-400 opacity-50 cursor-not-allowed'
+                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                            : 'border-transparent text-slate-400 opacity-40 cursor-not-allowed'
                                     }`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />
@@ -440,25 +652,101 @@ export default function InventoryPage({
                 isOpen={!!editingItem}
                 onClose={() => setEditingItem(null)}
                 title={`Adjust Stock: ${editingItem?.name}`}
-                description={`SKU: ${editingItem?.sku} (${editingItem?.type === 'product' ? 'Standard Product' : 'Variant Option'})`}
+                description={`SKU: ${editingItem?.sku} • Target: ${
+                    editingItem?.type === 'product' ? 'Standard Product' : 'Variant Option'
+                }`}
             >
-                <form onSubmit={submitStockUpdate} className="space-y-4">
-                    <Input
-                        label="Available Stock Quantity (Units)"
-                        required
-                        type="number"
-                        value={String(editForm.data.stock_quantity)}
-                        onChange={(e) => editForm.setData('stock_quantity', Number(e.target.value))}
-                        error={editForm.errors.stock_quantity}
-                    />
+                <form onSubmit={submitStockUpdate} className="space-y-4 pt-2">
+                    {/* Live Preview of Projected Health */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
+                                Projected Stock Health
+                            </span>
+                            <div className="mt-1">
+                                {editForm.data.stock_quantity <= 0 ? (
+                                    <Badge variant="danger">
+                                        <XCircle className="w-3 h-3 mr-1" />
+                                        Will become Out of Stock
+                                    </Badge>
+                                ) : editForm.data.stock_quantity <= editForm.data.low_stock_threshold ? (
+                                    <Badge variant="warning">
+                                        <AlertTriangle className="w-3 h-3 mr-1" />
+                                        Will trigger Low Stock Alert
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="success">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                        Healthy Warehouse Stock
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="text-right">
+                            <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
+                                Current
+                            </span>
+                            <span className="text-lg font-extrabold text-slate-700 dark:text-slate-300">
+                                {editingItem?.stock_quantity ?? 0}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <Input
+                            label="Available Stock Quantity (Units)"
+                            required
+                            type="number"
+                            min="0"
+                            value={String(editForm.data.stock_quantity)}
+                            onChange={(e) => editForm.setData('stock_quantity', Number(e.target.value))}
+                            error={editForm.errors.stock_quantity}
+                        />
+
+                        {/* Quick increment buttons */}
+                        <div className="flex items-center gap-1.5 mt-2">
+                            <span className="text-[11px] text-slate-400 font-medium mr-1">Quick:</span>
+                            <button
+                                type="button"
+                                onClick={() => quickAdjustQuantity(5)}
+                                className="px-2 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+                            >
+                                +5
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => quickAdjustQuantity(10)}
+                                className="px-2 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+                            >
+                                +10
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => quickAdjustQuantity(50)}
+                                className="px-2 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+                            >
+                                +50
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => editForm.setData('stock_quantity', 0)}
+                                className="px-2 py-1 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-600 dark:bg-rose-950/40 hover:bg-rose-100"
+                            >
+                                Clear to 0
+                            </button>
+                        </div>
+                    </div>
 
                     <Input
-                        label="Low Stock Alert Threshold"
+                        label="Low Stock Warning Threshold"
                         required
                         type="number"
+                        min="1"
                         value={String(editForm.data.low_stock_threshold)}
                         onChange={(e) => editForm.setData('low_stock_threshold', Number(e.target.value))}
                         error={editForm.errors.low_stock_threshold}
+                        helperText="Triggers email/dashboard replenishment warnings when inventory drops below this number"
                     />
 
                     <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">

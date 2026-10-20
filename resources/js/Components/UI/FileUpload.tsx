@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, X, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Link2, RefreshCw, Eye, ExternalLink } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, RefreshCw, Eye, ExternalLink } from 'lucide-react';
 import { Button } from './Button';
 import { cn } from '../../lib/utils';
 
@@ -27,7 +27,6 @@ export interface FileUploadProps {
     endpoint?: string;
     onUploadSuccess?: (media: UploadedMediaData) => void;
     onRemove?: () => void;
-    onUrlChange?: (url: string) => void;
     className?: string;
 }
 
@@ -42,7 +41,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     endpoint = '/admin/media/upload',
     onUploadSuccess,
     onRemove,
-    onUrlChange,
     className,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +48,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadError, setUploadError] = useState<string | null>(null);
-    const [showUrlInput, setShowUrlInput] = useState(false);
 
     const getCsrfToken = (): string => {
         const metaTag = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
@@ -159,39 +156,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     return (
         <div className={cn('w-full space-y-2', className)}>
             {/* Header / Label */}
-            <div className="flex items-center justify-between">
-                {label && (
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        {label}
-                    </label>
-                )}
-                {!disabled && onUrlChange && (
-                    <button
-                        type="button"
-                        onClick={() => setShowUrlInput(!showUrlInput)}
-                        className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                    >
-                        <Link2 className="w-3 h-3" />
-                        {showUrlInput ? 'Upload File Instead' : 'Enter Direct URL'}
-                    </button>
-                )}
-            </div>
+            {label && (
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    {label}
+                </label>
+            )}
 
-            {/* Direct URL input fallback */}
-            {showUrlInput ? (
-                <div className="space-y-2">
-                    <div className="relative flex items-center rounded-xl shadow-2xs">
-                        <input
-                            type="url"
-                            placeholder="https://example.com/asset.png"
-                            disabled={disabled}
-                            value={value || ''}
-                            onChange={(e) => onUrlChange && onUrlChange(e.target.value)}
-                            className="w-full text-sm rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 px-3.5 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60"
-                        />
-                    </div>
-                </div>
-            ) : hasValue ? (
+            {hasValue ? (
                 /* Existing preview card */
                 <div className="relative p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-800/60 backdrop-blur-xs flex items-center justify-between gap-4 transition-all">
                     <div className="flex items-center gap-3 overflow-hidden">

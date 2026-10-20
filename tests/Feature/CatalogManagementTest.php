@@ -42,10 +42,8 @@ class CatalogManagementTest extends TestCase
     {
         $response = $this->actingAs($this->adminUser)->post('/admin/brands', [
             'name' => 'Logitech',
-            'website' => 'https://logitech.com',
             'description' => 'Computer peripherals and gaming hardware',
             'is_active' => true,
-            'sort_order' => 1,
         ]);
 
         $response->assertSessionHas('success');

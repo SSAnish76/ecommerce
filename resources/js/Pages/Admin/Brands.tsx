@@ -15,20 +15,20 @@ import {
     TableCell,
     TableHeaderCell,
     EmptyState,
-    PageHeader,
-    FileUpload,
+    SlugInput,
+    ImagePicker,
+    CopyButton,
 } from '../../Components/UI';
 import {
-    Sparkles,
     Search,
     Plus,
     Pencil,
     Trash2,
-    Globe,
-    ToggleLeft,
-    ToggleRight,
     RotateCcw,
-    ExternalLink,
+    LayoutGrid,
+    Table as TableIcon,
+    Copy,
+    Check,
 } from 'lucide-react';
 
 interface PaginatedBrands {
@@ -55,6 +55,8 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
 
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
     const [deletingBrand, setDeletingBrand] = useState<Brand | null>(null);
@@ -63,20 +65,16 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
     const createForm = useForm<{
         name: string;
         slug: string;
-        website: string;
         description: string;
         logo_id: string | null;
         logo_url: string;
-        sort_order: number;
         is_active: boolean;
     }>({
         name: '',
         slug: '',
-        website: '',
         description: '',
         logo_id: null,
         logo_url: '',
-        sort_order: 0,
         is_active: true,
     });
 
@@ -84,22 +82,19 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
     const editForm = useForm<{
         name: string;
         slug: string;
-        website: string;
         description: string;
         logo_id: string | null;
         logo_url: string;
-        sort_order: number;
         is_active: boolean;
     }>({
         name: '',
         slug: '',
-        website: '',
         description: '',
         logo_id: null,
         logo_url: '',
-        sort_order: 0,
         is_active: true,
     });
+
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -110,11 +105,21 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
         );
     };
 
+    const handleStatusFilter = (status: string) => {
+        setStatusFilter(status);
+        router.get(
+            '/admin/brands',
+            { search, status },
+            { preserveState: true, replace: true }
+        );
+    };
+
     const handleReset = () => {
         setSearch('');
         setStatusFilter('');
         router.get('/admin/brands', {}, { preserveState: true, replace: true });
     };
+
 
     const submitCreate = (e: React.FormEvent) => {
         e.preventDefault();
@@ -131,11 +136,9 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
         editForm.setData({
             name: brand.name,
             slug: brand.slug,
-            website: brand.website || '',
             description: brand.description || '',
             logo_id: brand.logo_id || null,
             logo_url: brand.logo_url || '',
-            sort_order: brand.sort_order || 0,
             is_active: brand.is_active,
         });
     };
@@ -162,158 +165,322 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
         router.patch(`/admin/brands/${brand.id}/toggle-status`, {}, { preserveScroll: true });
     };
 
+
     return (
         <AdminLayout
             title="Brands"
             breadcrumbs={[{ label: 'Catalog' }, { label: 'Brands' }]}
         >
-            <Head title="Brand Management - Admin" />
+            <Head title="Brand Directory - Catalog Admin" />
 
             <div className="space-y-6">
-                <PageHeader
-                    title="Brand Directory"
-                    description="Organize manufacturers, storefront brands, and supplier profiles"
-                    badge="Catalog"
-                    actions={
-                        canCreate && (
-                            <Button
-                                onClick={() => setIsCreateOpen(true)}
-                                variant="primary"
-                                className="flex items-center gap-2 shadow-sm"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Brand
-                            </Button>
-                        )
-                    }
-                />
+                {/* Clean Header with Simple Brand Count */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                                Brands
+                            </h1>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                {brands.total} {brands.total === 1 ? 'Brand' : 'Brands'}
+                            </span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                            Curate manufacturers, storefront logos, and merchant profiles for customer discovery.
+                        </p>
+                    </div>
 
-                {/* Filter Controls */}
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-3">
+                    {canCreate && (
+                        <Button
+                            onClick={() => setIsCreateOpen(true)}
+                            variant="primary"
+                            className="flex items-center gap-2 shadow-xs font-semibold rounded-xl shrink-0"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add New Brand
+                        </Button>
+                    )}
+                </div>
+
+                {/* Filter & View Toolbar */}
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2.5 flex-1">
                         <div className="relative flex-1 w-full">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search by brand name or description..."
-                                className="pl-9 w-full"
+                                className="pl-9 pr-8 w-full text-xs"
                             />
-                        </div>
-                        <div className="w-full sm:w-48">
-                            <Select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                options={[
-                                    { value: '', label: 'All Statuses' },
-                                    { value: 'active', label: 'Active Only' },
-                                    { value: 'inactive', label: 'Inactive Only' },
-                                ]}
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <Button type="submit" variant="secondary" className="w-full sm:w-auto">
-                                Filter
-                            </Button>
-                            {(search || statusFilter) && (
-                                <Button
+                            {search && (
+                                <button
                                     type="button"
-                                    variant="ghost"
-                                    onClick={handleReset}
-                                    className="p-2"
-                                    title="Reset filters"
+                                    onClick={() => {
+                                        setSearch('');
+                                        router.get('/admin/brands', { status: statusFilter }, { preserveState: true });
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                                 >
-                                    <RotateCcw className="w-4 h-4" />
-                                </Button>
+                                    ✕
+                                </button>
                             )}
                         </div>
+
+                        {/* Status Filter Tabs */}
+                        <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 w-full sm:w-auto shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => handleStatusFilter('')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    statusFilter === ''
+                                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                All
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleStatusFilter('active')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    statusFilter === 'active'
+                                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                Active
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleStatusFilter('inactive')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    statusFilter === 'inactive'
+                                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                Inactive
+                            </button>
+                        </div>
+
+                        <Button type="submit" variant="secondary" size="sm" className="w-full sm:w-auto">
+                            Apply
+                        </Button>
+
+                        {(search || statusFilter) && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleReset}
+                                className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                title="Reset filters"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                            </Button>
+                        )}
                     </form>
+
+                    {/* View Switcher (Grid vs Table) */}
+                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-end sm:self-auto shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('grid')}
+                            className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                viewMode === 'grid'
+                                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                            title="Grid Card View"
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('table')}
+                            className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                viewMode === 'table'
+                                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                            title="Data Table View"
+                        >
+                            <TableIcon className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Brands Table */}
-                <TableContainer>
-                    <TableHead>
-                        <TableRow>
-                            <TableHeaderCell>Brand</TableHeaderCell>
-                            <TableHeaderCell>Website</TableHeaderCell>
-                            <TableHeaderCell>Products</TableHeaderCell>
-                            <TableHeaderCell>Sort Order</TableHeaderCell>
-                            <TableHeaderCell>Status</TableHeaderCell>
-                            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {brands.data.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6}>
-                                    <EmptyState
-                                        title="No brands found"
-                                        description="Try adjusting your search criteria or add your first brand."
-                                        action={
-                                            canCreate ? (
-                                                <Button
-                                                    onClick={() => setIsCreateOpen(true)}
-                                                    variant="primary"
-                                                    size="sm"
-                                                >
-                                                    <Plus className="w-4 h-4 mr-1" />
-                                                    Add First Brand
-                                                </Button>
-                                            ) : undefined
-                                        }
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            brands.data.map((brand) => (
-                                <TableRow key={brand.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 overflow-hidden shrink-0">
-                                                {brand.logo_url ? (
-                                                    <img
-                                                        src={brand.logo_url}
-                                                        alt={brand.name}
-                                                        className="w-full h-full object-contain"
-                                                    />
-                                                ) : (
-                                                    brand.name.substring(0, 2).toUpperCase()
-                                                )}
+                {/* Brands Content: Grid or Table */}
+                {brands.data.length === 0 ? (
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+                        <EmptyState
+                            title="No brands found"
+                            description={
+                                search || statusFilter
+                                    ? 'No brands matched your filter criteria. Try resetting search filters.'
+                                    : 'No brands currently exist. Add your first brand to start building your catalog.'
+                            }
+                            action={
+                                canCreate ? (
+                                    <Button
+                                        onClick={() => setIsCreateOpen(true)}
+                                        variant="primary"
+                                        size="sm"
+                                        className="mt-2"
+                                    >
+                                        <Plus className="w-4 h-4 mr-1.5" />
+                                        Add First Brand
+                                    </Button>
+                                ) : undefined
+                            }
+                        />
+                    </div>
+                ) : viewMode === 'grid' ? (
+                    /* Modern Grid View */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {brands.data.map((brand) => (
+                            <div
+                                key={brand.id}
+                                className="group relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all duration-200 hover:shadow-md flex flex-col justify-between"
+                            >
+                                <div>
+                                    {/* Top Bar: Status switch */}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => canEdit && toggleStatus(brand)}
+                                            disabled={!canEdit}
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                                                brand.is_active
+                                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                                            }`}
+                                            title="Click to toggle status"
+                                        >
+                                            <span
+                                                className={`w-2 h-2 rounded-full ${
+                                                    brand.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                                                }`}
+                                            />
+                                            <span>{brand.is_active ? 'Active' : 'Inactive'}</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Brand Logo & Name */}
+                                    <div className="flex items-center gap-3.5 mb-3">
+                                        <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 p-2 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform overflow-hidden">
+                                            {brand.logo_url ? (
+                                                <img
+                                                    src={brand.logo_url}
+                                                    alt={brand.name}
+                                                    className="w-full h-full object-contain"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-sm tracking-wider">
+                                                    {brand.name.substring(0, 2).toUpperCase()}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="font-bold text-base text-slate-900 dark:text-white truncate">
+                                                {brand.name}
+                                            </h3>
+                                            <div className="flex items-center gap-1 text-xs text-slate-500 font-mono mt-0.5">
+                                                <span className="truncate">/{brand.slug}</span>
+                                                <CopyButton text={brand.slug} title="Copy slug" />
                                             </div>
-                                            <div>
-                                                <div className="font-semibold text-slate-900 dark:text-white">
-                                                    {brand.name}
+                                        </div>
+                                    </div>
+
+                                    {/* Description */}
+                                    {brand.description && (
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+                                            {brand.description}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Footer: Actions */}
+                                <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                                    <span className="text-[11px] text-slate-400 font-mono">
+                                        ID #{brand.id}
+                                    </span>
+
+                                    <div className="flex items-center gap-1">
+                                        {canEdit && (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => openEdit(brand)}
+                                                className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg"
+                                                title="Edit Brand"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </Button>
+                                        )}
+                                        {canDelete && (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => setDeletingBrand(brand)}
+                                                className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                                                title="Delete Brand"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    /* Detailed Table View */
+                    <TableContainer>
+                        <TableHead>
+                            <TableRow>
+                                <TableHeaderCell className="w-16">Logo</TableHeaderCell>
+                                <TableHeaderCell>Brand</TableHeaderCell>
+                                <TableHeaderCell>Description</TableHeaderCell>
+                                <TableHeaderCell>Status</TableHeaderCell>
+                                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {brands.data.map((brand) => (
+                                <TableRow key={brand.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                    <TableCell className="w-16">
+                                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                                            {brand.logo_url ? (
+                                                <img
+                                                    src={brand.logo_url}
+                                                    alt={brand.name}
+                                                    className="w-full h-full object-contain rounded-lg"
+                                                    loading="lazy"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs uppercase">
+                                                    {brand.name.substring(0, 2)}
                                                 </div>
-                                                <div className="text-xs text-slate-500 font-mono">
-                                                    /{brand.slug}
-                                                </div>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div>
+                                            <div className="font-semibold text-slate-900 dark:text-white text-sm">
+                                                {brand.name}
+                                            </div>
+                                            <div className="text-xs text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                                <span>/{brand.slug}</span>
+                                                <CopyButton text={brand.slug} title="Copy slug" />
                                             </div>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        {brand.website ? (
-                                            <a
-                                                href={brand.website}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
-                                            >
-                                                <Globe className="w-3.5 h-3.5" />
-                                                <span>Visit</span>
-                                                <ExternalLink className="w-3 h-3" />
-                                            </a>
-                                        ) : (
-                                            <span className="text-xs text-slate-400">—</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="neutral">
-                                            {brand.products_count ?? 0} Products
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
-                                            {brand.sort_order}
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 max-w-md">
+                                            {brand.description || <span className="italic text-slate-400">No description</span>}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -325,6 +492,7 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                             title="Click to toggle status"
                                         >
                                             <Badge variant={brand.is_active ? 'success' : 'neutral'}>
+                                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${brand.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                                                 {brand.is_active ? 'Active' : 'Inactive'}
                                             </Badge>
                                         </button>
@@ -337,6 +505,7 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                                     variant="ghost"
                                                     onClick={() => openEdit(brand)}
                                                     className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+                                                    title="Edit Brand"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
@@ -347,6 +516,7 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                                     variant="ghost"
                                                     onClick={() => setDeletingBrand(brand)}
                                                     className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600"
+                                                    title="Delete Brand"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
@@ -354,29 +524,29 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </TableContainer>
+                            ))}
+                        </TableBody>
+                    </TableContainer>
+                )}
 
                 {/* Pagination */}
                 {brands.last_page > 1 && (
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-2">
+                    <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-3 gap-3">
                         <span>
-                            Showing {brands.data.length} of {brands.total} brands
+                            Showing {brands.data.length} of {brands.total} brands in catalog
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1.5 flex-wrap justify-center">
                             {brands.links.map((link, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url || link.active}
-                                    className={`px-3 py-1.5 rounded-lg border transition-colors ${
+                                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                                         link.active
-                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                             : link.url
-                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                                            : 'border-transparent text-slate-400 opacity-50 cursor-not-allowed'
+                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                            : 'border-transparent text-slate-400 opacity-40 cursor-not-allowed'
                                     }`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />
@@ -393,7 +563,7 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                 title="Create New Brand"
                 description="Add a new brand or manufacturer to your storefront catalog"
             >
-                <form onSubmit={submitCreate} className="space-y-4">
+                <form onSubmit={submitCreate} className="space-y-4 pt-2">
                     <Input
                         label="Brand Name"
                         required
@@ -403,68 +573,59 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                         placeholder="e.g. Sony, Nike, Apple"
                     />
 
-                    <Input
-                        label="Custom Slug (Optional)"
+                    <SlugInput
                         value={createForm.data.slug}
-                        onChange={(e) => createForm.setData('slug', e.target.value)}
+                        onChange={(slug) => createForm.setData('slug', slug)}
+                        sourceValue={createForm.data.name}
+                        autoSync
                         error={createForm.errors.slug}
-                        placeholder="auto-generated from brand name if left empty"
+                        placeholder="auto-generated from brand name"
                     />
 
-                    <Input
-                        label="Website URL"
-                        type="url"
-                        value={createForm.data.website}
-                        onChange={(e) => createForm.setData('website', e.target.value)}
-                        error={createForm.errors.website}
-                        placeholder="https://example.com"
-                    />
-
-                    <FileUpload
+                    <ImagePicker
                         label="Brand Logo"
-                        helperText="Upload brand logo (SVG, PNG, JPG, or WEBP)"
+                        helperText="Upload high-res SVG, PNG, JPG, or WEBP logo"
                         value={createForm.data.logo_url}
                         collection="brands"
-                        accept="image/*"
                         error={createForm.errors.logo_url}
-                        onUploadSuccess={(media) => {
+                        onChange={({ id, url }) => {
                             createForm.setData((data) => ({
                                 ...data,
-                                logo_id: media.id,
-                                logo_url: media.url,
-                            }));
-                        }}
-                        onRemove={() => {
-                            createForm.setData((data) => ({
-                                ...data,
-                                logo_id: null,
-                                logo_url: '',
+                                logo_id: id,
+                                logo_url: url,
                             }));
                         }}
                     />
+
+                    <div className="pt-1">
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={createForm.data.is_active}
+                                onChange={(e) => createForm.setData('is_active', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            />
+                            <div>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                    Active in Storefront
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                    Visible on catalog filters & search
+                                </span>
+                            </div>
+                        </label>
+                    </div>
 
                     <div>
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Description
+                            Brand Overview & Description
                         </label>
                         <textarea
                             value={createForm.data.description}
                             onChange={(e) => createForm.setData('description', e.target.value)}
                             rows={3}
                             className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Brief description about the brand..."
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                        <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                            Active Status
-                        </label>
-                        <input
-                            type="checkbox"
-                            checked={createForm.data.is_active}
-                            onChange={(e) => createForm.setData('is_active', e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            placeholder="Brief description about the manufacturer, warranty support, or origin..."
                         />
                     </div>
 
@@ -481,7 +642,7 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                             variant="primary"
                             isLoading={createForm.processing}
                         >
-                            Save Brand
+                            Create Brand
                         </Button>
                     </div>
                 </form>
@@ -492,9 +653,9 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                 isOpen={!!editingBrand}
                 onClose={() => setEditingBrand(null)}
                 title={`Edit Brand: ${editingBrand?.name}`}
-                description="Update brand details, website, or active status"
+                description="Update brand details, logo or active status"
             >
-                <form onSubmit={submitEdit} className="space-y-4">
+                <form onSubmit={submitEdit} className="space-y-4 pt-2">
                     <Input
                         label="Brand Name"
                         required
@@ -503,66 +664,57 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                         error={editForm.errors.name}
                     />
 
-                    <Input
-                        label="Slug"
-                        required
+                    <SlugInput
                         value={editForm.data.slug}
-                        onChange={(e) => editForm.setData('slug', e.target.value)}
+                        onChange={(slug) => editForm.setData('slug', slug)}
+                        sourceValue={editForm.data.name}
                         error={editForm.errors.slug}
+                        required
                     />
 
-                    <Input
-                        label="Website URL"
-                        type="url"
-                        value={editForm.data.website}
-                        onChange={(e) => editForm.setData('website', e.target.value)}
-                        error={editForm.errors.website}
-                    />
-
-                    <FileUpload
+                    <ImagePicker
                         label="Brand Logo"
                         helperText="Upload brand logo (SVG, PNG, JPG, or WEBP)"
                         value={editForm.data.logo_url}
                         collection="brands"
-                        accept="image/*"
                         error={editForm.errors.logo_url}
-                        onUploadSuccess={(media) => {
+                        onChange={({ id, url }) => {
                             editForm.setData((data) => ({
                                 ...data,
-                                logo_id: media.id,
-                                logo_url: media.url,
-                            }));
-                        }}
-                        onRemove={() => {
-                            editForm.setData((data) => ({
-                                ...data,
-                                logo_id: null,
-                                logo_url: '',
+                                logo_id: id,
+                                logo_url: url,
                             }));
                         }}
                     />
 
+                    <div className="pt-1">
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={editForm.data.is_active}
+                                onChange={(e) => editForm.setData('is_active', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            />
+                            <div>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                    Active in Storefront
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                    Visible on catalog filters & search
+                                </span>
+                            </div>
+                        </label>
+                    </div>
+
                     <div>
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Description
+                            Brand Overview & Description
                         </label>
                         <textarea
                             value={editForm.data.description}
                             onChange={(e) => editForm.setData('description', e.target.value)}
                             rows={3}
                             className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                        <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                            Active Status
-                        </label>
-                        <input
-                            type="checkbox"
-                            checked={editForm.data.is_active}
-                            onChange={(e) => editForm.setData('is_active', e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                         />
                     </div>
 
@@ -592,21 +744,33 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                 title="Delete Brand"
                 description={`Are you sure you want to delete '${deletingBrand?.name}'? This action cannot be undone.`}
             >
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setDeletingBrand(null)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="danger"
-                        onClick={confirmDelete}
-                    >
-                        Delete Brand
-                    </Button>
+                <div className="space-y-4 pt-2">
+                    <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-3">
+                        <Trash2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                        <div>
+                            <span className="font-semibold block">Warning on associated products</span>
+                            <span>
+                                Any products linked to this brand will lose their brand association or may prevent deletion.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setDeletingBrand(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            onClick={confirmDelete}
+                        >
+                            Confirm Delete
+                        </Button>
+                    </div>
                 </div>
             </Modal>
         </AdminLayout>

@@ -14,6 +14,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
         | 'success'
         | 'warning'
         | 'danger'
+        | 'secondary'
         | 'primary';
     size?: 'sm' | 'md';
     dot?: boolean;
@@ -31,7 +32,7 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
     type CoreVariant = 'default' | 'indigo' | 'purple' | 'emerald' | 'amber' | 'rose' | 'sky';
     const resolvedVariant: CoreVariant =
-        variant === 'neutral'
+        variant === 'neutral' || variant === 'secondary' || !variant
             ? 'default'
             : variant === 'success'
               ? 'emerald'

@@ -14,7 +14,7 @@ import {
     CardDescription,
     CardContent,
     PageHeader,
-    FileUpload,
+    ImagePicker,
 } from '../../Components/UI';
 import {
     Store as StoreIcon,
@@ -298,7 +298,7 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        <FileUpload
+                                        <ImagePicker
                                             label="Store Brand Logo"
                                             helperText="Used on customer invoice headers and navigation bar."
                                             value={form.data.logo_url}
@@ -306,23 +306,16 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                             accept="image/*"
                                             disabled={!isEditing}
                                             error={form.errors.logo_url}
-                                            onUploadSuccess={(media) => {
+                                            onChange={({ id, url }) => {
                                                 form.setData((data) => ({
                                                     ...data,
-                                                    logo_id: media.id,
-                                                    logo_url: media.url,
-                                                }));
-                                            }}
-                                            onRemove={() => {
-                                                form.setData((data) => ({
-                                                    ...data,
-                                                    logo_id: null,
-                                                    logo_url: '',
+                                                    logo_id: id,
+                                                    logo_url: url,
                                                 }));
                                             }}
                                         />
 
-                                        <FileUpload
+                                        <ImagePicker
                                             label="Store Favicon"
                                             helperText="Browser tab icon (PNG or ICO format recommended)."
                                             value={form.data.favicon_url}
@@ -330,18 +323,11 @@ export default function StorePage({ store, timezones, currencies }: StorePagePro
                                             accept="image/*,.ico"
                                             disabled={!isEditing}
                                             error={form.errors.favicon_url}
-                                            onUploadSuccess={(media) => {
+                                            onChange={({ id, url }) => {
                                                 form.setData((data) => ({
                                                     ...data,
-                                                    favicon_id: media.id,
-                                                    favicon_url: media.url,
-                                                }));
-                                            }}
-                                            onRemove={() => {
-                                                form.setData((data) => ({
-                                                    ...data,
-                                                    favicon_id: null,
-                                                    favicon_url: '',
+                                                    favicon_id: id,
+                                                    favicon_url: url,
                                                 }));
                                             }}
                                         />

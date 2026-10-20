@@ -28,7 +28,6 @@ class CategoryController extends Controller
 
         $categories = Category::query()
             ->with(['parent:id,name', 'image'])
-            ->withCount(['children', 'products'])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")

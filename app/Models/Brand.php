@@ -26,9 +26,7 @@ class Brand extends Model
         'slug',
         'description',
         'logo_id',
-        'website',
         'is_active',
-        'sort_order',
     ];
 
     /**
@@ -73,7 +71,6 @@ class Brand extends Model
     {
         return [
             'is_active' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 

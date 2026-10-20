@@ -15,7 +15,7 @@ import {
     TableCell,
     TableHeaderCell,
     EmptyState,
-    PageHeader,
+    CopyButton,
 } from '../../../Components/UI';
 import {
     ShoppingBag,
@@ -29,6 +29,14 @@ import {
     CheckCircle2,
     XCircle,
     Eye,
+    LayoutGrid,
+    Table as TableIcon,
+    Sparkles,
+    Tag,
+    Copy,
+    Check,
+    Boxes,
+    TrendingDown,
 } from 'lucide-react';
 
 interface PaginatedProducts {
@@ -72,8 +80,17 @@ export default function ProductsIndexPage({
     const [brandFilter, setBrandFilter] = useState(filters.brand_id || '');
     const [categoryFilter, setCategoryFilter] = useState(filters.category_id || '');
     const [stockFilter, setStockFilter] = useState(filters.stock || '');
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
     const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+
+    // Compute live telemetry for current page
+    const totalCount = products.total;
+    const inStockCount = products.data.filter((p) => p.stock_quantity > p.low_stock_threshold).length;
+    const lowStockCount = products.data.filter(
+        (p) => p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold
+    ).length;
+    const outOfStockCount = products.data.filter((p) => p.stock_quantity <= 0).length;
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,6 +102,22 @@ export default function ProductsIndexPage({
                 brand_id: brandFilter,
                 category_id: categoryFilter,
                 stock: stockFilter,
+            },
+            { preserveState: true, replace: true }
+        );
+    };
+
+    const handleQuickStockFilter = (stockVal: string) => {
+        const nextStock = stockFilter === stockVal ? '' : stockVal;
+        setStockFilter(nextStock);
+        router.get(
+            '/admin/products',
+            {
+                search,
+                status: statusFilter,
+                brand_id: brandFilter,
+                category_id: categoryFilter,
+                stock: nextStock,
             },
             { preserveState: true, replace: true }
         );
@@ -110,44 +143,150 @@ export default function ProductsIndexPage({
         });
     };
 
+
+    const activeFilterCount = [search, statusFilter, brandFilter, categoryFilter, stockFilter].filter(Boolean).length;
+
     return (
         <AdminLayout
             title="Products"
             breadcrumbs={[{ label: 'Catalog' }, { label: 'Products' }]}
         >
-            <Head title="Products Catalog - Admin" />
+            <Head title="Product Catalog - Admin" />
 
             <div className="space-y-6">
-                <PageHeader
-                    title="Product Catalog"
-                    description="Manage storefront products, inventory stock levels, pricing, variants, and visibility"
-                    badge="Catalog"
-                    actions={
-                        canCreate && (
-                            <Link href="/admin/products/create">
-                                <Button variant="primary" className="flex items-center gap-2 shadow-sm">
-                                    <Plus className="w-4 h-4" />
-                                    Add New Product
-                                </Button>
-                            </Link>
-                        )
-                    }
-                />
+                {/* Modern Hero Banner */}
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-slate-50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/20 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-7 shadow-xs">
+                    <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                        <div className="space-y-2">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
+                                <ShoppingBag className="w-3.5 h-3.5" />
+                                <span>Storefront Merchandising</span>
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                                Product Catalog
+                            </h1>
+                            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
+                                Manage retail pricing, wholesale MRP, image galleries, variants, warehouse stock levels, and storefront visibility.
+                            </p>
+                        </div>
 
-                {/* Filters */}
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
-                    <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-                        <div className="relative lg:col-span-2">
+                        <div className="flex items-center gap-3 shrink-0">
+                            {canCreate && (
+                                <Link href="/admin/products/create">
+                                    <Button variant="primary" className="flex items-center gap-2 shadow-sm font-semibold rounded-xl">
+                                        <Plus className="w-4 h-4" />
+                                        Add New Product
+                                    </Button>
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Stock Telemetry Metric Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 mt-6 border-t border-slate-200/60 dark:border-slate-800/80">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                                <Boxes className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <div className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                                    {totalCount}
+                                </div>
+                                <div className="text-[11px] text-slate-500 font-medium">Total Products</div>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => handleQuickStockFilter('in')}
+                            className={`flex items-center gap-3 text-left p-1 rounded-xl transition-all ${
+                                stockFilter === 'in' ? 'bg-emerald-50/80 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                            }`}
+                        >
+                            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <CheckCircle2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400 leading-tight">
+                                    {inStockCount}
+                                </div>
+                                <div className="text-[11px] text-slate-500 font-medium">Healthy Stock</div>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleQuickStockFilter('low')}
+                            className={`flex items-center gap-3 text-left p-1 rounded-xl transition-all ${
+                                stockFilter === 'low' ? 'bg-amber-50/80 dark:bg-amber-950/40 ring-1 ring-amber-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                            }`}
+                        >
+                            <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                                <AlertTriangle className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <div className="text-lg font-bold text-amber-700 dark:text-amber-400 leading-tight">
+                                    {lowStockCount}
+                                </div>
+                                <div className="text-[11px] text-slate-500 font-medium">Low Stock Alert</div>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleQuickStockFilter('out')}
+                            className={`flex items-center gap-3 text-left p-1 rounded-xl transition-all ${
+                                stockFilter === 'out' ? 'bg-rose-50/80 dark:bg-rose-950/40 ring-1 ring-rose-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                            }`}
+                        >
+                            <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                                <XCircle className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <div className="text-lg font-bold text-rose-700 dark:text-rose-400 leading-tight">
+                                    {outOfStockCount}
+                                </div>
+                                <div className="text-[11px] text-slate-500 font-medium">Out of Stock</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Filter Toolbar */}
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
+                    <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
+                        <div className="relative lg:col-span-4">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search by name or SKU..."
-                                className="pl-9 w-full"
+                                placeholder="Search by product title or SKU..."
+                                className="pl-9 pr-8 w-full text-xs"
                             />
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearch('');
+                                        router.get(
+                                            '/admin/products',
+                                            {
+                                                status: statusFilter,
+                                                brand_id: brandFilter,
+                                                category_id: categoryFilter,
+                                                stock: stockFilter,
+                                            },
+                                            { preserveState: true }
+                                        );
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
 
-                        <div>
+                        <div className="lg:col-span-2">
                             <Select
                                 value={categoryFilter}
                                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -155,13 +294,13 @@ export default function ProductsIndexPage({
                                     { value: '', label: 'All Categories' },
                                     ...categories.map((c) => ({
                                         value: String(c.id),
-                                        label: c.name,
+                                        label: c.parent_id ? `— ${c.name}` : c.name,
                                     })),
                                 ]}
                             />
                         </div>
 
-                        <div>
+                        <div className="lg:col-span-2">
                             <Select
                                 value={brandFilter}
                                 onChange={(e) => setBrandFilter(e.target.value)}
@@ -175,171 +314,360 @@ export default function ProductsIndexPage({
                             />
                         </div>
 
-                        <div>
+                        <div className="lg:col-span-2">
                             <Select
                                 value={stockFilter}
                                 onChange={(e) => setStockFilter(e.target.value)}
                                 options={[
                                     { value: '', label: 'All Stock Levels' },
-                                    { value: 'in', label: 'In Stock (>0)' },
-                                    { value: 'low', label: 'Low Stock Alert' },
-                                    { value: 'out', label: 'Out of Stock (0)' },
+                                    { value: 'in', label: 'Healthy In Stock' },
+                                    { value: 'low', label: 'Low Stock Alerts' },
+                                    { value: 'out', label: 'Out of Stock' },
                                 ]}
                             />
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <Button type="submit" variant="secondary" className="flex-1">
+                        <div className="flex items-center gap-2 lg:col-span-2 justify-end">
+                            <Button type="submit" variant="secondary" size="sm" className="flex-1 lg:flex-none">
                                 Filter
                             </Button>
-                            {(search || statusFilter || brandFilter || categoryFilter || stockFilter) && (
+
+                            {activeFilterCount > 0 && (
                                 <Button
                                     type="button"
                                     variant="ghost"
+                                    size="sm"
                                     onClick={handleReset}
-                                    className="p-2"
-                                    title="Reset filters"
+                                    className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                    title="Reset all filters"
                                 >
                                     <RotateCcw className="w-4 h-4" />
                                 </Button>
                             )}
+
+                            {/* View Mode Toggle */}
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        viewMode === 'grid'
+                                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                    title="Product Cards View"
+                                >
+                                    <LayoutGrid className="w-4 h-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('table')}
+                                    className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        viewMode === 'table'
+                                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                    title="Data Table View"
+                                >
+                                    <TableIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
 
-                {/* Table */}
-                <TableContainer>
-                    <TableHead>
-                        <TableRow>
-                            <TableHeaderCell>Product & SKU</TableHeaderCell>
-                            <TableHeaderCell>Brand / Category</TableHeaderCell>
-                            <TableHeaderCell>Price & Discounts</TableHeaderCell>
-                            <TableHeaderCell>Stock Status</TableHeaderCell>
-                            <TableHeaderCell>Variants</TableHeaderCell>
-                            <TableHeaderCell>Status</TableHeaderCell>
-                            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {products.data.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7}>
-                                    <EmptyState
-                                        title="No products found"
-                                        description="No products match your selected filters. Try broadening your search or add a new product."
-                                        action={
-                                            canCreate ? (
-                                                <Link href="/admin/products/create">
-                                                    <Button variant="primary" size="sm">
-                                                        <Plus className="w-4 h-4 mr-1" />
-                                                        Create First Product
+                {/* Product Content: Grid Cards vs Data Table */}
+                {products.data.length === 0 ? (
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+                        <EmptyState
+                            title="No products found"
+                            description={
+                                activeFilterCount > 0
+                                    ? 'No products matched your search or filters. Try adjusting filter criteria.'
+                                    : 'Your catalog has no products yet. Add your first product to start merchandising!'
+                            }
+                            action={
+                                canCreate ? (
+                                    <Link href="/admin/products/create">
+                                        <Button variant="primary" size="sm" className="mt-2">
+                                            <Plus className="w-4 h-4 mr-1.5" />
+                                            Add First Product
+                                        </Button>
+                                    </Link>
+                                ) : undefined
+                            }
+                        />
+                    </div>
+                ) : viewMode === 'grid' ? (
+                    /* Modern Product Grid View */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {products.data.map((prod) => {
+                            const isLowStock =
+                                prod.stock_quantity > 0 &&
+                                prod.stock_quantity <= prod.low_stock_threshold;
+                            const isOutOfStock = prod.stock_quantity <= 0;
+                            const imageUrl = prod.primary_image?.url;
+
+                            return (
+                                <div
+                                    key={prod.id}
+                                    className="group relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-indigo-400 dark:hover:border-indigo-600 transition-all duration-200 hover:shadow-md flex flex-col justify-between"
+                                >
+                                    <div>
+                                        {/* Image & Overlay Badges */}
+                                        <div className="relative aspect-4/3 w-full bg-slate-50 dark:bg-slate-800/80 overflow-hidden flex items-center justify-center p-3 border-b border-slate-100 dark:border-slate-800">
+                                            {imageUrl ? (
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={prod.name}
+                                                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).style.display = 'none';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center text-slate-300 dark:text-slate-600">
+                                                    <ShoppingBag className="w-10 h-10 mb-1" />
+                                                    <span className="text-[11px] font-medium">No Image</span>
+                                                </div>
+                                            )}
+
+                                            {/* Stock Status Badge */}
+                                            <div className="absolute top-2.5 left-2.5">
+                                                {isOutOfStock ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500 text-white shadow-2xs">
+                                                        <XCircle className="w-3 h-3" />
+                                                        Out of Stock
+                                                    </span>
+                                                ) : isLowStock ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-2xs">
+                                                        <AlertTriangle className="w-3 h-3" />
+                                                        Low ({prod.stock_quantity} left)
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/90 text-white backdrop-blur-xs">
+                                                        In Stock ({prod.stock_quantity})
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Discount Pill if available */}
+                                            {prod.discount_percentage ? (
+                                                <div className="absolute top-2.5 right-2.5">
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-2xs">
+                                                        {prod.discount_percentage}% OFF
+                                                    </span>
+                                                </div>
+                                            ) : null}
+
+                                            {/* Variants indicator */}
+                                            {prod.has_variants && (
+                                                <div className="absolute bottom-2.5 right-2.5">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/80 text-white backdrop-blur-xs">
+                                                        <Layers className="w-3 h-3" />
+                                                        {prod.variants_count ?? 0} Variants
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Card Body */}
+                                        <div className="p-4 space-y-2.5">
+                                            {/* Brand & Category badges */}
+                                            <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                                                {prod.brand && (
+                                                    <span className="font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md">
+                                                        {prod.brand.name}
+                                                    </span>
+                                                )}
+                                                {prod.category && (
+                                                    <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                                                        {prod.category.name}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Title */}
+                                            <h3 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                {prod.name}
+                                            </h3>
+
+                                            {/* SKU with copy button */}
+                                            <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
+                                                <span>SKU: {prod.sku}</span>
+                                                <CopyButton text={prod.sku} title="Copy SKU" />
+                                            </div>
+
+                                            {/* Pricing Row */}
+                                            <div className="flex items-baseline gap-2 pt-1">
+                                                <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                                                    {currency}
+                                                    {Number(prod.retail_price).toFixed(2)}
+                                                </span>
+                                                {prod.mrp && Number(prod.mrp) > Number(prod.retail_price) && (
+                                                    <span className="text-xs text-slate-400 line-through">
+                                                        {currency}
+                                                        {Number(prod.mrp).toFixed(2)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Footer Actions */}
+                                    <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            onClick={() => canEdit && toggleStatus(prod)}
+                                            disabled={!canEdit}
+                                            className="cursor-pointer"
+                                            title="Toggle active status"
+                                        >
+                                            <Badge variant={prod.status === 'active' ? 'success' : 'neutral'}>
+                                                <span
+                                                    className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                                                        prod.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'
+                                                    }`}
+                                                />
+                                                {prod.status}
+                                            </Badge>
+                                        </button>
+
+                                        <div className="flex items-center gap-1">
+                                            {canEdit && (
+                                                <Link href={`/admin/products/${prod.id}/edit`}>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg"
+                                                        title="Edit Product"
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" />
                                                     </Button>
                                                 </Link>
-                                            ) : undefined
-                                        }
-                                    />
-                                </TableCell>
+                                            )}
+                                            {canDelete && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => setDeletingProduct(prod)}
+                                                    className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                                                    title="Delete Product"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    /* High-Density Data Table View */
+                    <TableContainer>
+                        <TableHead>
+                            <TableRow>
+                                <TableHeaderCell>Product &amp; SKU</TableHeaderCell>
+                                <TableHeaderCell>Brand / Category</TableHeaderCell>
+                                <TableHeaderCell>Price &amp; MRP</TableHeaderCell>
+                                <TableHeaderCell>Stock Status</TableHeaderCell>
+                                <TableHeaderCell>Variants</TableHeaderCell>
+                                <TableHeaderCell>Visibility</TableHeaderCell>
+                                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
                             </TableRow>
-                        ) : (
-                            products.data.map((prod) => {
+                        </TableHead>
+                        <TableBody>
+                            {products.data.map((prod) => {
                                 const isLowStock =
                                     prod.stock_quantity > 0 &&
                                     prod.stock_quantity <= prod.low_stock_threshold;
                                 const isOutOfStock = prod.stock_quantity <= 0;
+                                const imageUrl = prod.primary_image?.url;
 
                                 return (
-                                    <TableRow key={prod.id}>
+                                    <TableRow
+                                        key={prod.id}
+                                        className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40"
+                                    >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
-                                                    {prod.primary_image?.url ? (
+                                                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                                                    {imageUrl ? (
                                                         <img
-                                                            src={prod.primary_image.url}
+                                                            src={imageUrl}
                                                             alt={prod.name}
-                                                            className="w-full h-full object-cover"
+                                                            className="w-full h-full object-contain"
                                                         />
                                                     ) : (
                                                         <ShoppingBag className="w-5 h-5 text-slate-400" />
                                                     )}
                                                 </div>
-                                                <div className="min-w-0 max-w-xs">
-                                                    <div className="font-semibold text-slate-900 dark:text-white truncate">
+                                                <div>
+                                                    <div className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-1">
                                                         {prod.name}
                                                     </div>
-                                                    <div className="text-xs font-mono text-slate-500">
-                                                        SKU: {prod.sku}
+                                                    <div className="text-xs text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                                        <span>{prod.sku}</span>
+                                                        <CopyButton text={prod.sku} title="Copy SKU" />
                                                     </div>
-                                                    {prod.is_featured && (
-                                                        <span className="inline-block px-1.5 py-0.5 mt-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                                            Featured
-                                                        </span>
-                                                    )}
                                                 </div>
                                             </div>
                                         </TableCell>
 
                                         <TableCell>
-                                            <div className="space-y-1">
-                                                <div className="text-xs font-medium text-slate-800 dark:text-slate-200">
-                                                    {prod.category?.name || 'Uncategorized'}
+                                            <div className="text-xs space-y-0.5">
+                                                <div className="font-semibold text-slate-800 dark:text-slate-200">
+                                                    {prod.brand?.name || '—'}
                                                 </div>
-                                                <div className="text-xs text-slate-500">
-                                                    {prod.brand?.name || 'No Brand'}
+                                                <div className="text-slate-500">
+                                                    {prod.category?.name || '—'}
                                                 </div>
                                             </div>
                                         </TableCell>
 
                                         <TableCell>
-                                            <div className="space-y-0.5">
-                                                <div className="font-semibold text-slate-900 dark:text-white">
+                                            <div className="text-xs">
+                                                <span className="font-bold text-slate-900 dark:text-white">
                                                     {currency}
-                                                    {Number(prod.sale_price ?? prod.retail_price).toFixed(2)}
-                                                </div>
-                                                {prod.sale_price && (
-                                                    <div className="flex items-center gap-1.5 text-xs">
-                                                        <span className="line-through text-slate-400">
-                                                            {currency}
-                                                            {Number(prod.retail_price).toFixed(2)}
-                                                        </span>
-                                                        {prod.discount_percentage && (
-                                                            <span className="text-rose-600 dark:text-rose-400 font-semibold text-[11px]">
-                                                                -{prod.discount_percentage}%
-                                                            </span>
-                                                        )}
+                                                    {Number(prod.retail_price).toFixed(2)}
+                                                </span>
+                                                {prod.mrp && Number(prod.mrp) > Number(prod.retail_price) && (
+                                                    <div className="text-[11px] text-slate-400 line-through">
+                                                        {currency}
+                                                        {Number(prod.mrp).toFixed(2)}
                                                     </div>
                                                 )}
                                             </div>
                                         </TableCell>
 
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5">
-                                                {isOutOfStock ? (
-                                                    <Badge variant="danger">
-                                                        <XCircle className="w-3 h-3 mr-1" />
-                                                        Out of Stock (0)
-                                                    </Badge>
-                                                ) : isLowStock ? (
-                                                    <Badge variant="warning">
-                                                        <AlertTriangle className="w-3 h-3 mr-1" />
-                                                        Low Stock ({prod.stock_quantity})
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="success">
-                                                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                                                        In Stock ({prod.stock_quantity})
-                                                    </Badge>
-                                                )}
-                                            </div>
+                                            {isOutOfStock ? (
+                                                <Badge variant="danger">
+                                                    <XCircle className="w-3 h-3 mr-1" />
+                                                    Out of Stock
+                                                </Badge>
+                                            ) : isLowStock ? (
+                                                <Badge variant="warning">
+                                                    <AlertTriangle className="w-3 h-3 mr-1" />
+                                                    Low ({prod.stock_quantity})
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="success">
+                                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                                    {prod.stock_quantity} In Stock
+                                                </Badge>
+                                            )}
                                         </TableCell>
 
                                         <TableCell>
                                             {prod.has_variants ? (
-                                                <Badge variant="neutral">
-                                                    <Layers className="w-3 h-3 mr-1" />
-                                                    {prod.variants_count ?? 0} Variants
-                                                </Badge>
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 text-xs font-semibold">
+                                                    <Layers className="w-3 h-3" />
+                                                    {prod.variants_count ?? 0} Options
+                                                </span>
                                             ) : (
-                                                <span className="text-xs text-slate-400">Simple Product</span>
+                                                <span className="text-xs text-slate-400">Single SKU</span>
                                             )}
                                         </TableCell>
 
@@ -352,7 +680,12 @@ export default function ProductsIndexPage({
                                                 title="Toggle status"
                                             >
                                                 <Badge variant={prod.status === 'active' ? 'success' : 'neutral'}>
-                                                    {prod.status.toUpperCase()}
+                                                    <span
+                                                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                                            prod.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'
+                                                        }`}
+                                                    />
+                                                    {prod.status}
                                                 </Badge>
                                             </button>
                                         </TableCell>
@@ -365,6 +698,7 @@ export default function ProductsIndexPage({
                                                             size="sm"
                                                             variant="ghost"
                                                             className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+                                                            title="Edit Product"
                                                         >
                                                             <Pencil className="w-4 h-4" />
                                                         </Button>
@@ -376,6 +710,7 @@ export default function ProductsIndexPage({
                                                         variant="ghost"
                                                         onClick={() => setDeletingProduct(prod)}
                                                         className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600"
+                                                        title="Delete Product"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -384,29 +719,29 @@ export default function ProductsIndexPage({
                                         </TableCell>
                                     </TableRow>
                                 );
-                            })
-                        )}
-                    </TableBody>
-                </TableContainer>
+                            })}
+                        </TableBody>
+                    </TableContainer>
+                )}
 
                 {/* Pagination */}
                 {products.last_page > 1 && (
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-2">
+                    <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-3 gap-3">
                         <span>
-                            Showing {products.data.length} of {products.total} products
+                            Showing {products.data.length} of {products.total} products in storefront catalog
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1.5 flex-wrap justify-center">
                             {products.links.map((link, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url || link.active}
-                                    className={`px-3 py-1.5 rounded-lg border transition-colors ${
+                                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                                         link.active
-                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                             : link.url
-                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                                            : 'border-transparent text-slate-400 opacity-50 cursor-not-allowed'
+                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                            : 'border-transparent text-slate-400 opacity-40 cursor-not-allowed'
                                     }`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />
@@ -416,28 +751,40 @@ export default function ProductsIndexPage({
                 )}
             </div>
 
-            {/* Delete Modal */}
+            {/* Delete Confirmation Modal */}
             <Modal
                 isOpen={!!deletingProduct}
                 onClose={() => setDeletingProduct(null)}
                 title="Delete Product"
-                description={`Are you sure you want to delete '${deletingProduct?.name}'? All gallery images and dynamic variants will be removed.`}
+                description={`Are you sure you want to delete '${deletingProduct?.name}'?`}
             >
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setDeletingProduct(null)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="danger"
-                        onClick={confirmDelete}
-                    >
-                        Delete Product
-                    </Button>
+                <div className="space-y-4 pt-2">
+                    <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-3">
+                        <Trash2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                        <div>
+                            <span className="font-semibold block">Inventory and Storefront Removal</span>
+                            <span>
+                                This action permanently removes SKU <strong>{deletingProduct?.sku}</strong>, all associated variant records, and image attachments from the database.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setDeletingProduct(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            onClick={confirmDelete}
+                        >
+                            Confirm Delete
+                        </Button>
+                    </div>
                 </div>
             </Modal>
         </AdminLayout>

@@ -9,6 +9,7 @@ import {
     Badge,
     Card,
     PageHeader,
+    SlugInput,
 } from '../../../Components/UI';
 import {
     ArrowLeft,
@@ -29,6 +30,11 @@ import {
     RefreshCw,
     Eye,
     AlertCircle,
+    Sparkles,
+    TrendingDown,
+    Save,
+    CheckCircle2,
+    Copy,
 } from 'lucide-react';
 
 const getCsrfToken = (): string => {
@@ -273,7 +279,7 @@ export default function CreateOrEditProductPage({
             ...form.data.variants,
             {
                 sku: skuPrefix,
-                name: `Variant #${form.data.variants.length + 1}`,
+                name: `Option #${form.data.variants.length + 1}`,
                 price: form.data.retail_price || 0,
                 mrp: form.data.mrp || '',
                 sale_price: form.data.sale_price || '',
@@ -299,6 +305,18 @@ export default function CreateOrEditProductPage({
             return { ...prev, retail_price: val, discount_percentage: discount };
         });
     };
+
+    const handleMrpChange = (val: number) => {
+        form.setData((prev) => {
+            const retail = Number(prev.retail_price);
+            let discount = prev.discount_percentage;
+            if (val > 0 && retail > 0 && val > retail) {
+                discount = Number((((val - retail) / val) * 100).toFixed(2));
+            }
+            return { ...prev, mrp: val, discount_percentage: discount };
+        });
+    };
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -326,6 +344,19 @@ export default function CreateOrEditProductPage({
         }
     };
 
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    // Calculated financial metrics
+    const savingsAmount =
+        Number(form.data.mrp) > Number(form.data.retail_price)
+            ? Number(form.data.mrp) - Number(form.data.retail_price)
+            : 0;
+
     return (
         <AdminLayout
             title={isEdit ? `Edit Product: ${product?.name}` : 'Create New Product'}
@@ -335,55 +366,132 @@ export default function CreateOrEditProductPage({
                 { label: isEdit ? 'Edit' : 'Create' },
             ]}
         >
-            <Head title={isEdit ? `Edit ${product?.name}` : 'Create Product - Admin'} />
+            <Head title={isEdit ? `Edit ${product?.name}` : 'Create Product - Catalog Admin'} />
 
-            <form onSubmit={handleSubmit} className="space-y-8 max-w-6xl pb-16">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-6xl pb-20">
+                {/* Sticky Action Navigation Header */}
+                <div className="sticky top-16 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <Link href="/admin/products">
-                            <Button variant="ghost" size="sm" type="button" className="p-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                type="button"
+                                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                                title="Back to products list"
+                            >
                                 <ArrowLeft className="w-4 h-4" />
                             </Button>
                         </Link>
                         <div>
-                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                                {isEdit ? `Edit Product` : 'Create New Product'}
-                            </h1>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                                Configure specifications, variants, multi-image galleries, and inventory parameters
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white line-clamp-1">
+                                    {isEdit ? product?.name : 'Create New Product'}
+                                </h1>
+                                <Badge variant={form.data.status === 'active' ? 'success' : 'neutral'}>
+                                    {form.data.status}
+                                </Badge>
+                            </div>
+                            <span className="text-[11px] text-slate-500">
+                                {isEdit ? `SKU: ${form.data.sku}` : 'Fill product details and upload gallery'}
+                            </span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-end sm:self-center">
                         <Link href="/admin/products">
-                            <Button variant="secondary" type="button">
+                            <Button variant="secondary" size="sm" type="button" className="rounded-xl">
                                 Cancel
                             </Button>
                         </Link>
-                        <Button variant="primary" type="submit" isLoading={form.processing}>
-                            {isEdit ? 'Update Product' : 'Publish Product'}
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            type="submit"
+                            isLoading={form.processing}
+                            className="flex items-center gap-1.5 shadow-sm rounded-xl font-semibold"
+                        >
+                            <Save className="w-4 h-4" />
+                            <span>{isEdit ? 'Save Changes' : 'Publish Product'}</span>
                         </Button>
                     </div>
                 </div>
 
+                {/* Quick Section Jump Navigator */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                    <button
+                        type="button"
+                        onClick={() => scrollToSection('sec-general')}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                    >
+                        General Info
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => scrollToSection('sec-pricing')}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                    >
+                        Pricing &amp; Economics
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => scrollToSection('sec-gallery')}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                    >
+                        Image Gallery ({form.data.images.length})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => scrollToSection('sec-specs')}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                    >
+                        Technical Specs
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => scrollToSection('sec-variants')}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                    >
+                        Variants ({form.data.variants.length})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => scrollToSection('sec-policies')}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                    >
+                        Policies
+                    </button>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Main 2-column Content */}
+                    {/* Main Left 2-Columns */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* 1. Basic Product Info */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
-                                <Tag className="w-4 h-4 text-indigo-500" />
-                                <span>General Information</span>
+                        {/* 1. General Product Information */}
+                        <div
+                            id="sec-general"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                        >
+                            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+                                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                    <Tag className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                        General Information
+                                    </h3>
+                                    <span className="text-[11px] text-slate-400">
+                                        Core title, custom slug, and storefront descriptions
+                                    </span>
+                                </div>
                             </div>
 
                             <Input
-                                label="Product Name / Title"
+                                label="Product Title / Merchandising Name"
                                 required
                                 value={form.data.name}
                                 onChange={(e) => form.setData('name', e.target.value)}
                                 error={form.errors.name}
-                                placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
+                                placeholder="e.g. Sony WH-1000XM5 Wireless Noise-Cancelling Headphones"
                             />
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -396,10 +504,12 @@ export default function CreateOrEditProductPage({
                                     placeholder="e.g. SNY-WH1000-BLK"
                                 />
 
-                                <Input
-                                    label="Custom Slug (Optional)"
+                                <SlugInput
+                                    label="Custom Slug (URL)"
                                     value={form.data.slug}
-                                    onChange={(e) => form.setData('slug', e.target.value)}
+                                    onChange={(slug) => form.setData('slug', slug)}
+                                    sourceValue={form.data.name}
+                                    autoSync={!isEdit}
                                     error={form.errors.slug}
                                     placeholder="auto-generated from product title"
                                 />
@@ -413,30 +523,54 @@ export default function CreateOrEditProductPage({
                                     value={form.data.short_description}
                                     onChange={(e) => form.setData('short_description', e.target.value)}
                                     rows={2}
-                                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                    placeholder="Brief punchy summary displayed in product cards..."
+                                    className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Brief punchy summary displayed in storefront product cards..."
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    Full Product Description
+                                    Full Product Overview
                                 </label>
                                 <textarea
                                     value={form.data.description}
                                     onChange={(e) => form.setData('description', e.target.value)}
                                     rows={5}
-                                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
                                     placeholder="Detailed marketing copy, feature breakdown, and what's in the box..."
                                 />
                             </div>
                         </div>
 
-                        {/* 2. Pricing & Economics */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
-                                <DollarSign className="w-4 h-4 text-emerald-500" />
-                                <span>Pricing & Commercials</span>
+                        {/* 2. Pricing & Commercials */}
+                        <div
+                            id="sec-pricing"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                        >
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                        <DollarSign className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                            Pricing &amp; Economics
+                                        </h3>
+                                        <span className="text-[11px] text-slate-400">
+                                            Storefront retail price, wholesale MRP, and automated discount %
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {savingsAmount > 0 && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        <span>
+                                            Customer Saves {currency}
+                                            {savingsAmount.toFixed(2)} ({form.data.discount_percentage}%)
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -446,9 +580,10 @@ export default function CreateOrEditProductPage({
                                     type="number"
                                     step="0.01"
                                     value={String(form.data.mrp)}
-                                    onChange={(e) => form.setData('mrp', Number(e.target.value))}
+                                    onChange={(e) => handleMrpChange(Number(e.target.value))}
                                     error={form.errors.mrp}
                                     placeholder="0.00"
+                                    helperText="Original list price / MRP"
                                 />
 
                                 <Input
@@ -460,6 +595,7 @@ export default function CreateOrEditProductPage({
                                     onChange={(e) => handleRetailPriceChange(Number(e.target.value))}
                                     error={form.errors.retail_price}
                                     placeholder="0.00"
+                                    helperText="Active selling price"
                                 />
 
                                 <Input
@@ -470,6 +606,7 @@ export default function CreateOrEditProductPage({
                                     onChange={(e) => form.setData('sale_price', e.target.value ? Number(e.target.value) : '')}
                                     error={form.errors.sale_price}
                                     placeholder="Optional promo price"
+                                    helperText="Flash promo or special rate"
                                 />
 
                                 <Input
@@ -479,29 +616,40 @@ export default function CreateOrEditProductPage({
                                     value={String(form.data.discount_percentage)}
                                     onChange={(e) => form.setData('discount_percentage', e.target.value ? Number(e.target.value) : '')}
                                     error={form.errors.discount_percentage}
-                                    placeholder="e.g. 15%"
+                                    placeholder="Auto-calculated"
+                                    helperText="Badge shown on card"
                                 />
                             </div>
                         </div>
 
                         {/* 3. Product Gallery Images */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+                        <div
+                            id="sec-gallery"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                        >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                                <div>
-                                    <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
-                                        <ImageIcon className="w-4 h-4 text-blue-500" />
-                                        <span>Product Gallery Images</span>
-                                        {uploadingCount > 0 && (
-                                            <span className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                Uploading {uploadingCount} file{uploadingCount > 1 ? 's' : ''}...
-                                            </span>
-                                        )}
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                        <ImageIcon className="w-4 h-4" />
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        Upload product images. The primary image is used as the cover across catalog pages and search results.
-                                    </p>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                                Product Gallery Images
+                                            </h3>
+                                            {uploadingCount > 0 && (
+                                                <span className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    Uploading {uploadingCount}...
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="text-[11px] text-slate-400">
+                                            Primary image is used as catalog cover; secondary photos appear in product detail slider.
+                                        </span>
+                                    </div>
                                 </div>
+
                                 <div className="flex items-center gap-2">
                                     <input
                                         ref={fileInputRef}
@@ -533,7 +681,7 @@ export default function CreateOrEditProductPage({
                                         variant="primary"
                                         size="sm"
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="flex items-center gap-1.5 text-xs"
+                                        className="flex items-center gap-1.5 text-xs rounded-xl"
                                         disabled={uploadingCount > 0}
                                     >
                                         <Upload className="w-3.5 h-3.5" />
@@ -543,7 +691,7 @@ export default function CreateOrEditProductPage({
                             </div>
 
                             {uploadError && (
-                                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4 shrink-0" />
                                     <span>{uploadError}</span>
                                 </div>
@@ -567,7 +715,7 @@ export default function CreateOrEditProductPage({
                                     }
                                 }}
                                 onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                                className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all ${
                                     isDragging
                                         ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-4 ring-indigo-500/10'
                                         : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
@@ -580,7 +728,9 @@ export default function CreateOrEditProductPage({
                                     <div>
                                         <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                                             Drop product photos here, or{' '}
-                                            <span className="text-indigo-600 dark:text-indigo-400 underline font-bold">browse files</span>
+                                            <span className="text-indigo-600 dark:text-indigo-400 underline font-bold">
+                                                browse files
+                                            </span>
                                         </span>
                                         <p className="text-[11px] text-slate-400 mt-0.5">
                                             Select single or multiple files (JPG, PNG, WEBP, GIF up to 25MB each)
@@ -654,7 +804,7 @@ export default function CreateOrEditProductPage({
                                                             setReplacingIndex(idx);
                                                             replaceInputRef.current?.click();
                                                         }}
-                                                        className="text-xs flex items-center gap-1.5 px-2.5 py-1.5"
+                                                        className="text-xs flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
                                                         title="Upload a new file to replace this image"
                                                     >
                                                         <RefreshCw className="w-3.5 h-3.5" />
@@ -695,40 +845,52 @@ export default function CreateOrEditProductPage({
                             )}
                         </div>
 
-                        {/* 4. Specifications (Key - Value Pairs) */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                                <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
-                                    <FileText className="w-4 h-4 text-purple-500" />
-                                    <span>Technical Specifications</span>
+                        {/* 4. Specifications */}
+                        <div
+                            id="sec-specs"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                        >
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                                        <FileText className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                            Technical Specifications
+                                        </h3>
+                                        <span className="text-[11px] text-slate-400">
+                                            Granular parameters like Battery Life, Material, Connectivity, Dimensions
+                                        </span>
+                                    </div>
                                 </div>
                                 <Button
                                     type="button"
                                     variant="secondary"
                                     size="sm"
                                     onClick={addSpec}
-                                    className="flex items-center gap-1.5"
+                                    className="flex items-center gap-1.5 rounded-xl text-xs"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
-                                    Add Specification
+                                    Add Spec
                                 </Button>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-2.5">
                                 {specEntries.map((spec, idx) => (
                                     <div key={idx} className="flex items-center gap-2">
                                         <input
                                             type="text"
                                             value={spec.key}
                                             onChange={(e) => updateSpec(idx, 'key', e.target.value)}
-                                            placeholder="Spec label (e.g. Battery Life)"
+                                            placeholder="Spec Label (e.g. Battery Life)"
                                             className="w-1/3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white"
                                         />
                                         <input
                                             type="text"
                                             value={spec.value}
                                             onChange={(e) => updateSpec(idx, 'value', e.target.value)}
-                                            placeholder="Value (e.g. 30 Hours)"
+                                            placeholder="Specification Value (e.g. Up to 30 Hours with ANC)"
                                             className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white"
                                         />
                                         <Button
@@ -736,7 +898,7 @@ export default function CreateOrEditProductPage({
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => removeSpec(idx)}
-                                            className="p-1.5 text-rose-500 hover:text-rose-700 shrink-0"
+                                            className="p-1.5 text-rose-500 hover:text-rose-700 shrink-0 rounded-lg"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
@@ -745,17 +907,24 @@ export default function CreateOrEditProductPage({
                             </div>
                         </div>
 
-                        {/* 5. Dynamic Product Variants */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                                <div>
-                                    <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
-                                        <Layers className="w-4 h-4 text-orange-500" />
-                                        <span>Product Variants</span>
+                        {/* 5. Product Variants */}
+                        <div
+                            id="sec-variants"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                        >
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                                        <Layers className="w-4 h-4" />
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        Enable for items with options like Size, Color, Capacity
-                                    </p>
+                                    <div>
+                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                            Product Variants
+                                        </h3>
+                                        <span className="text-[11px] text-slate-400">
+                                            Enable for products offering Size, Color, or Storage capacity options
+                                        </span>
+                                    </div>
                                 </div>
                                 <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
                                     <input
@@ -764,28 +933,33 @@ export default function CreateOrEditProductPage({
                                         onChange={(e) => form.setData('has_variants', e.target.checked)}
                                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                     />
-                                    <span>Has Variants</span>
+                                    <span>Enable Variants</span>
                                 </label>
                             </div>
 
                             {form.data.has_variants && (
                                 <div className="space-y-4 pt-2">
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={addVariant}
-                                        className="flex items-center gap-1.5"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        Add Variant Option
-                                    </Button>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-slate-500">
+                                            Configure variant SKUs and individual stock levels below:
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={addVariant}
+                                            className="flex items-center gap-1.5 rounded-xl text-xs"
+                                        >
+                                            <Plus className="w-3.5 h-3.5" />
+                                            Add Variant Option
+                                        </Button>
+                                    </div>
 
                                     <div className="space-y-3">
                                         {form.data.variants.map((v, idx) => (
                                             <div
                                                 key={idx}
-                                                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-3"
+                                                className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-3"
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -796,7 +970,7 @@ export default function CreateOrEditProductPage({
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => removeVariant(idx)}
-                                                        className="p-1 text-rose-500 hover:text-rose-700"
+                                                        className="p-1 text-rose-500 hover:text-rose-700 rounded-lg"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -812,7 +986,7 @@ export default function CreateOrEditProductPage({
                                                             updated[idx].name = e.target.value;
                                                             form.setData('variants', updated);
                                                         }}
-                                                        placeholder="e.g. Size: Large / Color: Blue"
+                                                        placeholder="e.g. Size: XL / Midnight Blue"
                                                     />
 
                                                     <Input
@@ -841,7 +1015,7 @@ export default function CreateOrEditProductPage({
                                                     />
 
                                                     <Input
-                                                        label="Stock Quantity"
+                                                        label="Stock Units"
                                                         required
                                                         type="number"
                                                         value={String(v.stock_quantity)}
@@ -860,50 +1034,62 @@ export default function CreateOrEditProductPage({
                         </div>
 
                         {/* 6. Return & Refund Policies */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
-                                <ShieldAlert className="w-4 h-4 text-teal-500" />
-                                <span>Return & Refund Policies</span>
+                        <div
+                            id="sec-policies"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                        >
+                            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+                                <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                                    <ShieldAlert className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                        Return &amp; Refund Policies
+                                    </h3>
+                                    <span className="text-[11px] text-slate-400">
+                                        Storefront customer assurance notices and replacement guidelines
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Return Policy Details
+                                        Return Policy Terms
                                     </label>
                                     <textarea
                                         value={form.data.return_policy}
                                         onChange={(e) => form.setData('return_policy', e.target.value)}
                                         rows={3}
-                                        className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white"
+                                        className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white"
                                     />
                                 </div>
 
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Refund Policy Details
+                                        Refund Policy Terms
                                     </label>
                                     <textarea
                                         value={form.data.refund_policy}
                                         onChange={(e) => form.setData('refund_policy', e.target.value)}
                                         rows={3}
-                                        className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white"
+                                        className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white"
                                     />
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Column: Taxonomy, Status & Availability */}
+                    {/* Right Column: Sidebar Panels */}
                     <div className="space-y-6">
-                        {/* Status & Featured */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <h3 className="font-semibold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
-                                Publishing Status
+                        {/* Status & Featured Card */}
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
+                                Publishing &amp; Visibility
                             </h3>
 
                             <Select
-                                label="Product Status"
+                                label="Storefront Status"
                                 value={form.data.status}
                                 onChange={(e) => form.setData('status', e.target.value)}
                                 options={statuses}
@@ -913,10 +1099,10 @@ export default function CreateOrEditProductPage({
                             <div className="flex items-center justify-between pt-2">
                                 <div>
                                     <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                        Featured Product
+                                        Featured Spotlight
                                     </div>
                                     <div className="text-[11px] text-slate-500">
-                                        Highlight on homepage showcase
+                                        Pin on store homepage hero
                                     </div>
                                 </div>
                                 <input
@@ -929,13 +1115,13 @@ export default function CreateOrEditProductPage({
                         </div>
 
                         {/* Taxonomy: Brand & Category */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <h3 className="font-semibold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
-                                Organization & Classification
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
+                                Taxonomy &amp; Grouping
                             </h3>
 
                             <Select
-                                label="Category"
+                                label="Product Category"
                                 value={form.data.category_id}
                                 onChange={(e) => form.setData('category_id', e.target.value)}
                                 options={[
@@ -949,7 +1135,7 @@ export default function CreateOrEditProductPage({
                             />
 
                             <Select
-                                label="Brand"
+                                label="Brand / Manufacturer"
                                 value={form.data.brand_id}
                                 onChange={(e) => form.setData('brand_id', e.target.value)}
                                 options={[
@@ -964,25 +1150,27 @@ export default function CreateOrEditProductPage({
                         </div>
 
                         {/* Inventory & Thresholds */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+                            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800 text-sm">
                                 <Boxes className="w-4 h-4 text-amber-500" />
-                                <span>Inventory & Stock</span>
+                                <span>Stock &amp; Availability</span>
                             </div>
 
                             <Input
-                                label="Stock Quantity (Total Units)"
+                                label="Total Stock Quantity (Units)"
                                 required
                                 type="number"
+                                min="0"
                                 value={String(form.data.stock_quantity)}
                                 onChange={(e) => form.setData('stock_quantity', Number(e.target.value))}
                                 error={form.errors.stock_quantity}
                             />
 
                             <Input
-                                label="Low Stock Alert Threshold"
+                                label="Low Stock Warning Threshold"
                                 required
                                 type="number"
+                                min="1"
                                 value={String(form.data.low_stock_threshold)}
                                 onChange={(e) => form.setData('low_stock_threshold', Number(e.target.value))}
                                 error={form.errors.low_stock_threshold}
@@ -997,15 +1185,15 @@ export default function CreateOrEditProductPage({
                             />
                         </div>
 
-                        {/* Location / Radius Availability */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
+                        {/* Geolocation Availability */}
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+                            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800 text-sm">
                                 <MapPin className="w-4 h-4 text-rose-500" />
                                 <span>Geographic Availability</span>
                             </div>
 
                             <Select
-                                label="Availability Scope"
+                                label="Delivery Scope"
                                 value={form.data.location_availability_type}
                                 onChange={(e) => form.setData('location_availability_type', e.target.value)}
                                 options={locationTypes}
@@ -1020,7 +1208,7 @@ export default function CreateOrEditProductPage({
                                     value={String(form.data.delivery_radius_km)}
                                     onChange={(e) => form.setData('delivery_radius_km', Number(e.target.value))}
                                     error={form.errors.delivery_radius_km}
-                                    placeholder="e.g. 25 km from store address"
+                                    placeholder="e.g. 25 km from store location"
                                 />
                             )}
                         </div>

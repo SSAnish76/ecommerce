@@ -27,7 +27,6 @@ class BrandController extends Controller
 
         $brands = Brand::query()
             ->with('logo')
-            ->withCount('products')
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")
@@ -41,7 +40,6 @@ class BrandController extends Controller
                     $query->where('is_active', false);
                 }
             })
-            ->orderBy('sort_order')
             ->orderBy('name')
             ->paginate(12)
             ->withQueryString();
@@ -60,15 +58,13 @@ class BrandController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        /** @var array{name: string, slug?: ?string, description?: ?string, logo_id?: ?string, website?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{name: string, slug?: ?string, description?: ?string, logo_id?: ?string, is_active?: bool} $validated */
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:brands,slug'],
             'description' => ['nullable', 'string', 'max:1000'],
             'logo_id' => ['nullable'],
-            'website' => ['nullable', 'url', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $logoId = $request->input('logo_id') ?: null;
@@ -88,9 +84,7 @@ class BrandController extends Controller
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
             'logo_id' => $logoId,
-            'website' => $validated['website'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
-            'sort_order' => $validated['sort_order'] ?? 0,
         ]);
 
         return redirect()->back()->with('success', "Brand '{$validated['name']}' created successfully.");
@@ -101,15 +95,13 @@ class BrandController extends Controller
      */
     public function update(Request $request, Brand $brand): RedirectResponse
     {
-        /** @var array{name: string, slug?: ?string, description?: ?string, logo_id?: ?string, website?: ?string, is_active?: bool, sort_order?: int} $validated */
+        /** @var array{name: string, slug?: ?string, description?: ?string, logo_id?: ?string, is_active?: bool} $validated */
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('brands', 'slug')->ignore($brand->id)],
             'description' => ['nullable', 'string', 'max:1000'],
             'logo_id' => ['nullable'],
-            'website' => ['nullable', 'url', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $logoId = array_key_exists('logo_id', $validated) ? ($validated['logo_id'] ?: null) : $brand->logo_id;
@@ -121,9 +113,7 @@ class BrandController extends Controller
             'slug' => $slug,
             'description' => $validated['description'] ?? null,
             'logo_id' => $logoId,
-            'website' => $validated['website'] ?? null,
             'is_active' => $validated['is_active'] ?? $brand->is_active,
-            'sort_order' => $validated['sort_order'] ?? $brand->sort_order,
         ]);
 
         return redirect()->back()->with('success', "Brand '{$brand->name}' updated successfully.");

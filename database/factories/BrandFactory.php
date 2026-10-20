@@ -28,9 +28,7 @@ class BrandFactory extends Factory
             'name' => $name,
             'slug' => Str::slug($name),
             'description' => fake()->paragraph(),
-            'website' => fake()->url(),
             'is_active' => true,
-            'sort_order' => fake()->numberBetween(0, 50),
         ];
     }
 }

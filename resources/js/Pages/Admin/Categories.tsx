@@ -15,8 +15,9 @@ import {
     TableCell,
     TableHeaderCell,
     EmptyState,
-    PageHeader,
-    FileUpload,
+    SlugInput,
+    ImagePicker,
+    CopyButton,
 } from '../../Components/UI';
 import {
     FolderTree,
@@ -25,8 +26,13 @@ import {
     Pencil,
     Trash2,
     RotateCcw,
-    Layers,
+    LayoutGrid,
+    Table as TableIcon,
     CornerDownRight,
+    Folder,
+    FolderOpen,
+    Check,
+    Copy,
 } from 'lucide-react';
 
 interface PaginatedCategories {
@@ -60,6 +66,8 @@ export default function CategoriesPage({
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');
     const [parentFilter, setParentFilter] = useState(filters.parent_id || '');
+    const [viewMode, setViewMode] = useState<'hierarchy' | 'table'>('hierarchy');
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
@@ -106,6 +114,7 @@ export default function CategoriesPage({
         is_active: true,
     });
 
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         router.get(
@@ -115,11 +124,38 @@ export default function CategoriesPage({
         );
     };
 
+    const handleStatusFilter = (status: string) => {
+        setStatusFilter(status);
+        router.get(
+            '/admin/categories',
+            { search, status, parent_id: parentFilter },
+            { preserveState: true, replace: true }
+        );
+    };
+
+    const handleParentFilterChange = (parentId: string) => {
+        setParentFilter(parentId);
+        router.get(
+            '/admin/categories',
+            { search, status: statusFilter, parent_id: parentId },
+            { preserveState: true, replace: true }
+        );
+    };
+
     const handleReset = () => {
         setSearch('');
         setStatusFilter('');
         setParentFilter('');
         router.get('/admin/categories', {}, { preserveState: true, replace: true });
+    };
+
+
+    const openCreateWithParent = (parentId?: number) => {
+        createForm.reset();
+        if (parentId) {
+            createForm.setData('parent_id', String(parentId));
+        }
+        setIsCreateOpen(true);
     };
 
     const submitCreate = (e: React.FormEvent) => {
@@ -168,238 +204,630 @@ export default function CategoriesPage({
         router.patch(`/admin/categories/${cat.id}/toggle-status`, {}, { preserveScroll: true });
     };
 
+
+    // Group categories for hierarchy card view
+    const rootCategories = categories.data.filter((c) => !c.parent_id);
+    const subCategories = categories.data.filter((c) => !!c.parent_id);
+
     return (
         <AdminLayout
             title="Categories"
             breadcrumbs={[{ label: 'Catalog' }, { label: 'Categories' }]}
         >
-            <Head title="Category Management - Admin" />
+            <Head title="Category Taxonomy - Catalog Admin" />
 
             <div className="space-y-6">
-                <PageHeader
-                    title="Category & Subcategory Hierarchy"
-                    description="Organize taxonomy trees, parent collections, and product categorization"
-                    badge="Taxonomy"
-                    actions={
-                        canCreate && (
-                            <Button
-                                onClick={() => setIsCreateOpen(true)}
-                                variant="primary"
-                                className="flex items-center gap-2 shadow-sm"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Category
-                            </Button>
-                        )
-                    }
-                />
+                {/* Clean Header with Simple Category Count */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                                Categories
+                            </h1>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                {categories.total} {categories.total === 1 ? 'Category' : 'Categories'}
+                            </span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                            Organize your storefront navigation, nested taxonomy, product grouping, and mega-menu categories.
+                        </p>
+                    </div>
 
-                {/* Filter Controls */}
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-3">
+                    {canCreate && (
+                        <Button
+                            onClick={() => openCreateWithParent()}
+                            variant="primary"
+                            className="flex items-center gap-2 shadow-xs font-semibold rounded-xl shrink-0"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add New Category
+                        </Button>
+                    )}
+                </div>
+
+                {/* Filter & View Toolbar */}
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
+                    <form onSubmit={handleSearch} className="flex flex-col lg:flex-row items-center gap-3">
                         <div className="relative flex-1 w-full">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search by category name or slug..."
-                                className="pl-9 w-full"
+                                placeholder="Search by category name or description..."
+                                className="pl-9 pr-8 w-full text-xs"
                             />
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSearch('');
+                                        router.get(
+                                            '/admin/categories',
+                                            { status: statusFilter, parent_id: parentFilter },
+                                            { preserveState: true }
+                                        );
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
-                        <div className="w-full sm:w-48">
+
+                        {/* Parent Category Filter Dropdown */}
+                        <div className="w-full lg:w-56 shrink-0">
                             <Select
                                 value={parentFilter}
-                                onChange={(e) => setParentFilter(e.target.value)}
+                                onChange={(e) => handleParentFilterChange(e.target.value)}
                                 options={[
-                                    { value: '', label: 'All Levels' },
+                                    { value: '', label: 'All Levels (Root & Sub)' },
                                     { value: 'root', label: 'Root Categories Only' },
                                     ...parentOptions.map((p) => ({
                                         value: String(p.id),
-                                        label: `Sub: ${p.name}`,
+                                        label: `Sub of: ${p.name}`,
                                     })),
                                 ]}
                             />
                         </div>
-                        <div className="w-full sm:w-40">
-                            <Select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                options={[
-                                    { value: '', label: 'All Statuses' },
-                                    { value: 'active', label: 'Active Only' },
-                                    { value: 'inactive', label: 'Inactive Only' },
-                                ]}
-                            />
+
+                        {/* Status Filter Tabs */}
+                        <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 w-full lg:w-auto shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => handleStatusFilter('')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    statusFilter === ''
+                                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                All
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleStatusFilter('active')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    statusFilter === 'active'
+                                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                Active
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleStatusFilter('inactive')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    statusFilter === 'inactive'
+                                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                Inactive
+                            </button>
                         </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <Button type="submit" variant="secondary" className="w-full sm:w-auto">
-                                Filter
+
+                        <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
+                            <Button type="submit" variant="secondary" size="sm" className="flex-1 lg:flex-none">
+                                Apply
                             </Button>
+
                             {(search || statusFilter || parentFilter) && (
                                 <Button
                                     type="button"
                                     variant="ghost"
+                                    size="sm"
                                     onClick={handleReset}
-                                    className="p-2"
+                                    className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                                     title="Reset filters"
                                 >
                                     <RotateCcw className="w-4 h-4" />
                                 </Button>
                             )}
+
+                            {/* View Switcher (Hierarchy Cards vs Table) */}
+                            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('hierarchy')}
+                                    className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        viewMode === 'hierarchy'
+                                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                    title="Hierarchy Tree View"
+                                >
+                                    <FolderTree className="w-4 h-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('table')}
+                                    className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        viewMode === 'table'
+                                            ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                    title="Data Table View"
+                                >
+                                    <TableIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
 
-                {/* Table */}
-                <TableContainer>
-                    <TableHead>
-                        <TableRow>
-                            <TableHeaderCell>Category Name</TableHeaderCell>
-                            <TableHeaderCell>Hierarchy</TableHeaderCell>
-                            <TableHeaderCell>Products</TableHeaderCell>
-                            <TableHeaderCell>Subcategories</TableHeaderCell>
-                            <TableHeaderCell>Sort Order</TableHeaderCell>
-                            <TableHeaderCell>Status</TableHeaderCell>
-                            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {categories.data.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7}>
-                                    <EmptyState
-                                        title="No categories found"
-                                        description="Create your first parent category or adjust filter criteria."
-                                        action={
-                                            canCreate ? (
-                                                <Button
-                                                    onClick={() => setIsCreateOpen(true)}
-                                                    variant="primary"
-                                                    size="sm"
-                                                >
-                                                    <Plus className="w-4 h-4 mr-1" />
-                                                    Add First Category
-                                                </Button>
-                                            ) : undefined
-                                        }
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            categories.data.map((cat) => (
-                                <TableRow key={cat.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            {cat.parent_id && (
-                                                <CornerDownRight className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
-                                            )}
-                                            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
-                                                {cat.image_url ? (
+                {/* Categories Content: Hierarchy View or Detailed Table */}
+                {categories.data.length === 0 ? (
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center">
+                        <EmptyState
+                            title="No categories found"
+                            description={
+                                search || statusFilter || parentFilter
+                                    ? 'No categories match the active filter criteria. Try resetting filters.'
+                                    : 'No categories created yet. Create your first root category to start organizing products.'
+                            }
+                            action={
+                                canCreate ? (
+                                    <Button
+                                        onClick={() => openCreateWithParent()}
+                                        variant="primary"
+                                        size="sm"
+                                        className="mt-2"
+                                    >
+                                        <Plus className="w-4 h-4 mr-1.5" />
+                                        Add First Category
+                                    </Button>
+                                ) : undefined
+                            }
+                        />
+                    </div>
+                ) : viewMode === 'hierarchy' ? (
+                    /* Modern Hierarchy Cards View */
+                    <div className="space-y-4">
+                        {rootCategories.map((root) => {
+                            // Find subcategories in current page that belong to this root
+                            const childSubCategories = subCategories.filter((s) => s.parent_id === root.id);
+
+                            return (
+                                <div
+                                    key={root.id}
+                                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700/80 transition-all duration-200"
+                                >
+                                    {/* Root Category Row */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center gap-3.5">
+                                            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 p-1.5 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                                                {root.image_url ? (
                                                     <img
-                                                        src={cat.image_url}
-                                                        alt={cat.name}
-                                                        className="w-full h-full object-cover rounded-xl"
+                                                        src={root.image_url}
+                                                        alt={root.name}
+                                                        className="w-full h-full object-cover rounded-lg"
                                                     />
                                                 ) : (
-                                                    <FolderTree className="w-4 h-4" />
+                                                    <Folder className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                                                 )}
                                             </div>
+
                                             <div>
-                                                <div className="font-semibold text-slate-900 dark:text-white">
-                                                    {cat.name}
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                                                        {root.name}
+                                                    </h3>
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800">
+                                                        Root Level
+                                                    </span>
                                                 </div>
-                                                <div className="text-xs text-slate-500 font-mono">
-                                                    /{cat.slug}
+                                                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5">
+                                                    <span>/{root.slug}</span>
+                                                    <CopyButton text={root.slug} title="Copy slug" />
                                                 </div>
                                             </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {cat.parent ? (
-                                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                                                <Layers className="w-3.5 h-3.5 text-slate-400" />
-                                                {cat.parent.name}
-                                            </span>
-                                        ) : (
-                                            <Badge variant="primary">Root Category</Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="neutral">
-                                            {cat.products_count ?? 0} Products
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                                            {cat.children_count ?? 0}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
-                                            {cat.sort_order}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <button
-                                            type="button"
-                                            onClick={() => canEdit && toggleStatus(cat)}
-                                            disabled={!canEdit}
-                                            className="cursor-pointer"
-                                            title="Click to toggle status"
-                                        >
-                                            <Badge variant={cat.is_active ? 'success' : 'neutral'}>
-                                                {cat.is_active ? 'Active' : 'Inactive'}
-                                            </Badge>
-                                        </button>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end gap-1.5">
+
+                                        <div className="flex items-center gap-2.5 self-end sm:self-center">
+                                            {/* Status Badge */}
+                                            <button
+                                                type="button"
+                                                onClick={() => canEdit && toggleStatus(root)}
+                                                disabled={!canEdit}
+                                                className="cursor-pointer"
+                                                title="Toggle active status"
+                                            >
+                                                <Badge variant={root.is_active ? 'success' : 'neutral'}>
+                                                    <span
+                                                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                                            root.is_active ? 'bg-emerald-500' : 'bg-slate-400'
+                                                        }`}
+                                                    />
+                                                    {root.is_active ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                            </button>
+
+
+                                            {canCreate && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    onClick={() => openCreateWithParent(root.id)}
+                                                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg"
+                                                    title="Add Subcategory under this root"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                    <span>+ Subcategory</span>
+                                                </Button>
+                                            )}
+
                                             {canEdit && (
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => openEdit(cat)}
+                                                    onClick={() => openEdit(root)}
                                                     className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+                                                    title="Edit Root Category"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
                                             )}
+
                                             {canDelete && (
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => setDeletingCategory(cat)}
+                                                    onClick={() => setDeletingCategory(root)}
                                                     className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600"
+                                                    title="Delete Root Category"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             )}
                                         </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                                    </div>
+
+                                    {/* Description if present */}
+                                    {root.description && (
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 mb-3">
+                                            {root.description}
+                                        </p>
+                                    )}
+
+                                    {/* Nested Child Subcategories Section */}
+                                    <div className="mt-3.5 pt-2">
+                                        <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                                            <span className="flex items-center gap-1.5">
+                                                <CornerDownRight className="w-3.5 h-3.5 text-slate-400" />
+                                                <span>Subcategories ({childSubCategories.length})</span>
+                                            </span>
+                                            {childSubCategories.length === 0 && (
+                                                <span className="text-[11px] text-slate-400 italic">
+                                                    No direct subcategories on this page
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {childSubCategories.length > 0 && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pl-4 sm:pl-6 border-l-2 border-emerald-200 dark:border-emerald-800/60">
+                                                {childSubCategories.map((child) => (
+                                                    <div
+                                                        key={child.id}
+                                                        className="group bg-slate-50/80 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors flex items-center justify-between gap-2"
+                                                    >
+                                                        <div className="min-w-0 flex items-center gap-2.5">
+                                                            <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0">
+                                                                {child.image_url ? (
+                                                                    <img
+                                                                        src={child.image_url}
+                                                                        alt={child.name}
+                                                                        className="w-full h-full object-cover rounded"
+                                                                    />
+                                                                ) : (
+                                                                    <FolderOpen className="w-4 h-4 text-slate-400" />
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <div className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
+                                                                    {child.name}
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-400 font-mono truncate">
+                                                                    /{child.slug}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => canEdit && toggleStatus(child)}
+                                                                disabled={!canEdit}
+                                                                className={`w-2 h-2 rounded-full cursor-pointer mr-1 ${
+                                                                    child.is_active ? 'bg-emerald-500' : 'bg-slate-300'
+                                                                }`}
+                                                                title={`Status: ${child.is_active ? 'Active' : 'Inactive'}`}
+                                                            />
+                                                            {canEdit && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => openEdit(child)}
+                                                                    className="p-1 text-slate-400 hover:text-indigo-600"
+                                                                    title="Edit Subcategory"
+                                                                >
+                                                                    <Pencil className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            )}
+                                                            {canDelete && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => setDeletingCategory(child)}
+                                                                    className="p-1 text-slate-400 hover:text-rose-600"
+                                                                    title="Delete Subcategory"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* If filtered to subcategories without parent root cards shown */}
+                        {rootCategories.length === 0 && subCategories.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {subCategories.map((sub) => (
+                                    <div
+                                        key={sub.id}
+                                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-2xs hover:border-indigo-400 transition-colors flex flex-col justify-between"
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md">
+                                                Parent: {sub.parent?.name || 'Top-Level'}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => canEdit && toggleStatus(sub)}
+                                                disabled={!canEdit}
+                                            >
+                                                <Badge variant={sub.is_active ? 'success' : 'neutral'}>
+                                                    {sub.is_active ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                <FolderOpen className="w-5 h-5 text-indigo-500" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                                                    {sub.name}
+                                                </h4>
+                                                <span className="text-xs text-slate-500 font-mono">/{sub.slug}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                                            <span className="text-slate-400 font-mono text-[11px]">ID #{sub.id}</span>
+                                            <div className="flex items-center gap-1">
+                                                {canEdit && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => openEdit(sub)}
+                                                        className="p-1 text-slate-400 hover:text-indigo-600"
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                )}
+                                                {canDelete && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => setDeletingCategory(sub)}
+                                                        className="p-1 text-slate-400 hover:text-rose-600"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                    </TableBody>
-                </TableContainer>
+                    </div>
+                ) : (
+                    /* Detailed Data Table View */
+                    <TableContainer>
+                        <TableHead>
+                            <TableRow>
+                                <TableHeaderCell className="w-16">Image</TableHeaderCell>
+                                <TableHeaderCell>Category</TableHeaderCell>
+                                <TableHeaderCell>Level Type</TableHeaderCell>
+                                <TableHeaderCell>Parent Category</TableHeaderCell>
+                                <TableHeaderCell>Sort Order</TableHeaderCell>
+                                <TableHeaderCell>Status</TableHeaderCell>
+                                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {categories.data.map((cat) => {
+                                const isSub = Boolean(cat.parent_id);
+
+                                return (
+                                    <TableRow
+                                        key={cat.id}
+                                        className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40"
+                                    >
+                                        <TableCell className="w-16">
+                                            <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                                                {cat.image_url ? (
+                                                    <img
+                                                        src={cat.image_url}
+                                                        alt={cat.name}
+                                                        className="w-full h-full object-cover rounded-lg"
+                                                        loading="lazy"
+                                                    />
+                                                ) : isSub ? (
+                                                    <FolderOpen className="w-5 h-5 text-indigo-400" />
+                                                ) : (
+                                                    <Folder className="w-5 h-5 text-emerald-500" />
+                                                )}
+                                            </div>
+                                        </TableCell>
+
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                {isSub && (
+                                                    <span className="text-slate-300 dark:text-slate-600 font-mono text-sm">
+                                                        ↳
+                                                    </span>
+                                                )}
+                                                <div>
+                                                    <div className="font-semibold text-slate-900 dark:text-white text-sm">
+                                                        {cat.name}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                                        <span>/{cat.slug}</span>
+                                                        <CopyButton text={cat.slug} title="Copy slug" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+
+                                        <TableCell>
+                                            {isSub ? (
+                                                <Badge variant="secondary">
+                                                    <CornerDownRight className="w-3 h-3 mr-1" />
+                                                    Subcategory
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="success">
+                                                    <Folder className="w-3 h-3 mr-1" />
+                                                    Root Level
+                                                </Badge>
+                                            )}
+                                        </TableCell>
+
+                                        <TableCell>
+                                            {cat.parent ? (
+                                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                                                    {cat.parent.name}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 italic">— None (Root)</span>
+                                            )}
+                                        </TableCell>
+
+                                        <TableCell>
+                                            <span className="text-xs font-mono text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                                                {cat.sort_order}
+                                            </span>
+                                        </TableCell>
+
+                                        <TableCell>
+                                            <button
+                                                type="button"
+                                                onClick={() => canEdit && toggleStatus(cat)}
+                                                disabled={!canEdit}
+                                                className="cursor-pointer"
+                                                title="Click to toggle status"
+                                            >
+                                                <Badge variant={cat.is_active ? 'success' : 'neutral'}>
+                                                    <span
+                                                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                                            cat.is_active ? 'bg-emerald-500' : 'bg-slate-400'
+                                                        }`}
+                                                    />
+                                                    {cat.is_active ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                            </button>
+                                        </TableCell>
+
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-1.5">
+                                                {!isSub && canCreate && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => openCreateWithParent(cat.id)}
+                                                        className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-emerald-600"
+                                                        title="Add Child Subcategory"
+                                                    >
+                                                        <Plus className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                {canEdit && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => openEdit(cat)}
+                                                        className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+                                                        title="Edit Category"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                {canDelete && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => setDeletingCategory(cat)}
+                                                        className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600"
+                                                        title="Delete Category"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </TableContainer>
+                )}
 
                 {/* Pagination */}
                 {categories.last_page > 1 && (
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-2">
+                    <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-3 gap-3">
                         <span>
-                            Showing {categories.data.length} of {categories.total} categories
+                            Showing {categories.data.length} of {categories.total} categories in hierarchy
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1.5 flex-wrap justify-center">
                             {categories.links.map((link, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => link.url && router.get(link.url)}
                                     disabled={!link.url || link.active}
-                                    className={`px-3 py-1.5 rounded-lg border transition-colors ${
+                                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                                         link.active
-                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                             : link.url
-                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                                            : 'border-transparent text-slate-400 opacity-50 cursor-not-allowed'
+                                            ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                            : 'border-transparent text-slate-400 opacity-40 cursor-not-allowed'
                                     }`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />
@@ -413,22 +841,22 @@ export default function CategoriesPage({
             <Modal
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
-                title="Create New Category"
-                description="Create a root category or a nested subcategory"
+                title="Create Catalog Category"
+                description="Configure a new taxonomy category or nested subcategory"
             >
-                <form onSubmit={submitCreate} className="space-y-4">
+                <form onSubmit={submitCreate} className="space-y-4 pt-2">
                     <Select
                         label="Parent Category (Optional)"
                         value={String(createForm.data.parent_id)}
                         onChange={(e) => createForm.setData('parent_id', e.target.value)}
-                        error={createForm.errors.parent_id}
                         options={[
-                            { value: '', label: 'None (Set as Root Category)' },
+                            { value: '', label: 'None (Top-Level Root Category)' },
                             ...parentOptions.map((p) => ({
                                 value: String(p.id),
-                                label: p.name,
+                                label: `Root: ${p.name}`,
                             })),
                         ]}
+                        error={createForm.errors.parent_id}
                     />
 
                     <Input
@@ -437,62 +865,73 @@ export default function CategoriesPage({
                         value={createForm.data.name}
                         onChange={(e) => createForm.setData('name', e.target.value)}
                         error={createForm.errors.name}
-                        placeholder="e.g. Footwear & Sneakers"
+                        placeholder="e.g. Consumer Electronics, Laptops, Keyboards"
                     />
 
-                    <Input
-                        label="Slug (Optional)"
+                    <SlugInput
                         value={createForm.data.slug}
-                        onChange={(e) => createForm.setData('slug', e.target.value)}
+                        onChange={(slug) => createForm.setData('slug', slug)}
+                        sourceValue={createForm.data.name}
+                        autoSync
                         error={createForm.errors.slug}
-                        placeholder="auto-generated from name if empty"
+                        placeholder="auto-generated from category name"
                     />
 
-                    <FileUpload
-                        label="Category Image / Banner"
-                        helperText="Upload category thumbnail or banner (JPG, PNG, WEBP)"
+                    <ImagePicker
+                        label="Category Icon / Thumbnail Image"
+                        helperText="Upload banner or icon (SVG, PNG, JPG, or WEBP)"
                         value={createForm.data.image_url}
                         collection="categories"
-                        accept="image/*"
                         error={createForm.errors.image_url}
-                        onUploadSuccess={(media) => {
+                        onChange={({ id, url }) => {
                             createForm.setData((data) => ({
                                 ...data,
-                                image_id: media.id,
-                                image_url: media.url,
-                            }));
-                        }}
-                        onRemove={() => {
-                            createForm.setData((data) => ({
-                                ...data,
-                                image_id: null,
-                                image_url: '',
+                                image_id: id,
+                                image_url: url,
                             }));
                         }}
                     />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                            label="Sort Order Priority"
+                            type="number"
+                            value={String(createForm.data.sort_order)}
+                            onChange={(e) => createForm.setData('sort_order', Number(e.target.value))}
+                            error={createForm.errors.sort_order}
+                            placeholder="0"
+                        />
+
+                        <div className="flex flex-col justify-end pb-2">
+                            <label className="flex items-center gap-2.5 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={createForm.data.is_active}
+                                    onChange={(e) => createForm.setData('is_active', e.target.checked)}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                />
+                                <div>
+                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                        Active in Store Navigation
+                                    </span>
+                                    <span className="text-[11px] text-slate-500">
+                                        Customers can browse this category
+                                    </span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
 
                     <div>
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Description
+                            Description &amp; SEO Summary
                         </label>
                         <textarea
                             value={createForm.data.description}
                             onChange={(e) => createForm.setData('description', e.target.value)}
                             rows={3}
                             className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Brief description for SEO and category page..."
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                        <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                            Active Status
-                        </label>
-                        <input
-                            type="checkbox"
-                            checked={createForm.data.is_active}
-                            onChange={(e) => createForm.setData('is_active', e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            placeholder="Category description shown on storefront category pages..."
                         />
                     </div>
 
@@ -509,7 +948,7 @@ export default function CategoriesPage({
                             variant="primary"
                             isLoading={createForm.processing}
                         >
-                            Save Category
+                            Create Category
                         </Button>
                     </div>
                 </form>
@@ -520,23 +959,23 @@ export default function CategoriesPage({
                 isOpen={!!editingCategory}
                 onClose={() => setEditingCategory(null)}
                 title={`Edit Category: ${editingCategory?.name}`}
-                description="Update category name, parent nesting, or status"
+                description="Update taxonomy assignment, icon thumbnail, or active status"
             >
-                <form onSubmit={submitEdit} className="space-y-4">
+                <form onSubmit={submitEdit} className="space-y-4 pt-2">
                     <Select
                         label="Parent Category"
                         value={String(editForm.data.parent_id)}
                         onChange={(e) => editForm.setData('parent_id', e.target.value)}
-                        error={editForm.errors.parent_id}
                         options={[
-                            { value: '', label: 'None (Root Category)' },
+                            { value: '', label: 'None (Top-Level Root Category)' },
                             ...parentOptions
                                 .filter((p) => p.id !== editingCategory?.id)
                                 .map((p) => ({
                                     value: String(p.id),
-                                    label: p.name,
+                                    label: `Root: ${p.name}`,
                                 })),
                         ]}
+                        error={editForm.errors.parent_id}
                     />
 
                     <Input
@@ -547,58 +986,67 @@ export default function CategoriesPage({
                         error={editForm.errors.name}
                     />
 
-                    <Input
-                        label="Slug"
-                        required
+                    <SlugInput
                         value={editForm.data.slug}
-                        onChange={(e) => editForm.setData('slug', e.target.value)}
+                        onChange={(slug) => editForm.setData('slug', slug)}
+                        sourceValue={editForm.data.name}
                         error={editForm.errors.slug}
+                        required
                     />
 
-                    <FileUpload
-                        label="Category Image / Banner"
-                        helperText="Upload category thumbnail or banner (JPG, PNG, WEBP)"
+                    <ImagePicker
+                        label="Category Icon / Thumbnail Image"
+                        helperText="Upload banner or icon (SVG, PNG, JPG, or WEBP)"
                         value={editForm.data.image_url}
                         collection="categories"
-                        accept="image/*"
                         error={editForm.errors.image_url}
-                        onUploadSuccess={(media) => {
+                        onChange={({ id, url }) => {
                             editForm.setData((data) => ({
                                 ...data,
-                                image_id: media.id,
-                                image_url: media.url,
-                            }));
-                        }}
-                        onRemove={() => {
-                            editForm.setData((data) => ({
-                                ...data,
-                                image_id: null,
-                                image_url: '',
+                                image_id: id,
+                                image_url: url,
                             }));
                         }}
                     />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                            label="Sort Order Priority"
+                            type="number"
+                            value={String(editForm.data.sort_order)}
+                            onChange={(e) => editForm.setData('sort_order', Number(e.target.value))}
+                            error={editForm.errors.sort_order}
+                        />
+
+                        <div className="flex flex-col justify-end pb-2">
+                            <label className="flex items-center gap-2.5 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={editForm.data.is_active}
+                                    onChange={(e) => editForm.setData('is_active', e.target.checked)}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                />
+                                <div>
+                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                        Active in Store Navigation
+                                    </span>
+                                    <span className="text-[11px] text-slate-500">
+                                        Customers can browse this category
+                                    </span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
 
                     <div>
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Description
+                            Description &amp; SEO Summary
                         </label>
                         <textarea
                             value={editForm.data.description}
                             onChange={(e) => editForm.setData('description', e.target.value)}
                             rows={3}
                             className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                        <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                            Active Status
-                        </label>
-                        <input
-                            type="checkbox"
-                            checked={editForm.data.is_active}
-                            onChange={(e) => editForm.setData('is_active', e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                         />
                     </div>
 
@@ -621,28 +1069,40 @@ export default function CategoriesPage({
                 </form>
             </Modal>
 
-            {/* Delete Modal */}
+            {/* Delete Confirmation Modal */}
             <Modal
                 isOpen={!!deletingCategory}
                 onClose={() => setDeletingCategory(null)}
                 title="Delete Category"
-                description={`Are you sure you want to delete '${deletingCategory?.name}'? Note that categories with active subcategories or assigned products cannot be removed.`}
+                description={`Are you sure you want to delete '${deletingCategory?.name}'?`}
             >
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setDeletingCategory(null)}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="danger"
-                        onClick={confirmDelete}
-                    >
-                        Delete Category
-                    </Button>
+                <div className="space-y-4 pt-2">
+                    <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-3">
+                        <Trash2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                        <div>
+                            <span className="font-semibold block">Hierarchy Impact Warning</span>
+                            <span>
+                                Any products in this category and any nested subcategories will be unlinked or may prevent deletion.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setDeletingCategory(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            onClick={confirmDelete}
+                        >
+                            Confirm Delete
+                        </Button>
+                    </div>
                 </div>
             </Modal>
         </AdminLayout>
