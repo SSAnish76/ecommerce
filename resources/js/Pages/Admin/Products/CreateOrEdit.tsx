@@ -91,11 +91,10 @@ export default function CreateOrEditProductPage({
         stock_visibility: product?.stock_visibility || 'badge',
         has_variants: Boolean(product?.has_variants),
         status: product?.status || 'active',
-        is_featured: Boolean(product?.is_featured),
         location_availability_type: product?.location_availability_type || 'all',
         delivery_radius_km: product?.delivery_radius_km ?? '',
-        return_policy: product?.return_policy || '10-day replacement warranty for manufacturing defects.',
-        refund_policy: product?.refund_policy || '100% money back upon inspection of returned unit.',
+        return_policy: product?.return_policy || '',
+        refund_policy: product?.refund_policy || '',
         // Dynamic images array
         images: product?.images?.length
             ? product.images.map((img: any) => ({
@@ -1086,7 +1085,7 @@ export default function CreateOrEditProductPage({
 
                     {/* Right Column: Sidebar Panels */}
                     <div className="space-y-6">
-                        {/* Status & Featured Card */}
+                        {/* Status & Visibility Card */}
                         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
                             <h3 className="font-bold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
                                 Publishing &amp; Visibility
@@ -1099,23 +1098,6 @@ export default function CreateOrEditProductPage({
                                 options={statuses}
                                 error={form.errors.status}
                             />
-
-                            <div className="flex items-center justify-between pt-2">
-                                <div>
-                                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                        Featured Spotlight
-                                    </div>
-                                    <div className="text-[11px] text-slate-500">
-                                        Pin on store homepage hero
-                                    </div>
-                                </div>
-                                <input
-                                    type="checkbox"
-                                    checked={form.data.is_featured}
-                                    onChange={(e) => form.setData('is_featured', e.target.checked)}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                                />
-                            </div>
                         </div>
 
                         {/* Taxonomy: Brand & Category */}

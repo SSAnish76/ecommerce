@@ -56,7 +56,6 @@ class ProductFactory extends Factory
             'stock_visibility' => StockVisibility::Badge,
             'has_variants' => false,
             'status' => ProductStatus::Active,
-            'is_featured' => fake()->boolean(20),
             'location_availability_type' => LocationAvailabilityType::All,
             'delivery_radius_km' => null,
             'return_policy' => '10-day return policy for unused products in original packaging.',

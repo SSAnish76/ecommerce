@@ -44,7 +44,6 @@ class Product extends Model
         'stock_visibility',
         'has_variants',
         'status',
-        'is_featured',
         'location_availability_type',
         'delivery_radius_km',
         'return_policy',
@@ -67,7 +66,6 @@ class Product extends Model
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
             'has_variants' => 'boolean',
-            'is_featured' => 'boolean',
             'delivery_radius_km' => 'decimal:2',
             'status' => ProductStatus::class,
             'stock_visibility' => StockVisibility::class,
@@ -157,17 +155,6 @@ class Product extends Model
     public function scopeOutOfStock(Builder $query): Builder
     {
         return $query->where('stock_quantity', '<=', 0);
-    }
-
-    /**
-     * Scope a query to featured products.
-     *
-     * @param  Builder<Product>  $query
-     * @return Builder<Product>
-     */
-    public function scopeFeatured(Builder $query): Builder
-    {
-        return $query->where('is_featured', true);
     }
 
     /**

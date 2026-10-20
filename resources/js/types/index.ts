@@ -310,7 +310,6 @@ export interface Product {
     stock_visibility: string;
     has_variants: boolean;
     status: string;
-    is_featured: boolean;
     location_availability_type: string;
     delivery_radius_km?: number | string | null;
     return_policy?: string | null;
