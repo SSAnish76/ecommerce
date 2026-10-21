@@ -18,6 +18,7 @@ import {
     Card,
     PageHeader,
     SlugInput,
+    Modal,
 } from '../../../Components/UI';
 import {
     ArrowLeft,
@@ -1817,116 +1818,84 @@ export default function CreateOrEditProductPage({
             </form>
 
             {/* Quick Add Value Modal */}
-            {quickValueModalAttr && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                    <Tag className="w-4 h-4" />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                    Add Value to &ldquo;{quickValueModalAttr.name}&rdquo;
-                                </h3>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setQuickValueModalAttr(null)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                            >
-                                &times;
-                            </button>
+            <Modal
+                isOpen={!!quickValueModalAttr}
+                onClose={() => setQuickValueModalAttr(null)}
+                title={quickValueModalAttr ? `Add Value to "${quickValueModalAttr.name}"` : ''}
+                size="md"
+            >
+                {quickValueModalAttr && (
+                    <form onSubmit={handleQuickAddValueSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                Value Label / Name <span className="text-rose-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                autoFocus
+                                value={quickValueText}
+                                onChange={(e) => setQuickValueText(e.target.value)}
+                                placeholder={quickValueModalAttr.type === 'color' ? 'e.g. Midnight Blue' : 'e.g. 512GB or XXL'}
+                                className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            />
                         </div>
 
-                        <form onSubmit={handleQuickAddValueSubmit} className="space-y-4">
+                        {quickValueModalAttr.type === 'color' && (
                             <div>
                                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    Value Label / Name <span className="text-rose-500">*</span>
+                                    Color Hex Code
                                 </label>
-                                <input
-                                    type="text"
-                                    required
-                                    autoFocus
-                                    value={quickValueText}
-                                    onChange={(e) => setQuickValueText(e.target.value)}
-                                    placeholder={quickValueModalAttr.type === 'color' ? 'e.g. Midnight Blue' : 'e.g. 512GB or XXL'}
-                                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                />
-                            </div>
-
-                            {quickValueModalAttr.type === 'color' && (
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Color Hex Code
-                                    </label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="color"
-                                            value={quickValueColor}
-                                            onChange={(e) => setQuickValueColor(e.target.value)}
-                                            className="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700 p-0.5 bg-transparent"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={quickValueColor}
-                                            onChange={(e) => setQuickValueColor(e.target.value)}
-                                            className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white font-mono"
-                                        />
-                                    </div>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={quickValueColor}
+                                        onChange={(e) => setQuickValueColor(e.target.value)}
+                                        className="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700 p-0.5 bg-transparent"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={quickValueColor}
+                                        onChange={(e) => setQuickValueColor(e.target.value)}
+                                        className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white font-mono"
+                                    />
                                 </div>
-                            )}
-
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setQuickValueModalAttr(null)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    variant="primary"
-                                    size="sm"
-                                    disabled={quickValueLoading || !quickValueText.trim()}
-                                    className="shadow-md shadow-indigo-600/20 font-medium px-4 py-2"
-                                >
-                                    {quickValueLoading ? 'Saving...' : 'Add & Select'}
-                                </Button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                        )}
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setQuickValueModalAttr(null)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                size="sm"
+                                disabled={quickValueLoading || !quickValueText.trim()}
+                                className="shadow-md shadow-indigo-600/20 font-medium px-4 py-2"
+                            >
+                                {quickValueLoading ? 'Saving...' : 'Add & Select'}
+                            </Button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
 
             {/* Variant Image Picker Modal */}
-            {pickingImageVariantIndex !== null && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400">
-                                    <ImageIcon className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                        Choose Variant Image
-                                    </h3>
-                                    <p className="text-[11px] text-slate-400">
-                                        {form.data.variants[pickingImageVariantIndex]?.name || 'Variant'}
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setPickingImageVariantIndex(null)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                            >
-                                &times;
-                            </button>
-                        </div>
-
+            <Modal
+                isOpen={pickingImageVariantIndex !== null}
+                onClose={() => setPickingImageVariantIndex(null)}
+                title="Choose Variant Image"
+                description={pickingImageVariantIndex !== null ? form.data.variants[pickingImageVariantIndex]?.name || 'Variant' : undefined}
+                size="lg"
+            >
+                {pickingImageVariantIndex !== null && (
+                    <div className="space-y-4">
                         {/* Pick from existing gallery photos */}
                         <div className="space-y-2">
                             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -2014,7 +1983,7 @@ export default function CreateOrEditProductPage({
                                         form.setData('variants', updated);
                                         setPickingImageVariantIndex(null);
                                     }}
-                                    className="text-xs text-rose-600 hover:underline font-medium"
+                                    className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
                                 >
                                     Reset to Default Photo
                                 </button>
@@ -2030,8 +1999,8 @@ export default function CreateOrEditProductPage({
                             </Button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
         </AdminLayout>
     );
 }

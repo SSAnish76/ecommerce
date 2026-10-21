@@ -10,6 +10,7 @@ import {
     Attribute,
     AttributeValue,
 } from '../../types';
+import { lockScroll, unlockScroll } from '../../Components/UI';
 import {
     ShoppingBag,
     ShoppingCart,
@@ -238,6 +239,14 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
         total: number;
         customer_email: string;
     } | null>(null);
+
+    // Lock background scroll when Cart Drawer or Checkout Modal is active
+    useEffect(() => {
+        if (isCartOpen || isCheckoutOpen) {
+            lockScroll();
+            return () => unlockScroll();
+        }
+    }, [isCartOpen, isCheckoutOpen]);
 
     // Cart actions
     const addToCart = (buyNow = false) => {

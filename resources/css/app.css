@@ -11,3 +11,11 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Global scroll lock styles for modals & dialogs */
+html.modal-open,
+body.modal-open {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+
