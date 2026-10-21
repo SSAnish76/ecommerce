@@ -275,6 +275,32 @@ export interface ProductImage {
     media?: { id?: string; url?: string; file_name?: string } | null;
 }
 
+export interface AttributeValue {
+    id: string;
+    attribute_id: string;
+    value: string;
+    label?: string | null;
+    color_code?: string | null;
+    sort_order: number;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Attribute {
+    id: string;
+    name: string;
+    code: string;
+    type: 'select' | 'color' | 'button' | 'radio' | string;
+    description?: string | null;
+    sort_order: number;
+    is_active: boolean;
+    values?: AttributeValue[];
+    values_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface ProductVariant {
     id?: string;
     product_id?: string;
@@ -288,6 +314,10 @@ export interface ProductVariant {
     low_stock_threshold?: number;
     is_active: boolean;
     image_path?: string | null;
+    media_id?: string | null;
+    image_url?: string | null;
+    media?: { id?: string; url?: string; file_name?: string } | null;
+    attribute_values?: AttributeValue[];
 }
 
 export interface Product {
@@ -319,6 +349,43 @@ export interface Product {
     images?: ProductImage[];
     variants?: ProductVariant[];
     variants_count?: number;
+    attributes?: Attribute[];
+    attribute_values?: AttributeValue[];
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface OrderItem {
+    id: string;
+    order_id: string;
+    product_id: string;
+    product_variant_id?: string | null;
+    product_name: string;
+    variant_name?: string | null;
+    sku: string;
+    price: number | string;
+    quantity: number;
+    subtotal: number | string;
+    attributes?: Record<string, string> | null;
+    image_url?: string | null;
+}
+
+export interface Order {
+    id: string;
+    order_number: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone?: string | null;
+    shipping_address: string;
+    subtotal: number | string;
+    tax: number | string;
+    shipping_fee: number | string;
+    total: number | string;
+    status: 'pending' | 'processing' | 'completed' | 'cancelled' | string;
+    payment_method: string;
+    payment_status: string;
+    notes?: string | null;
+    items?: OrderItem[];
     created_at?: string;
     updated_at?: string;
 }

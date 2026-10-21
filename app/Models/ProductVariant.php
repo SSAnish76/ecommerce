@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ProductVariant extends Model
 {
@@ -33,6 +34,16 @@ class ProductVariant extends Model
         'low_stock_threshold',
         'is_active',
         'image_path',
+        'media_id',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'image_url',
     ];
 
     /**
@@ -61,6 +72,55 @@ class ProductVariant extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the associated media file for this variant.
+     *
+     * @return BelongsTo<MediaFile, $this>
+     */
+    public function media(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'media_id');
+    }
+
+    /**
+     * Get normalized relational attribute values.
+     *
+     * @return BelongsToMany<AttributeValue, $this>
+     */
+    public function attributeValues(): BelongsToMany
+    {
+        return $this->belongsToMany(AttributeValue::class, 'product_variant_attribute_values')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get effective variant image URL.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if ($this->media !== null && ! empty($this->media->url)) {
+            return $this->media->url;
+        }
+
+        if (! empty($this->image_path)) {
+            return $this->image_path;
+        }
+
+        return null;
+    }
+
+    /**
+     * Calculate effective selling price.
+     */
+    public function effectivePrice(): float
+    {
+        if ($this->sale_price !== null && (float) $this->sale_price > 0) {
+            return (float) $this->sale_price;
+        }
+
+        return (float) $this->price;
     }
 
     /**

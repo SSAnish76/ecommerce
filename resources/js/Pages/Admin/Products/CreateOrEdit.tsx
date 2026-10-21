@@ -1,7 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
-import { Product, ProductVariant, ProductImage, Category, PageProps } from '../../../types';
+import {
+    Product,
+    ProductVariant,
+    ProductImage,
+    Category,
+    PageProps,
+    Attribute,
+    AttributeValue,
+} from '../../../types';
 import {
     Button,
     Input,
@@ -35,6 +43,9 @@ import {
     Save,
     CheckCircle2,
     Copy,
+    Zap,
+    Sliders,
+    Palette,
 } from 'lucide-react';
 
 const getCsrfToken = (): string => {
@@ -59,6 +70,7 @@ export interface ProductImageFormItem {
 }
 
 export interface ProductVariantFormItem {
+    id?: string;
     sku: string;
     name: string;
     price: string | number;
@@ -67,15 +79,26 @@ export interface ProductVariantFormItem {
     stock_quantity: number;
     low_stock_threshold: number;
     is_active: boolean;
+    media_id?: string | null;
+    image_path?: string | null;
+    image_url?: string | null;
+    attributes?: Record<string, string> | null;
+    attribute_value_ids?: string[];
 }
 
 interface CreateOrEditProps {
     product: (Product & {
         images?: (ProductImage & { media?: { id: string } })[];
-        variants?: ProductVariant[];
+        variants?: (ProductVariant & {
+            media?: { id: string; url?: string };
+            attribute_values?: AttributeValue[];
+        })[];
+        attributes?: Attribute[];
+        attribute_values?: AttributeValue[];
     }) | null;
     brands: { id: string; name: string }[];
     categories: (Category | { id: string; name: string; parent_id?: string | null; parent?: { id: string; name: string } | null })[];
+    attributes?: Attribute[];
     statuses: { value: string; label: string }[];
     stockVisibilities: { value: string; label: string }[];
     locationTypes: { value: string; label: string }[];
@@ -85,6 +108,7 @@ export default function CreateOrEditProductPage({
     product,
     brands,
     categories,
+    attributes = [],
     statuses,
     stockVisibilities,
     locationTypes,
@@ -125,9 +149,13 @@ export default function CreateOrEditProductPage({
                   is_primary: Boolean(img.is_primary),
               }))
             : []) as ProductImageFormItem[],
+        // Dynamic attributes selection
+        attribute_ids: (product?.attributes?.map((a) => a.id) || []) as string[],
+        attribute_value_ids: (product?.attribute_values?.map((v) => v.id) || []) as string[],
         // Dynamic variants array
         variants: (product?.variants?.length
             ? product.variants.map((v) => ({
+                  id: v.id,
                   sku: v.sku,
                   name: v.name,
                   price: v.price,
@@ -136,6 +164,11 @@ export default function CreateOrEditProductPage({
                   stock_quantity: v.stock_quantity,
                   low_stock_threshold: v.low_stock_threshold || 5,
                   is_active: v.is_active,
+                  media_id: v.media_id || v.media?.id || null,
+                  image_path: v.image_path || '',
+                  image_url: v.image_url || v.media?.url || '',
+                  attributes: v.attributes || null,
+                  attribute_value_ids: v.attribute_values?.map((av) => av.id) || [],
               }))
             : []) as ProductVariantFormItem[],
     });
@@ -294,20 +327,253 @@ export default function CreateOrEditProductPage({
         }
     };
 
-    // Variants helpers
+    // Attributes & Dynamic Variants Generator State
+    const [availableAttributes, setAvailableAttributes] = useState<Attribute[]>(attributes);
+    const [variantNotice, setVariantNotice] = useState<string | null>(null);
+    const [quickValueModalAttr, setQuickValueModalAttr] = useState<Attribute | null>(null);
+    const [quickValueText, setQuickValueText] = useState('');
+    const [quickValueColor, setQuickValueColor] = useState('#3b82f6');
+    const [quickValueLoading, setQuickValueLoading] = useState(false);
+    const [pickingImageVariantIndex, setPickingImageVariantIndex] = useState<number | null>(null);
+    const [variantUploading, setVariantUploading] = useState(false);
+
+    const handleVariantDirectUpload = async (file: File) => {
+        if (!file || pickingImageVariantIndex === null) return;
+        setVariantUploading(true);
+        const token = getCsrfToken();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('collection', 'products');
+
+        try {
+            const response = await fetch('/admin/media/upload', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                },
+                body: formData,
+            });
+            if (response.ok) {
+                const json = await response.json();
+                const media = json.data;
+                if (media?.url) {
+                    const updated = [...form.data.variants];
+                    updated[pickingImageVariantIndex] = {
+                        ...updated[pickingImageVariantIndex],
+                        media_id: media.id,
+                        image_url: media.url,
+                    };
+                    form.setData('variants', updated);
+                    setPickingImageVariantIndex(null);
+                }
+            }
+        } catch (e) {
+            console.error('Variant direct upload failed:', e);
+        } finally {
+            setVariantUploading(false);
+        }
+    };
+
+    const toggleAttribute = (attrId: string) => {
+        const isSelected = form.data.attribute_ids.includes(attrId);
+        const nextAttrIds = isSelected
+            ? form.data.attribute_ids.filter((id) => id !== attrId)
+            : [...form.data.attribute_ids, attrId];
+
+        // If deselecting attribute, remove its values from selectedAttributeValueIds
+        const attr = availableAttributes.find((a) => a.id === attrId);
+        const attrValIds = attr?.values?.map((v) => v.id) || [];
+        const nextValIds = isSelected
+            ? form.data.attribute_value_ids.filter((vid) => !attrValIds.includes(vid))
+            : form.data.attribute_value_ids;
+
+        form.setData((prev) => ({
+            ...prev,
+            attribute_ids: nextAttrIds,
+            attribute_value_ids: nextValIds,
+        }));
+    };
+
+    const toggleAttributeValue = (valId: string) => {
+        const isSelected = form.data.attribute_value_ids.includes(valId);
+        const nextValIds = isSelected
+            ? form.data.attribute_value_ids.filter((id) => id !== valId)
+            : [...form.data.attribute_value_ids, valId];
+
+        form.setData('attribute_value_ids', nextValIds);
+    };
+
+    const selectAllValuesForAttribute = (attr: Attribute) => {
+        const valIds = attr.values?.map((v) => v.id) || [];
+        const nextValIds = Array.from(new Set([...form.data.attribute_value_ids, ...valIds]));
+        form.setData('attribute_value_ids', nextValIds);
+    };
+
+    const clearValuesForAttribute = (attr: Attribute) => {
+        const valIds = attr.values?.map((v) => v.id) || [];
+        const nextValIds = form.data.attribute_value_ids.filter((id) => !valIds.includes(id));
+        form.setData('attribute_value_ids', nextValIds);
+    };
+
+    const handleQuickAddValueSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!quickValueModalAttr || !quickValueText.trim()) return;
+        setQuickValueLoading(true);
+        const token = getCsrfToken();
+
+        try {
+            const res = await fetch(`/admin/attributes/${quickValueModalAttr.id}/quick-value`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                },
+                body: JSON.stringify({
+                    value: quickValueText.trim(),
+                    color_code: quickValueModalAttr.type === 'color' ? quickValueColor : null,
+                }),
+            });
+
+            const json = await res.json();
+            if (res.ok && json.success && json.value) {
+                const createdVal: AttributeValue = json.value;
+                setAvailableAttributes((prev) =>
+                    prev.map((a) =>
+                        a.id === quickValueModalAttr.id
+                            ? { ...a, values: [...(a.values || []), createdVal] }
+                            : a
+                    )
+                );
+                // Auto-select newly created value and its attribute
+                form.setData((prev) => ({
+                    ...prev,
+                    attribute_ids: Array.from(new Set([...prev.attribute_ids, quickValueModalAttr.id])),
+                    attribute_value_ids: [...prev.attribute_value_ids, createdVal.id],
+                }));
+                setQuickValueText('');
+                setQuickValueModalAttr(null);
+            } else {
+                alert(json.message || 'Error adding value.');
+            }
+        } catch {
+            alert('Failed to connect to server.');
+        } finally {
+            setQuickValueLoading(false);
+        }
+    };
+
+    // Dynamic Variant Combination Generator (Cartesian Product)
+    const generateVariantCombinations = () => {
+        const activeConfigs = availableAttributes
+            .filter((attr) => form.data.attribute_ids.includes(attr.id))
+            .map((attr) => {
+                const values = (attr.values || []).filter((val) =>
+                    form.data.attribute_value_ids.includes(val.id)
+                );
+                return { attribute: attr, values };
+            })
+            .filter((cfg) => cfg.values.length > 0);
+
+        if (activeConfigs.length === 0) {
+            setVariantNotice('Please select at least one attribute and choose at least one value to generate combinations.');
+            return;
+        }
+
+        // Cartesian product
+        const cartesian = (arrays: { attribute: Attribute; value: AttributeValue }[][]): { attribute: Attribute; value: AttributeValue }[][] => {
+            return arrays.reduce<{ attribute: Attribute; value: AttributeValue }[][]>(
+                (acc, curr) => acc.flatMap((c) => curr.map((n) => [...c, n])),
+                [[]]
+            );
+        };
+
+        const combinationsMatrix = activeConfigs.map((cfg) =>
+            cfg.values.map((val) => ({ attribute: cfg.attribute, value: val }))
+        );
+
+        const combinations = cartesian(combinationsMatrix);
+        const existingVariants = form.data.variants;
+        const newVariants: ProductVariantFormItem[] = [];
+
+        combinations.forEach((combo) => {
+            const attrMap: Record<string, string> = {};
+            const valIds: string[] = [];
+            const valLabels: string[] = [];
+
+            combo.forEach((item) => {
+                attrMap[item.attribute.name] = item.value.value;
+                valIds.push(item.value.id);
+                valLabels.push(item.value.value);
+            });
+
+            // Check if existing variant matches
+            const matchedExisting = existingVariants.find((ev) => {
+                if (ev.attribute_value_ids && ev.attribute_value_ids.length === valIds.length) {
+                    return valIds.every((id) => ev.attribute_value_ids!.includes(id));
+                }
+                if (ev.attributes) {
+                    return Object.entries(attrMap).every(([k, v]) => ev.attributes![k] === v);
+                }
+                return false;
+            });
+
+            if (matchedExisting) {
+                newVariants.push({
+                    ...matchedExisting,
+                    attribute_value_ids: valIds,
+                    attributes: attrMap,
+                });
+            } else {
+                const slugPart = valLabels
+                    .map((l) => l.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase())
+                    .join('-');
+                const sku = form.data.sku ? `${form.data.sku}-${slugPart}` : `VAR-${slugPart}`;
+                const name = `${form.data.name || 'Variant'} - ${valLabels.join(' / ')}`;
+
+                newVariants.push({
+                    sku,
+                    name,
+                    price: form.data.retail_price || 0,
+                    mrp: form.data.mrp || '',
+                    sale_price: form.data.sale_price || '',
+                    stock_quantity: 10,
+                    low_stock_threshold: 5,
+                    is_active: true,
+                    media_id: null,
+                    image_path: '',
+                    image_url: '',
+                    attributes: attrMap,
+                    attribute_value_ids: valIds,
+                });
+            }
+        });
+
+        form.setData('variants', newVariants);
+        setVariantNotice(`Successfully generated ${newVariants.length} variant combinations.`);
+    };
+
     const addVariant = () => {
-        const skuPrefix = form.data.sku ? `${form.data.sku}-VAR${form.data.variants.length + 1}` : '';
+        const skuPrefix = form.data.sku ? `${form.data.sku}-VAR${form.data.variants.length + 1}` : `VAR-${Date.now().toString().slice(-4)}`;
         form.setData('variants', [
             ...form.data.variants,
             {
                 sku: skuPrefix,
-                name: `Option #${form.data.variants.length + 1}`,
+                name: `Custom Variant #${form.data.variants.length + 1}`,
                 price: form.data.retail_price || 0,
                 mrp: form.data.mrp || '',
                 sale_price: form.data.sale_price || '',
                 stock_quantity: 10,
                 low_stock_threshold: 5,
                 is_active: true,
+                media_id: null,
+                image_path: '',
+                image_url: '',
+                attributes: {},
+                attribute_value_ids: [],
             },
         ]);
     };
@@ -935,23 +1201,23 @@ export default function CreateOrEditProductPage({
                         {/* 5. Product Variants */}
                         <div
                             id="sec-variants"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-6"
                         >
-                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
                                 <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400">
                                         <Layers className="w-4 h-4" />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                            Product Variants
+                                            Product Variants &amp; Attributes
                                         </h3>
                                         <span className="text-[11px] text-slate-400">
-                                            Enable for products offering Size, Color, or Storage capacity options
+                                            Create dynamic variant combinations with custom SKU, price, stock, and photos
                                         </span>
                                     </div>
                                 </div>
-                                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none px-3 py-1.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                                     <input
                                         type="checkbox"
                                         checked={form.data.has_variants}
@@ -963,98 +1229,419 @@ export default function CreateOrEditProductPage({
                             </div>
 
                             {form.data.has_variants && (
-                                <div className="space-y-4 pt-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs text-slate-500">
-                                            Configure variant SKUs and individual stock levels below:
-                                        </span>
-                                        <Button
-                                            type="button"
-                                            variant="primary"
-                                            size="sm"
-                                            pill
-                                            leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
-                                            onClick={addVariant}
-                                            className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap text-xs"
-                                        >
-                                            Add Variant Option
-                                        </Button>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        {form.data.variants.map((v, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-3"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                                                        Variant #{idx + 1}
-                                                    </span>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => removeVariant(idx)}
-                                                        className="p-1 text-rose-500 hover:text-rose-700 rounded-lg"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                                    <Input
-                                                        label="Variant Name"
-                                                        required
-                                                        value={v.name}
-                                                        onChange={(e) => {
-                                                            const updated = [...form.data.variants];
-                                                            updated[idx].name = e.target.value;
-                                                            form.setData('variants', updated);
-                                                        }}
-                                                        placeholder="e.g. Size: XL / Midnight Blue"
-                                                    />
-
-                                                    <Input
-                                                        label="Variant SKU"
-                                                        required
-                                                        value={v.sku}
-                                                        onChange={(e) => {
-                                                            const updated = [...form.data.variants];
-                                                            updated[idx].sku = e.target.value.toUpperCase();
-                                                            form.setData('variants', updated);
-                                                        }}
-                                                        placeholder="SKU"
-                                                    />
-
-                                                    <Input
-                                                        label={`Price (${currency})`}
-                                                        required
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={String(v.price)}
-                                                        onChange={(e) => {
-                                                            const updated = [...form.data.variants];
-                                                            updated[idx].price = Number(e.target.value);
-                                                            form.setData('variants', updated);
-                                                        }}
-                                                    />
-
-                                                    <Input
-                                                        label="Stock Units"
-                                                        required
-                                                        type="number"
-                                                        value={String(v.stock_quantity)}
-                                                        onChange={(e) => {
-                                                            const updated = [...form.data.variants];
-                                                            updated[idx].stock_quantity = Number(e.target.value);
-                                                            form.setData('variants', updated);
-                                                        }}
-                                                    />
-                                                </div>
+                                <div className="space-y-6">
+                                    {/* 5.1 Reusable Global & Custom Attributes Selection */}
+                                    <div className="p-4 sm:p-5 rounded-2xl border border-indigo-100 dark:border-indigo-950/60 bg-indigo-50/20 dark:bg-indigo-950/10 space-y-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div>
+                                                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+                                                    Step 1: Choose Product Attributes
+                                                </h4>
+                                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                                    Select the dimensions that define this product's variations (e.g. Color, Size, Storage)
+                                                </p>
                                             </div>
-                                        ))}
+                                            <Link
+                                                href="/admin/attributes"
+                                                target="_blank"
+                                                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
+                                            >
+                                                Manage Attributes &rarr;
+                                            </Link>
+                                        </div>
+
+                                        {availableAttributes.length === 0 ? (
+                                            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500">
+                                                No global attributes defined yet.{' '}
+                                                <Link href="/admin/attributes" className="text-indigo-600 dark:text-indigo-400 underline font-medium">
+                                                    Create your first attribute here
+                                                </Link>
+                                                .
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {availableAttributes.map((attr) => {
+                                                    const isSelected = form.data.attribute_ids.includes(attr.id);
+                                                    return (
+                                                        <button
+                                                            key={attr.id}
+                                                            type="button"
+                                                            onClick={() => toggleAttribute(attr.id)}
+                                                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs ${
+                                                                isSelected
+                                                                    ? 'bg-indigo-600 text-white shadow-indigo-500/25 ring-2 ring-indigo-600'
+                                                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                                                            }`}
+                                                        >
+                                                            {isSelected ? (
+                                                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                                            ) : (
+                                                                <Plus className="w-3.5 h-3.5 text-slate-400" />
+                                                            )}
+                                                            <span>{attr.name}</span>
+                                                            <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                                                                isSelected
+                                                                    ? 'bg-indigo-700/80 text-indigo-100'
+                                                                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                                                            }`}>
+                                                                {attr.values?.length || 0}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
+
+                                    {/* 5.2 Attribute Values Selection per chosen attribute */}
+                                    {form.data.attribute_ids.length > 0 && (
+                                        <div className="space-y-4">
+                                            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                                                <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                                                Step 2: Choose Values for Each Attribute
+                                            </div>
+
+                                            {form.data.attribute_ids.map((attrId) => {
+                                                const attr = availableAttributes.find((a) => a.id === attrId);
+                                                if (!attr) return null;
+                                                const selectedValues = (attr.values || []).filter((v) =>
+                                                    form.data.attribute_value_ids.includes(v.id)
+                                                );
+
+                                                return (
+                                                    <div
+                                                        key={attr.id}
+                                                        className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-xs space-y-3"
+                                                    >
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                                                    {attr.name}
+                                                                </span>
+                                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 capitalize">
+                                                                    {attr.type}
+                                                                </span>
+                                                                <span className="text-[11px] text-slate-400">
+                                                                    ({selectedValues.length} selected)
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => selectAllValuesForAttribute(attr)}
+                                                                    className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                                                                >
+                                                                    Select All
+                                                                </button>
+                                                                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => clearValuesForAttribute(attr)}
+                                                                    className="text-[11px] font-medium text-slate-500 hover:underline"
+                                                                >
+                                                                    Clear
+                                                                </button>
+                                                                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setQuickValueModalAttr(attr);
+                                                                        setQuickValueText('');
+                                                                    }}
+                                                                    className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                    Add Value
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Values Pills */}
+                                                        <div className="flex flex-wrap gap-2 pt-1">
+                                                            {(attr.values || []).map((val) => {
+                                                                const isValSelected = form.data.attribute_value_ids.includes(val.id);
+                                                                return (
+                                                                    <button
+                                                                        key={val.id}
+                                                                        type="button"
+                                                                        onClick={() => toggleAttributeValue(val.id)}
+                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                                                                            isValSelected
+                                                                                ? 'bg-indigo-600 text-white shadow-2xs ring-2 ring-indigo-500'
+                                                                                : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                                                        }`}
+                                                                    >
+                                                                        {attr.type === 'color' && (
+                                                                            <span
+                                                                                className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-2xs"
+                                                                                style={{ backgroundColor: val.color_code || '#cbd5e1' }}
+                                                                            />
+                                                                        )}
+                                                                        <span>{val.value}</span>
+                                                                        {isValSelected && (
+                                                                            <Check className="w-3 h-3 stroke-[3]" />
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* 5.3 Generate Combinations Action Bar */}
+                                    <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-pink-50/80 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-pink-950/30 border border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div className="space-y-0.5">
+                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                <Sparkles className="w-4 h-4 text-indigo-500" />
+                                                Generate Variant Combinations
+                                            </h4>
+                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                                Automatically creates Cartesian combinations of all selected attribute values with SKUs and default pricing.
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                size="sm"
+                                                pill
+                                                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                                                onClick={addVariant}
+                                                className="text-xs px-3.5 py-1.5 rounded-full whitespace-nowrap"
+                                            >
+                                                Add Custom
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                variant="primary"
+                                                size="sm"
+                                                pill
+                                                leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                                                onClick={generateVariantCombinations}
+                                                className="shadow-md shadow-indigo-600/25 font-semibold px-4.5 py-1.5 rounded-full whitespace-nowrap text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                                            >
+                                                ⚡ Generate Combinations
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {variantNotice && (
+                                        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <AlertCircle className="w-4 h-4 shrink-0" />
+                                                <span>{variantNotice}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setVariantNotice(null)}
+                                                className="text-amber-700 dark:text-amber-400 hover:opacity-80 text-xs font-bold"
+                                            >
+                                                &times;
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* 5.4 Variants Matrix List */}
+                                    {form.data.variants.length > 0 && (
+                                        <div className="space-y-3 pt-2">
+                                            <div className="flex items-center justify-between pb-1">
+                                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                                    Configured Variants ({form.data.variants.length})
+                                                </span>
+                                                <span className="text-[11px] text-slate-400">
+                                                    Total Variant Stock:{' '}
+                                                    <strong className="text-slate-900 dark:text-white">
+                                                        {form.data.variants.reduce((acc, v) => acc + (Number(v.stock_quantity) || 0), 0)} units
+                                                    </strong>
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {form.data.variants.map((v, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className={`p-4 rounded-2xl border transition-all ${
+                                                            v.is_active
+                                                                ? 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30'
+                                                                : 'border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/40 opacity-70'
+                                                        }`}
+                                                    >
+                                                        {/* Top Row: Variant Header & Actions */}
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                                                    #{idx + 1}
+                                                                </span>
+
+                                                                {/* Attribute Badges */}
+                                                                {v.attributes && Object.keys(v.attributes).length > 0 ? (
+                                                                    Object.entries(v.attributes).map(([attrName, attrVal]) => (
+                                                                        <span
+                                                                            key={attrName}
+                                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                                                                        >
+                                                                            <span>{attrName}:</span>
+                                                                            <strong>{attrVal}</strong>
+                                                                        </span>
+                                                                    ))
+                                                                ) : (
+                                                                    <span className="text-[10px] text-slate-400 italic">
+                                                                        (Custom variant)
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3">
+                                                                {/* Status toggle */}
+                                                                <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={v.is_active}
+                                                                        onChange={(e) => {
+                                                                            const updated = [...form.data.variants];
+                                                                            updated[idx].is_active = e.target.checked;
+                                                                            form.setData('variants', updated);
+                                                                        }}
+                                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                                                                    />
+                                                                    <span className="text-[11px] font-medium">
+                                                                        {v.is_active ? 'Active' : 'Inactive'}
+                                                                    </span>
+                                                                </label>
+
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => removeVariant(idx)}
+                                                                    className="p-1 text-rose-500 hover:text-rose-700 rounded-lg"
+                                                                    title="Remove Variant"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Main Inputs Row with Variant Image */}
+                                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 items-center">
+                                                            {/* Variant Image Selector (2 cols) */}
+                                                            <div className="md:col-span-2 flex flex-col items-center justify-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPickingImageVariantIndex(idx)}
+                                                                    className="group relative w-16 h-16 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden flex flex-col items-center justify-center hover:border-indigo-500 transition-all shadow-2xs"
+                                                                    title="Click to choose or upload a variant-specific photo"
+                                                                >
+                                                                    {v.image_url ? (
+                                                                        <>
+                                                                            <img
+                                                                                src={v.image_url}
+                                                                                alt={v.name}
+                                                                                className="w-full h-full object-contain p-1"
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-medium transition-opacity">
+                                                                                Change
+                                                                            </div>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <ImageIcon className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                                                                            <span className="text-[9px] text-slate-400 mt-0.5">
+                                                                                + Photo
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                                <span className="text-[10px] text-slate-400 mt-1">
+                                                                    {v.image_url ? 'Photo set' : 'Default photo'}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Name & SKU (5 cols) */}
+                                                            <div className="md:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                <Input
+                                                                    label="Variant Title"
+                                                                    required
+                                                                    value={v.name}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].name = e.target.value;
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                    placeholder="Variant title"
+                                                                />
+                                                                <Input
+                                                                    label="Variant SKU"
+                                                                    required
+                                                                    value={v.sku}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].sku = e.target.value.toUpperCase();
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                    placeholder="SKU"
+                                                                />
+                                                            </div>
+
+                                                            {/* Price & Stock Fields (5 cols) */}
+                                                            <div className="md:col-span-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                                <Input
+                                                                    label={`Price (${currency})`}
+                                                                    required
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={String(v.price)}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].price = Number(e.target.value);
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                />
+                                                                <Input
+                                                                    label={`MRP (${currency})`}
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={String(v.mrp || '')}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].mrp = e.target.value ? Number(e.target.value) : '';
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                />
+                                                                <Input
+                                                                    label="Stock"
+                                                                    required
+                                                                    type="number"
+                                                                    value={String(v.stock_quantity)}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].stock_quantity = Number(e.target.value);
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                />
+                                                                <Input
+                                                                    label="Min Stock"
+                                                                    type="number"
+                                                                    value={String(v.low_stock_threshold || 5)}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].low_stock_threshold = Number(e.target.value);
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1228,6 +1815,223 @@ export default function CreateOrEditProductPage({
                     </div>
                 </div>
             </form>
+
+            {/* Quick Add Value Modal */}
+            {quickValueModalAttr && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                    <Tag className="w-4 h-4" />
+                                </div>
+                                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                    Add Value to &ldquo;{quickValueModalAttr.name}&rdquo;
+                                </h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setQuickValueModalAttr(null)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleQuickAddValueSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    Value Label / Name <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    value={quickValueText}
+                                    onChange={(e) => setQuickValueText(e.target.value)}
+                                    placeholder={quickValueModalAttr.type === 'color' ? 'e.g. Midnight Blue' : 'e.g. 512GB or XXL'}
+                                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                />
+                            </div>
+
+                            {quickValueModalAttr.type === 'color' && (
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                        Color Hex Code
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={quickValueColor}
+                                            onChange={(e) => setQuickValueColor(e.target.value)}
+                                            className="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700 p-0.5 bg-transparent"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={quickValueColor}
+                                            onChange={(e) => setQuickValueColor(e.target.value)}
+                                            className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setQuickValueModalAttr(null)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="sm"
+                                    disabled={quickValueLoading || !quickValueText.trim()}
+                                    className="shadow-md shadow-indigo-600/20 font-medium px-4 py-2"
+                                >
+                                    {quickValueLoading ? 'Saving...' : 'Add & Select'}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Variant Image Picker Modal */}
+            {pickingImageVariantIndex !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                                    <ImageIcon className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                        Choose Variant Image
+                                    </h3>
+                                    <p className="text-[11px] text-slate-400">
+                                        {form.data.variants[pickingImageVariantIndex]?.name || 'Variant'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPickingImageVariantIndex(null)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        {/* Pick from existing gallery photos */}
+                        <div className="space-y-2">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                Select from Product Gallery
+                            </label>
+                            {form.data.images.filter((img) => img.url).length === 0 ? (
+                                <p className="text-xs text-slate-400 italic p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-center">
+                                    No product gallery photos uploaded yet. Upload one below.
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-48 overflow-y-auto p-1">
+                                    {form.data.images
+                                        .filter((img) => img.url)
+                                        .map((img, i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = [...form.data.variants];
+                                                    updated[pickingImageVariantIndex] = {
+                                                        ...updated[pickingImageVariantIndex],
+                                                        media_id: img.media_id,
+                                                        image_url: img.url,
+                                                    };
+                                                    form.setData('variants', updated);
+                                                    setPickingImageVariantIndex(null);
+                                                }}
+                                                className={`group relative aspect-square rounded-xl overflow-hidden border-2 transition-all p-1 bg-white dark:bg-slate-800 flex items-center justify-center ${
+                                                    form.data.variants[pickingImageVariantIndex]?.image_url === img.url
+                                                        ? 'border-indigo-600 ring-2 ring-indigo-500/20 shadow-md'
+                                                        : 'border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                                                }`}
+                                            >
+                                                <img
+                                                    src={img.url}
+                                                    alt={img.alt_text || 'Option'}
+                                                    className="w-full h-full object-contain"
+                                                />
+                                                {form.data.variants[pickingImageVariantIndex]?.image_url === img.url && (
+                                                    <div className="absolute top-1 right-1 bg-indigo-600 text-white rounded-full p-0.5 shadow-xs">
+                                                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Direct upload for this variant */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                Or Upload Variant-Specific Photo
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                disabled={variantUploading}
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        handleVariantDirectUpload(e.target.files[0]);
+                                    }
+                                }}
+                                className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-950/60 dark:file:text-indigo-400 hover:file:bg-indigo-100 cursor-pointer"
+                            />
+                            {variantUploading && (
+                                <p className="text-[11px] text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                                    <Loader2 className="w-3 h-3 animate-spin" /> Uploading image...
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                            {form.data.variants[pickingImageVariantIndex]?.image_url ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const updated = [...form.data.variants];
+                                        updated[pickingImageVariantIndex] = {
+                                            ...updated[pickingImageVariantIndex],
+                                            media_id: null,
+                                            image_url: null,
+                                        };
+                                        form.setData('variants', updated);
+                                        setPickingImageVariantIndex(null);
+                                    }}
+                                    className="text-xs text-rose-600 hover:underline font-medium"
+                                >
+                                    Reset to Default Photo
+                                </button>
+                            ) : <span />}
+
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setPickingImageVariantIndex(null)}
+                            >
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AdminLayout>
     );
 }

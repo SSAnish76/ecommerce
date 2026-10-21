@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\Auth\AuthController;
 use App\Http\Controllers\Admin\Auth\PasswordResetController;
 use App\Http\Controllers\Admin\Auth\TwoFactorChallengeController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\Admin\StoreController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\EssentialsController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\ShopController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -146,6 +149,40 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->middleware('permission:inventory.edit')
             ->name('inventory.batch-update');
 
+        // Catalog: Attributes & Variant Matrix Management
+        Route::get('/attributes', [AttributeController::class, 'index'])
+            ->middleware('permission:attributes.view')
+            ->name('attributes.index');
+        Route::post('/attributes', [AttributeController::class, 'store'])
+            ->middleware('permission:attributes.create')
+            ->name('attributes.store');
+        Route::put('/attributes/{attribute}', [AttributeController::class, 'update'])
+            ->middleware('permission:attributes.edit')
+            ->name('attributes.update');
+        Route::delete('/attributes/{attribute}', [AttributeController::class, 'destroy'])
+            ->middleware('permission:attributes.delete')
+            ->name('attributes.destroy');
+        Route::post('/attributes/{attribute}/values', [AttributeController::class, 'storeValue'])
+            ->middleware('permission:attributes.create')
+            ->name('attributes.values.store');
+        Route::put('/attributes/{attribute}/values/{value}', [AttributeController::class, 'updateValue'])
+            ->middleware('permission:attributes.edit')
+            ->name('attributes.values.update');
+        Route::delete('/attributes/{attribute}/values/{value}', [AttributeController::class, 'destroyValue'])
+            ->middleware('permission:attributes.delete')
+            ->name('attributes.values.destroy');
+        Route::post('/attributes/{attribute}/quick-value', [AttributeController::class, 'quickCreateValue'])
+            ->middleware('permission:attributes.create')
+            ->name('attributes.quick-value');
+
+        // Sales: Orders Management
+        Route::get('/orders', [OrderController::class, 'index'])
+            ->middleware('permission:orders.view')
+            ->name('orders.index');
+        Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])
+            ->middleware('permission:orders.edit')
+            ->name('orders.update-status');
+
         // Analytics
         Route::get('/analytics', function () {
             return Inertia::render('Admin/Analytics');
@@ -199,5 +236,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 // Public Media View and Download Routes
 Route::get('/media/view/{mediaFile}', [MediaController::class, 'view'])->name('media.view');
 Route::get('/media/download/{mediaFile}', [MediaController::class, 'download'])->name('media.download');
+
+// Customer Storefront: Reactive Product View & Instant Checkout
+Route::get('/product/{product:slug}', [ShopController::class, 'show'])->name('shop.product');
+Route::get('/products/{product:slug}', [ShopController::class, 'show']);
+Route::post('/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
 
 

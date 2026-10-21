@@ -21,6 +21,7 @@ import {
     Boxes,
     ShoppingCart,
     TicketPercent,
+    Sliders,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -49,6 +50,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     ShoppingCart,
     UserCheck,
     TicketPercent,
+    Sliders,
     Users,
     Shield,
     Store: StoreIcon,

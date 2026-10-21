@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -121,6 +122,31 @@ class Product extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    /**
+     * Get attributes assigned to this product.
+     *
+     * @return BelongsToMany<Attribute, $this>
+     */
+    public function attributes(): BelongsToMany
+    {
+        return $this->belongsToMany(Attribute::class, 'product_attributes')
+            ->withPivot('sort_order')
+            ->orderByPivot('sort_order')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get specific attribute values enabled for this product.
+     *
+     * @return BelongsToMany<AttributeValue, $this>
+     */
+    public function attributeValues(): BelongsToMany
+    {
+        return $this->belongsToMany(AttributeValue::class, 'product_attribute_values')
+            ->withPivot('attribute_id')
+            ->withTimestamps();
     }
 
     /**

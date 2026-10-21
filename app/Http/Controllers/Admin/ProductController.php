@@ -8,6 +8,8 @@ use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
 use App\Http\Controllers\Controller;
+use App\Models\Attribute;
+use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\MediaFile;
@@ -96,11 +98,13 @@ class ProductController extends Controller
     {
         $brands = Brand::query()->active()->orderBy('name')->get(['id', 'name']);
         $categories = Category::query()->active()->with('parent:id,name')->orderBy('name')->get(['id', 'name', 'parent_id']);
+        $attributes = Attribute::query()->active()->with(['values' => fn ($q) => $q->active()->orderBy('sort_order')])->orderBy('sort_order')->get();
 
         return Inertia::render('Admin/Products/CreateOrEdit', [
             'product' => null,
             'brands' => $brands,
             'categories' => $categories,
+            'attributes' => $attributes,
             'statuses' => ProductStatus::options(),
             'stockVisibilities' => StockVisibility::options(),
             'locationTypes' => LocationAvailabilityType::options(),
@@ -143,6 +147,10 @@ class ProductController extends Controller
             'images.*.image_id' => ['nullable'],
             'images.*.alt_text' => ['nullable', 'string', 'max:255'],
             'images.*.is_primary' => ['boolean'],
+            'attribute_ids' => ['nullable', 'array'],
+            'attribute_ids.*' => ['string', 'exists:attributes,id'],
+            'attribute_value_ids' => ['nullable', 'array'],
+            'attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
             // Variants array
             'variants' => ['nullable', 'array'],
             'variants.*.sku' => ['required', 'string', 'distinct'],
@@ -154,6 +162,10 @@ class ProductController extends Controller
             'variants.*.stock_quantity' => ['required', 'integer', 'min:0'],
             'variants.*.low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['boolean'],
+            'variants.*.media_id' => ['nullable', 'string'],
+            'variants.*.image_path' => ['nullable', 'string', 'max:2048'],
+            'variants.*.attribute_value_ids' => ['nullable', 'array'],
+            'variants.*.attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
@@ -162,6 +174,11 @@ class ProductController extends Controller
         while (Product::where('slug', $slug)->exists()) {
             $slug = "{$originalSlug}-{$counter}";
             $counter++;
+        }
+
+        $totalStock = (int) $validated['stock_quantity'];
+        if (! empty($validated['has_variants']) && ! empty($validated['variants'])) {
+            $totalStock = (int) collect($validated['variants'])->sum(fn ($v) => (int) ($v['stock_quantity'] ?? 0));
         }
 
         /** @var list<array{media_id: string, alt_text?: ?string, is_primary?: bool}> $processedImages */
@@ -204,7 +221,7 @@ class ProductController extends Controller
             $processedImages[0]['is_primary'] = true;
         }
 
-        DB::transaction(function () use ($validated, $slug, $processedImages): void {
+        DB::transaction(function () use ($validated, $slug, $totalStock, $processedImages): void {
             $product = Product::create([
                 'name' => $validated['name'],
                 'slug' => $slug,
@@ -218,7 +235,7 @@ class ProductController extends Controller
                 'retail_price' => $validated['retail_price'],
                 'sale_price' => $validated['sale_price'] ?? null,
                 'discount_percentage' => $validated['discount_percentage'] ?? null,
-                'stock_quantity' => $validated['stock_quantity'],
+                'stock_quantity' => $totalStock,
                 'low_stock_threshold' => $validated['low_stock_threshold'],
                 'stock_visibility' => $validated['stock_visibility'] ?? StockVisibility::Badge->value,
                 'has_variants' => $validated['has_variants'] ?? false,
@@ -240,10 +257,23 @@ class ProductController extends Controller
                 ]);
             }
 
+            // Sync global attributes & values
+            if (! empty($validated['attribute_ids'])) {
+                $product->attributes()->sync($validated['attribute_ids']);
+            }
+            if (! empty($validated['attribute_value_ids'])) {
+                $valuesToSync = [];
+                $attrValues = AttributeValue::whereIn('id', $validated['attribute_value_ids'])->get();
+                foreach ($attrValues as $av) {
+                    $valuesToSync[$av->id] = ['attribute_id' => $av->attribute_id];
+                }
+                $product->attributeValues()->sync($valuesToSync);
+            }
+
             // Save variants if product has variants
             if (! empty($validated['has_variants']) && ! empty($validated['variants'])) {
                 foreach ($validated['variants'] as $v) {
-                    ProductVariant::create([
+                    $variant = ProductVariant::create([
                         'product_id' => $product->id,
                         'sku' => strtoupper($v['sku']),
                         'name' => $v['name'],
@@ -254,7 +284,13 @@ class ProductController extends Controller
                         'stock_quantity' => $v['stock_quantity'],
                         'low_stock_threshold' => $v['low_stock_threshold'] ?? 5,
                         'is_active' => $v['is_active'] ?? true,
+                        'media_id' => $v['media_id'] ?? null,
+                        'image_path' => $v['image_path'] ?? null,
                     ]);
+
+                    if (! empty($v['attribute_value_ids'])) {
+                        $variant->attributeValues()->sync($v['attribute_value_ids']);
+                    }
                 }
             }
         });
@@ -267,15 +303,25 @@ class ProductController extends Controller
      */
     public function edit(Product $product): Response
     {
-        $product->load(['images.media', 'variants', 'brand:id,name', 'category:id,name']);
+        $product->load([
+            'images.media',
+            'variants.media',
+            'variants.attributeValues',
+            'brand:id,name',
+            'category:id,name',
+            'attributes.values',
+            'attributeValues',
+        ]);
 
         $brands = Brand::query()->active()->orderBy('name')->get(['id', 'name']);
         $categories = Category::query()->active()->with('parent:id,name')->orderBy('name')->get(['id', 'name', 'parent_id']);
+        $attributes = Attribute::query()->active()->with(['values' => fn ($q) => $q->active()->orderBy('sort_order')])->orderBy('sort_order')->get();
 
         return Inertia::render('Admin/Products/CreateOrEdit', [
             'product' => $product,
             'brands' => $brands,
             'categories' => $categories,
+            'attributes' => $attributes,
             'statuses' => ProductStatus::options(),
             'stockVisibilities' => StockVisibility::options(),
             'locationTypes' => LocationAvailabilityType::options(),
@@ -318,6 +364,10 @@ class ProductController extends Controller
             'images.*.image_id' => ['nullable'],
             'images.*.alt_text' => ['nullable', 'string', 'max:255'],
             'images.*.is_primary' => ['boolean'],
+            'attribute_ids' => ['nullable', 'array'],
+            'attribute_ids.*' => ['string', 'exists:attributes,id'],
+            'attribute_value_ids' => ['nullable', 'array'],
+            'attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
             // Variants array
             'variants' => ['nullable', 'array'],
             'variants.*.sku' => ['required', 'string'],
@@ -329,9 +379,18 @@ class ProductController extends Controller
             'variants.*.stock_quantity' => ['required', 'integer', 'min:0'],
             'variants.*.low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['boolean'],
+            'variants.*.media_id' => ['nullable', 'string'],
+            'variants.*.image_path' => ['nullable', 'string', 'max:2048'],
+            'variants.*.attribute_value_ids' => ['nullable', 'array'],
+            'variants.*.attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
+
+        $totalStock = (int) $validated['stock_quantity'];
+        if (! empty($validated['has_variants']) && ! empty($validated['variants'])) {
+            $totalStock = (int) collect($validated['variants'])->sum(fn ($v) => (int) ($v['stock_quantity'] ?? 0));
+        }
 
         $syncImages = array_key_exists('images', $validated);
         /** @var list<array{media_id: string, alt_text?: ?string, is_primary?: bool}> $processedImages */
@@ -373,7 +432,7 @@ class ProductController extends Controller
             $processedImages[0]['is_primary'] = true;
         }
 
-        DB::transaction(function () use ($validated, $slug, $product, $syncImages, $processedImages): void {
+        DB::transaction(function () use ($validated, $slug, $totalStock, $product, $syncImages, $processedImages): void {
             $product->update([
                 'name' => $validated['name'],
                 'slug' => $slug,
@@ -387,7 +446,7 @@ class ProductController extends Controller
                 'retail_price' => $validated['retail_price'],
                 'sale_price' => $validated['sale_price'] ?? null,
                 'discount_percentage' => $validated['discount_percentage'] ?? null,
-                'stock_quantity' => $validated['stock_quantity'],
+                'stock_quantity' => $totalStock,
                 'low_stock_threshold' => $validated['low_stock_threshold'],
                 'stock_visibility' => $validated['stock_visibility'] ?? $product->stock_visibility->value,
                 'has_variants' => $validated['has_variants'] ?? false,
@@ -412,11 +471,24 @@ class ProductController extends Controller
                 }
             }
 
+            // Sync attributes
+            if (isset($validated['attribute_ids'])) {
+                $product->attributes()->sync($validated['attribute_ids']);
+            }
+            if (isset($validated['attribute_value_ids'])) {
+                $valuesToSync = [];
+                $attrValues = AttributeValue::whereIn('id', $validated['attribute_value_ids'])->get();
+                foreach ($attrValues as $av) {
+                    $valuesToSync[$av->id] = ['attribute_id' => $av->attribute_id];
+                }
+                $product->attributeValues()->sync($valuesToSync);
+            }
+
             // Sync variants if provided
             if (! empty($validated['has_variants']) && isset($validated['variants'])) {
                 $product->variants()->delete();
                 foreach ($validated['variants'] as $v) {
-                    ProductVariant::create([
+                    $variant = ProductVariant::create([
                         'product_id' => $product->id,
                         'sku' => strtoupper($v['sku']),
                         'name' => $v['name'],
@@ -427,10 +499,18 @@ class ProductController extends Controller
                         'stock_quantity' => $v['stock_quantity'],
                         'low_stock_threshold' => $v['low_stock_threshold'] ?? 5,
                         'is_active' => $v['is_active'] ?? true,
+                        'media_id' => $v['media_id'] ?? null,
+                        'image_path' => $v['image_path'] ?? null,
                     ]);
+
+                    if (! empty($v['attribute_value_ids'])) {
+                        $variant->attributeValues()->sync($v['attribute_value_ids']);
+                    }
                 }
             } elseif (empty($validated['has_variants'])) {
                 $product->variants()->delete();
+                $product->attributes()->detach();
+                $product->attributeValues()->detach();
             }
         });
 
