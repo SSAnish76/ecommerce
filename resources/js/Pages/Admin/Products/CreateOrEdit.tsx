@@ -561,26 +561,9 @@ export default function CreateOrEditProductPage({
         setVariantNotice(`Successfully generated ${newVariants.length} variant combinations.`);
     };
 
-    const addVariant = () => {
-        const skuPrefix = form.data.sku ? `${form.data.sku}-VAR${form.data.variants.length + 1}` : `VAR-${Date.now().toString().slice(-4)}`;
-        form.setData('variants', [
-            ...form.data.variants,
-            {
-                sku: skuPrefix,
-                name: `Custom Variant #${form.data.variants.length + 1}`,
-                price: form.data.retail_price || 0,
-                mrp: form.data.mrp || '',
-                sale_price: form.data.sale_price || '',
-                stock_quantity: 10,
-                low_stock_threshold: 5,
-                is_active: true,
-                media_id: null,
-                image_path: '',
-                image_url: '',
-                attributes: {},
-                attribute_value_ids: [],
-            },
-        ]);
+    const clearAllVariants = () => {
+        form.setData('variants', []);
+        setVariantNotice(null);
     };
 
     const removeVariant = (idx: number) => {
@@ -688,6 +671,30 @@ export default function CreateOrEditProductPage({
             ? Number(form.data.mrp) - Number(form.data.retail_price)
             : 0;
 
+    const activeAttributeConfigs = availableAttributes
+        .filter((attr) => form.data.attribute_ids.includes(attr.id))
+        .map((attr) => ({
+            attribute: attr,
+            selectedValues: (attr.values || []).filter((v) =>
+                form.data.attribute_value_ids.includes(v.id)
+            ),
+        }));
+
+    const validConfigsForCombinations = activeAttributeConfigs.filter(
+        (cfg) => cfg.selectedValues.length > 0
+    );
+
+    const totalPossibleCombinations =
+        validConfigsForCombinations.length > 0 &&
+        validConfigsForCombinations.length === activeAttributeConfigs.length
+            ? validConfigsForCombinations.reduce((acc, cfg) => acc * cfg.selectedValues.length, 1)
+            : 0;
+
+    const totalVariantStock = form.data.variants.reduce(
+        (acc, v) => acc + (Number(v.stock_quantity) || 0),
+        0
+    );
+
     return (
         <AdminLayout
             title={isEdit ? `Edit Product: ${product?.name}` : 'Create New Product'}
@@ -699,7 +706,7 @@ export default function CreateOrEditProductPage({
         >
             <Head title={isEdit ? `Edit ${product?.name}` : 'Create Product - Catalog Admin'} />
 
-            <form onSubmit={handleSubmit} className="space-y-6 max-w-6xl pb-20">
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-7xl mx-auto pb-20">
                 {/* Sticky Action Navigation Header */}
                 <div className="sticky top-16 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -777,137 +784,175 @@ export default function CreateOrEditProductPage({
                         onClick={() => scrollToSection('sec-specs')}
                         className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
                     >
-                        Technical Specs
+                        Specs &amp; Policies
                     </button>
                     <button
                         type="button"
                         onClick={() => scrollToSection('sec-variants')}
-                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
+                        className={`px-3.5 py-1.5 rounded-xl font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
+                            form.data.has_variants
+                                ? 'bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-2xs hover:bg-orange-100'
+                                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400'
+                        }`}
                     >
-                        Variants ({form.data.variants.length})
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => scrollToSection('sec-policies')}
-                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-400 transition-colors shrink-0"
-                    >
-                        Policies
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Product Variants ({form.data.variants.length})</span>
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     {/* Main Left 2-Columns */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="lg:col-span-2 space-y-5">
                         {/* 1. General Product Information */}
                         <div
                             id="sec-general"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3.5"
                         >
-                            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-                                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                    <Tag className="w-4 h-4" />
-                                </div>
-                                <div>
+                            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                        <Tag className="w-3.5 h-3.5" />
+                                    </div>
                                     <h3 className="font-bold text-sm text-slate-900 dark:text-white">
                                         General Information
                                     </h3>
-                                    <span className="text-[11px] text-slate-400">
-                                        Core title, custom slug, and storefront descriptions
-                                    </span>
                                 </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                    form.data.status === 'published'
+                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                        : 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                                }`}>
+                                    {form.data.status}
+                                </span>
                             </div>
 
                             <Input
-                                label="Product Title / Merchandising Name"
+                                label="Product Title"
                                 required
                                 value={form.data.name}
                                 onChange={(e) => form.setData('name', e.target.value)}
                                 error={form.errors.name}
-                                placeholder="e.g. Sony WH-1000XM5 Wireless Noise-Cancelling Headphones"
+                                placeholder="e.g. Wireless Noise-Cancelling Headphones"
                             />
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                 <Input
-                                    label="SKU (Stock Keeping Unit)"
+                                    label="SKU"
                                     required
                                     value={form.data.sku}
                                     onChange={(e) => form.setData('sku', e.target.value.toUpperCase())}
                                     error={form.errors.sku}
-                                    placeholder="e.g. SNY-WH1000-BLK"
+                                    placeholder="e.g. PRD-001"
                                 />
 
                                 <SlugInput
-                                    label="Custom Slug (URL)"
+                                    label="URL Slug"
                                     value={form.data.slug}
                                     onChange={(slug) => form.setData('slug', slug)}
                                     sourceValue={form.data.name}
                                     autoSync={!isEdit}
                                     error={form.errors.slug}
-                                    placeholder="auto-generated from product title"
+                                    placeholder="product-url-slug"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                                <Select
+                                    label="Storefront Status"
+                                    value={form.data.status}
+                                    onChange={(e) => form.setData('status', e.target.value)}
+                                    options={statuses}
+                                    error={form.errors.status}
+                                />
+
+                                <Select
+                                    label="Product Category"
+                                    value={form.data.category_id}
+                                    onChange={(e) => form.setData('category_id', e.target.value)}
+                                    options={[
+                                        { value: '', label: 'Select Category' },
+                                        ...categories.map((c) => ({
+                                            value: String(c.id),
+                                            label: c.parent ? `${c.parent.name} › ${c.name}` : (c.parent_id ? `— ${c.name}` : c.name),
+                                        })),
+                                    ]}
+                                    error={form.errors.category_id}
+                                    clearable
+                                    searchable={categories.length > 5}
+                                />
+
+                                <Select
+                                    label="Brand / Manufacturer"
+                                    value={form.data.brand_id}
+                                    onChange={(e) => form.setData('brand_id', e.target.value)}
+                                    options={[
+                                        { value: '', label: 'Select Brand' },
+                                        ...brands.map((b) => ({
+                                            value: String(b.id),
+                                            label: b.name,
+                                        })),
+                                    ]}
+                                    error={form.errors.brand_id}
+                                    clearable
+                                    searchable={brands.length > 5}
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    Short Summary Description
+                                    Short Description
                                 </label>
                                 <textarea
                                     value={form.data.short_description}
                                     onChange={(e) => form.setData('short_description', e.target.value)}
                                     rows={2}
-                                    className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                    placeholder="Brief punchy summary displayed in storefront product cards..."
+                                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Brief summary displayed on storefront cards..."
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    Full Product Overview
+                                    Full Description
                                 </label>
                                 <textarea
                                     value={form.data.description}
                                     onChange={(e) => form.setData('description', e.target.value)}
-                                    rows={5}
-                                    className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                                    placeholder="Detailed marketing copy, feature breakdown, and what's in the box..."
+                                    rows={3}
+                                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Detailed product overview, features, and specifications..."
                                 />
                             </div>
                         </div>
 
-                        {/* 2. Pricing & Commercials */}
+                        {/* 2. Pricing & Economics */}
                         <div
                             id="sec-pricing"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3.5"
                         >
-                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                        <DollarSign className="w-4 h-4" />
+                                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                        <DollarSign className="w-3.5 h-3.5" />
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                            Pricing &amp; Economics
-                                        </h3>
-                                        <span className="text-[11px] text-slate-400">
-                                            Storefront retail price, wholesale MRP, and automated discount %
-                                        </span>
-                                    </div>
+                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                        Pricing &amp; Economics
+                                    </h3>
                                 </div>
 
                                 {savingsAmount > 0 && (
-                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto">
                                         <Sparkles className="w-3.5 h-3.5" />
                                         <span>
-                                            Customer Saves {currency}
-                                            {savingsAmount.toFixed(2)} ({form.data.discount_percentage}%)
+                                            Customer Saves {currency}{savingsAmount.toFixed(2)} ({form.data.discount_percentage}%)
                                         </span>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <Input
-                                    label={`MRP (${currency})`}
+                                    label={`MRP / List Price (${currency})`}
                                     required
                                     type="number"
                                     step="0.01"
@@ -915,11 +960,10 @@ export default function CreateOrEditProductPage({
                                     onChange={(e) => handleMrpChange(Number(e.target.value))}
                                     error={form.errors.mrp}
                                     placeholder="0.00"
-                                    helperText="Original list price / MRP"
                                 />
 
                                 <Input
-                                    label={`Retail Price (${currency})`}
+                                    label={`Selling Price (${currency})`}
                                     required
                                     type="number"
                                     step="0.01"
@@ -927,7 +971,6 @@ export default function CreateOrEditProductPage({
                                     onChange={(e) => handleRetailPriceChange(Number(e.target.value))}
                                     error={form.errors.retail_price}
                                     placeholder="0.00"
-                                    helperText="Active selling price"
                                 />
 
                                 <Input
@@ -937,8 +980,7 @@ export default function CreateOrEditProductPage({
                                     value={String(form.data.sale_price)}
                                     onChange={(e) => form.setData('sale_price', e.target.value ? Number(e.target.value) : '')}
                                     error={form.errors.sale_price}
-                                    placeholder="Optional promo price"
-                                    helperText="Flash promo or special rate"
+                                    placeholder="Optional"
                                 />
 
                                 <Select
@@ -947,7 +989,6 @@ export default function CreateOrEditProductPage({
                                     onChange={(e) => form.setData('discount_type', e.target.value)}
                                     options={discountTypes}
                                     error={form.errors.discount_type}
-                                    helperText="Percentage or Fixed reduction"
                                 />
 
                                 <Input
@@ -958,36 +999,42 @@ export default function CreateOrEditProductPage({
                                     onChange={(e) => handleDiscountValueChange(e.target.value)}
                                     error={form.data.discount_type === 'fixed' ? form.errors.discount_amount : form.errors.discount_percentage}
                                     placeholder={form.data.discount_type === 'fixed' ? '0.00' : '0.0'}
-                                    helperText={form.data.discount_type === 'fixed' ? `Flat ${currency} savings off MRP` : 'Badge shown on card (%)'}
                                 />
+
+                                <div className="flex flex-col justify-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Effective Customer Price</span>
+                                    <div className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mt-0.5">
+                                        <span>{currency}{Number(form.data.sale_price || form.data.retail_price || 0).toFixed(2)}</span>
+                                        {Number(form.data.mrp) > Number(form.data.retail_price) && (
+                                            <span className="text-xs font-normal text-slate-400 line-through">
+                                                {currency}{Number(form.data.mrp).toFixed(2)}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {/* 3. Product Gallery Images */}
                         <div
                             id="sec-gallery"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3.5"
                         >
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                        <ImageIcon className="w-4 h-4" />
+                                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                        <ImageIcon className="w-3.5 h-3.5" />
                                     </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                                Product Gallery Images
-                                            </h3>
-                                            {uploadingCount > 0 && (
-                                                <span className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                    Uploading {uploadingCount}...
-                                                </span>
-                                            )}
-                                        </div>
-                                        <span className="text-[11px] text-slate-400">
-                                            Primary image is used as catalog cover; secondary photos appear in product detail slider.
-                                        </span>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                            Product Gallery Images
+                                        </h3>
+                                        {uploadingCount > 0 && (
+                                            <span className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                Uploading {uploadingCount}...
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1033,7 +1080,7 @@ export default function CreateOrEditProductPage({
                             </div>
 
                             {uploadError && (
-                                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4 shrink-0" />
                                     <span>{uploadError}</span>
                                 </div>
@@ -1057,27 +1104,22 @@ export default function CreateOrEditProductPage({
                                     }
                                 }}
                                 onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all ${
+                                className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
                                     isDragging
                                         ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-4 ring-indigo-500/10'
                                         : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
                                 }`}
                             >
-                                <div className="flex flex-col items-center justify-center gap-2">
-                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
-                                        <Upload className="w-5 h-5" />
+                                <div className="flex flex-col items-center justify-center gap-1">
+                                    <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
+                                        <Upload className="w-4 h-4" />
                                     </div>
-                                    <div>
-                                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                            Drop product photos here, or{' '}
-                                            <span className="text-indigo-600 dark:text-indigo-400 underline font-bold">
-                                                browse files
-                                            </span>
-                                        </span>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">
-                                            Select single or multiple files (JPG, PNG, WEBP, GIF up to 25MB each)
-                                        </p>
-                                    </div>
+                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                        Drop photos here, or <span className="text-indigo-600 dark:text-indigo-400 underline">browse</span>
+                                    </span>
+                                    <span className="text-[11px] text-slate-400">
+                                        JPG, PNG, WEBP (up to 25MB)
+                                    </span>
                                 </div>
                             </div>
 
@@ -1131,7 +1173,7 @@ export default function CreateOrEditProductPage({
                                                             updated[idx].alt_text = e.target.value;
                                                             form.setData('images', updated);
                                                         }}
-                                                        placeholder="Alt text / description (e.g. Front view with lighting)"
+                                                        placeholder="Alt text / description"
                                                         className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                                     />
                                                 </div>
@@ -1187,450 +1229,533 @@ export default function CreateOrEditProductPage({
                             )}
                         </div>
 
-                        {/* 4. Specifications */}
+                        {/* 4. Specifications & Policies */}
                         <div
                             id="sec-specs"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
+                            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3.5"
                         >
-                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                                        <FileText className="w-4 h-4" />
+                                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                                        <FileText className="w-3.5 h-3.5" />
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                            Technical Specifications
-                                        </h3>
-                                        <span className="text-[11px] text-slate-400">
-                                            Granular parameters like Battery Life, Material, Connectivity, Dimensions
-                                        </span>
-                                    </div>
+                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                        Technical Specifications
+                                    </h3>
                                 </div>
                                 <Button
                                     type="button"
                                     variant="primary"
                                     size="sm"
                                     pill
-                                    leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+                                    leftIcon={<Plus className="w-3.5 h-3.5 stroke-[2.5]" />}
                                     onClick={addSpec}
-                                    className="shadow-md shadow-indigo-600/20 font-medium px-4.5 py-1.5 rounded-full whitespace-nowrap text-xs"
+                                    className="shadow-md shadow-indigo-600/20 font-medium px-3.5 py-1 rounded-full whitespace-nowrap text-xs"
                                 >
                                     Add Spec
                                 </Button>
                             </div>
 
-                            <div className="space-y-2.5">
-                                {specEntries.map((spec, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={spec.key}
-                                            onChange={(e) => updateSpec(idx, 'key', e.target.value)}
-                                            placeholder="Spec Label (e.g. Battery Life)"
-                                            className="w-1/3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white"
+                            {specEntries.length === 0 ? (
+                                <p className="text-xs text-slate-400 py-1 italic">No specifications added yet. Click &ldquo;Add Spec&rdquo; for key-value details.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {specEntries.map((spec, idx) => (
+                                        <div key={idx} className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={spec.key}
+                                                onChange={(e) => updateSpec(idx, 'key', e.target.value)}
+                                                placeholder="Spec Label (e.g. Material)"
+                                                className="w-1/3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-slate-900 dark:text-white"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={spec.value}
+                                                onChange={(e) => updateSpec(idx, 'value', e.target.value)}
+                                                placeholder="Specification Value"
+                                                className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-slate-900 dark:text-white"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeSpec(idx)}
+                                                className="p-1.5 text-rose-500 hover:text-rose-700 shrink-0 rounded-lg"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Return & Refund Policies attached right here */}
+                            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-md bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                                        <ShieldAlert className="w-3 h-3" />
+                                    </div>
+                                    <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                                        Return &amp; Refund Policies
+                                    </h4>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                            Return Policy Terms
+                                        </label>
+                                        <textarea
+                                            value={form.data.return_policy}
+                                            onChange={(e) => form.setData('return_policy', e.target.value)}
+                                            rows={2}
+                                            className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="e.g. 30-day return policy..."
                                         />
-                                        <input
-                                            type="text"
-                                            value={spec.value}
-                                            onChange={(e) => updateSpec(idx, 'value', e.target.value)}
-                                            placeholder="Specification Value (e.g. Up to 30 Hours with ANC)"
-                                            className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white"
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                            Refund Policy Terms
+                                        </label>
+                                        <textarea
+                                            value={form.data.refund_policy}
+                                            onChange={(e) => form.setData('refund_policy', e.target.value)}
+                                            rows={2}
+                                            className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="e.g. Full refund processed within 5 business days..."
                                         />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Sidebar Panels */}
+                    <div className="space-y-5">
+                        {/* Inventory & Delivery */}
+                        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3.5 sticky top-6">
+                            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white pb-2.5 border-b border-slate-100 dark:border-slate-800 text-sm">
+                                <Boxes className="w-4 h-4 text-amber-500" />
+                                <span>Inventory &amp; Delivery</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <Input
+                                    label="Stock Quantity"
+                                    required
+                                    type="number"
+                                    min="0"
+                                    value={String(form.data.stock_quantity)}
+                                    onChange={(e) => form.setData('stock_quantity', Number(e.target.value))}
+                                    error={form.errors.stock_quantity}
+                                />
+
+                                <Input
+                                    label="Low Stock Alert"
+                                    required
+                                    type="number"
+                                    min="1"
+                                    value={String(form.data.low_stock_threshold)}
+                                    onChange={(e) => form.setData('low_stock_threshold', Number(e.target.value))}
+                                    error={form.errors.low_stock_threshold}
+                                />
+                            </div>
+
+                            <Select
+                                label="Out-of-Stock Display"
+                                value={form.data.stock_visibility}
+                                onChange={(e) => form.setData('stock_visibility', e.target.value)}
+                                options={stockVisibilities}
+                                error={form.errors.stock_visibility}
+                            />
+
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                                <Select
+                                    label="Delivery Scope"
+                                    value={form.data.location_availability_type}
+                                    onChange={(e) => form.setData('location_availability_type', e.target.value)}
+                                    options={locationTypes}
+                                    error={form.errors.location_availability_type}
+                                />
+
+                                {form.data.location_availability_type === 'radius' && (
+                                    <Input
+                                        label="Delivery Radius (in Kilometers)"
+                                        type="number"
+                                        step="0.5"
+                                        value={String(form.data.delivery_radius_km)}
+                                        onChange={(e) => form.setData('delivery_radius_km', Number(e.target.value))}
+                                        error={form.errors.delivery_radius_km}
+                                        placeholder="e.g. 25"
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 6. Product Variants & Attributes Studio (Full Width) */}
+                <div
+                    id="sec-variants"
+                    className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-5"
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+                                <Layers className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                    <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                                        Product Variants &amp; Attributes
+                                    </h3>
+                                    {form.data.has_variants && form.data.variants.length > 0 && (
+                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                                            {form.data.variants.length} Variants &bull; Total Stock: {totalVariantStock}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Configure combinations (Color, Size, Material) with specific SKU, pricing, and stock.
+                                </p>
+                            </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none px-3.5 py-1.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 self-start sm:self-auto transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={form.data.has_variants}
+                                onChange={(e) => form.setData('has_variants', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            />
+                            <span>{form.data.has_variants ? 'Variants Enabled' : 'Enable Variants'}</span>
+                        </label>
+                    </div>
+
+                    {!form.data.has_variants && (
+                        <div className="py-4 px-5 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+                            Single product mode (variants disabled). Turn on &ldquo;Enable Variants&rdquo; above to select attributes and create combinations.
+                        </div>
+                    )}
+
+                    {form.data.has_variants && (
+                        <div className="space-y-6">
+                            {/* Step 1: Attribute Dimensions Selection */}
+                            <div className="p-5 rounded-2xl border border-indigo-100 dark:border-indigo-950/60 bg-indigo-50/20 dark:bg-indigo-950/10 space-y-3.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                                        1. Select Attributes (Dimensions)
+                                    </span>
+                                    <Link
+                                        href="/admin/attributes"
+                                        target="_blank"
+                                        className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                                    >
+                                        Manage Attributes &rarr;
+                                    </Link>
+                                </div>
+
+                                {availableAttributes.length === 0 ? (
+                                    <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500">
+                                        No global attributes defined yet.{' '}
+                                        <Link href="/admin/attributes" className="text-indigo-600 dark:text-indigo-400 underline font-medium">
+                                            Create your first attribute here
+                                        </Link>
+                                        .
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap gap-2.5">
+                                        {availableAttributes.map((attr) => {
+                                            const isSelected = form.data.attribute_ids.includes(attr.id);
+                                            return (
+                                                <button
+                                                    key={attr.id}
+                                                    type="button"
+                                                    onClick={() => toggleAttribute(attr.id)}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs ${
+                                                        isSelected
+                                                            ? 'bg-indigo-600 text-white shadow-indigo-500/25 ring-2 ring-indigo-600'
+                                                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                                                    }`}
+                                                >
+                                                    {isSelected ? (
+                                                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                                    ) : (
+                                                        <Plus className="w-3.5 h-3.5 text-slate-400" />
+                                                    )}
+                                                    <span>{attr.name}</span>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                                                        isSelected
+                                                            ? 'bg-indigo-700/80 text-indigo-100'
+                                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                                                    }`}>
+                                                        {attr.values?.length || 0}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Step 2: Attribute Values Selection in Responsive Grid */}
+                            {form.data.attribute_ids.length > 0 && (
+                                <div className="space-y-3.5">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">
+                                        2. Choose Attribute Values
+                                    </span>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        {form.data.attribute_ids.map((attrId) => {
+                                            const attr = availableAttributes.find((a) => a.id === attrId);
+                                            if (!attr) return null;
+                                            const selectedValues = (attr.values || []).filter((v) =>
+                                                form.data.attribute_value_ids.includes(v.id)
+                                            );
+
+                                            return (
+                                                <div
+                                                    key={attr.id}
+                                                    className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-xs space-y-3"
+                                                >
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                                                {attr.name}
+                                                            </span>
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 capitalize">
+                                                                {attr.type}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400">
+                                                                ({selectedValues.length} selected)
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => selectAllValuesForAttribute(attr)}
+                                                                className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                                                            >
+                                                                Select All
+                                                            </button>
+                                                            <span className="text-slate-300 dark:text-slate-700">&bull;</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => clearValuesForAttribute(attr)}
+                                                                className="text-[11px] font-medium text-slate-500 hover:underline"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                            <span className="text-slate-300 dark:text-slate-700">&bull;</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setQuickValueModalAttr(attr);
+                                                                    setQuickValueText('');
+                                                                }}
+                                                                className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                                Add Value
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Values Pills */}
+                                                    <div className="flex flex-wrap gap-2 pt-0.5">
+                                                        {(attr.values || []).map((val) => {
+                                                            const isValSelected = form.data.attribute_value_ids.includes(val.id);
+                                                            return (
+                                                                <button
+                                                                    key={val.id}
+                                                                    type="button"
+                                                                    onClick={() => toggleAttributeValue(val.id)}
+                                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                                                                        isValSelected
+                                                                            ? 'bg-indigo-600 text-white shadow-2xs ring-2 ring-indigo-500'
+                                                                            : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                                                    }`}
+                                                                >
+                                                                    {attr.type === 'color' && (
+                                                                        <span
+                                                                            className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-2xs"
+                                                                            style={{ backgroundColor: val.color_code || '#cbd5e1' }}
+                                                                        />
+                                                                    )}
+                                                                    <span>{val.value}</span>
+                                                                    {isValSelected && (
+                                                                        <Check className="w-3 h-3 stroke-[3]" />
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 3: Generate Combinations Action Bar */}
+                            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                    {totalPossibleCombinations > 0 ? (
+                                        <span><strong>{totalPossibleCombinations}</strong> combination{totalPossibleCombinations > 1 ? 's' : ''} ready to generate</span>
+                                    ) : (
+                                        <span className="text-slate-400">Select attributes and values above to generate combinations</span>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2.5 self-start sm:self-auto">
+                                    {form.data.variants.length > 0 && (
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => removeSpec(idx)}
-                                            className="p-1.5 text-rose-500 hover:text-rose-700 shrink-0 rounded-lg"
+                                            onClick={clearAllVariants}
+                                            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-3.5 py-1.5 rounded-full"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            Clear All
                                         </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                                    )}
 
-                        {/* 5. Product Variants */}
-                        <div
-                            id="sec-variants"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-6"
-                        >
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400">
-                                        <Layers className="w-4 h-4" />
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        size="sm"
+                                        pill
+                                        leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                                        onClick={generateVariantCombinations}
+                                        disabled={totalPossibleCombinations === 0}
+                                        className="shadow-sm font-semibold px-5 py-2 rounded-full whitespace-nowrap text-xs bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40"
+                                    >
+                                        Generate Combinations ({totalPossibleCombinations})
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {variantNotice && (
+                                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 shrink-0" />
+                                        <span>{variantNotice}</span>
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                            Product Variants &amp; Attributes
-                                        </h3>
-                                        <span className="text-[11px] text-slate-400">
-                                            Create dynamic variant combinations with custom SKU, price, stock, and photos
+                                    <button
+                                        type="button"
+                                        onClick={() => setVariantNotice(null)}
+                                        className="text-amber-700 dark:text-amber-400 hover:opacity-80 text-xs font-bold"
+                                    >
+                                        &times;
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Step 4: Configured Variant Matrix */}
+                            {form.data.variants.length > 0 ? (
+                                <div className="space-y-3 pt-1">
+                                    <div className="flex items-center justify-between pb-1">
+                                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                            Configured Variants ({form.data.variants.length})
+                                        </span>
+                                        <span className="text-xs text-slate-500">
+                                            Total Stock: <strong className="text-slate-900 dark:text-white">{totalVariantStock}</strong>
                                         </span>
                                     </div>
-                                </div>
-                                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer select-none px-3 py-1.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.data.has_variants}
-                                        onChange={(e) => form.setData('has_variants', e.target.checked)}
-                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                                    />
-                                    <span>Enable Variants</span>
-                                </label>
-                            </div>
 
-                            {form.data.has_variants && (
-                                <div className="space-y-6">
-                                    {/* 5.1 Reusable Global & Custom Attributes Selection */}
-                                    <div className="p-4 sm:p-5 rounded-2xl border border-indigo-100 dark:border-indigo-950/60 bg-indigo-50/20 dark:bg-indigo-950/10 space-y-4">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                            <div>
-                                                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Sliders className="w-3.5 h-3.5 text-indigo-500" />
-                                                    Step 1: Choose Product Attributes
-                                                </h4>
-                                                <p className="text-[11px] text-slate-500 mt-0.5">
-                                                    Select the dimensions that define this product's variations (e.g. Color, Size, Storage)
-                                                </p>
-                                            </div>
-                                            <Link
-                                                href="/admin/attributes"
-                                                target="_blank"
-                                                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
-                                            >
-                                                Manage Attributes &rarr;
-                                            </Link>
-                                        </div>
-
-                                        {availableAttributes.length === 0 ? (
-                                            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500">
-                                                No global attributes defined yet.{' '}
-                                                <Link href="/admin/attributes" className="text-indigo-600 dark:text-indigo-400 underline font-medium">
-                                                    Create your first attribute here
-                                                </Link>
-                                                .
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-wrap gap-2">
-                                                {availableAttributes.map((attr) => {
-                                                    const isSelected = form.data.attribute_ids.includes(attr.id);
-                                                    return (
-                                                        <button
-                                                            key={attr.id}
-                                                            type="button"
-                                                            onClick={() => toggleAttribute(attr.id)}
-                                                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shadow-2xs ${
-                                                                isSelected
-                                                                    ? 'bg-indigo-600 text-white shadow-indigo-500/25 ring-2 ring-indigo-600'
-                                                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                                    {/* Modern Variant Table */}
+                                    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                        <th className="py-3 px-3 w-10 text-center">#</th>
+                                                        <th className="py-3 px-3 min-w-[240px]">Variant Details</th>
+                                                        <th className="py-3 px-3 min-w-[140px]">SKU</th>
+                                                        <th className="py-3 px-3 min-w-[100px] text-right">Price ({currency})</th>
+                                                        <th className="py-3 px-3 min-w-[100px] text-right">MRP ({currency})</th>
+                                                        <th className="py-3 px-3 min-w-[85px] text-center">Stock</th>
+                                                        <th className="py-3 px-3 min-w-[85px] text-center">Min Stock</th>
+                                                        <th className="py-3 px-3 w-14 text-center">Active</th>
+                                                        <th className="py-3 px-2 w-10 text-center"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                                                    {form.data.variants.map((v, idx) => (
+                                                        <tr
+                                                            key={idx}
+                                                            className={`transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/40 ${
+                                                                !v.is_active ? 'opacity-60 bg-slate-50/40 dark:bg-slate-900/40' : ''
                                                             }`}
                                                         >
-                                                            {isSelected ? (
-                                                                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                                            ) : (
-                                                                <Plus className="w-3.5 h-3.5 text-slate-400" />
-                                                            )}
-                                                            <span>{attr.name}</span>
-                                                            <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
-                                                                isSelected
-                                                                    ? 'bg-indigo-700/80 text-indigo-100'
-                                                                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
-                                                            }`}>
-                                                                {attr.values?.length || 0}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
+                                                            {/* Index */}
+                                                            <td className="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">
+                                                                {idx + 1}
+                                                            </td>
 
-                                    {/* 5.2 Attribute Values Selection per chosen attribute */}
-                                    {form.data.attribute_ids.length > 0 && (
-                                        <div className="space-y-4">
-                                            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                                                <Tag className="w-3.5 h-3.5 text-indigo-500" />
-                                                Step 2: Choose Values for Each Attribute
-                                            </div>
-
-                                            {form.data.attribute_ids.map((attrId) => {
-                                                const attr = availableAttributes.find((a) => a.id === attrId);
-                                                if (!attr) return null;
-                                                const selectedValues = (attr.values || []).filter((v) =>
-                                                    form.data.attribute_value_ids.includes(v.id)
-                                                );
-
-                                                return (
-                                                    <div
-                                                        key={attr.id}
-                                                        className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-xs space-y-3"
-                                                    >
-                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 gap-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-bold text-slate-900 dark:text-white">
-                                                                    {attr.name}
-                                                                </span>
-                                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 capitalize">
-                                                                    {attr.type}
-                                                                </span>
-                                                                <span className="text-[11px] text-slate-400">
-                                                                    ({selectedValues.length} selected)
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => selectAllValuesForAttribute(attr)}
-                                                                    className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-                                                                >
-                                                                    Select All
-                                                                </button>
-                                                                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => clearValuesForAttribute(attr)}
-                                                                    className="text-[11px] font-medium text-slate-500 hover:underline"
-                                                                >
-                                                                    Clear
-                                                                </button>
-                                                                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setQuickValueModalAttr(attr);
-                                                                        setQuickValueText('');
-                                                                    }}
-                                                                    className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-                                                                >
-                                                                    <Plus className="w-3 h-3" />
-                                                                    Add Value
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Values Pills */}
-                                                        <div className="flex flex-wrap gap-2 pt-1">
-                                                            {(attr.values || []).map((val) => {
-                                                                const isValSelected = form.data.attribute_value_ids.includes(val.id);
-                                                                return (
+                                                            {/* Variant & Attributes */}
+                                                            <td className="py-3 px-3">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    {/* Image thumbnail picker */}
                                                                     <button
-                                                                        key={val.id}
                                                                         type="button"
-                                                                        onClick={() => toggleAttributeValue(val.id)}
-                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                                                                            isValSelected
-                                                                                ? 'bg-indigo-600 text-white shadow-2xs ring-2 ring-indigo-500'
-                                                                                : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                                                                        }`}
+                                                                        onClick={() => setPickingImageVariantIndex(idx)}
+                                                                        className="group relative w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0 hover:border-indigo-500 transition-colors shadow-2xs"
+                                                                        title="Choose variant photo"
                                                                     >
-                                                                        {attr.type === 'color' && (
-                                                                            <span
-                                                                                className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-2xs"
-                                                                                style={{ backgroundColor: val.color_code || '#cbd5e1' }}
-                                                                            />
-                                                                        )}
-                                                                        <span>{val.value}</span>
-                                                                        {isValSelected && (
-                                                                            <Check className="w-3 h-3 stroke-[3]" />
+                                                                        {v.image_url ? (
+                                                                            <>
+                                                                                <img
+                                                                                    src={v.image_url}
+                                                                                    alt={v.name}
+                                                                                    className="w-full h-full object-contain p-0.5"
+                                                                                />
+                                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-semibold transition-opacity">
+                                                                                    Edit
+                                                                                </div>
+                                                                            </>
+                                                                        ) : (
+                                                                            <ImageIcon className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
                                                                         )}
                                                                     </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
 
-                                    {/* 5.3 Generate Combinations Action Bar */}
-                                    <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-pink-50/80 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-pink-950/30 border border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                        <div className="space-y-0.5">
-                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                                                <Sparkles className="w-4 h-4 text-indigo-500" />
-                                                Generate Variant Combinations
-                                            </h4>
-                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                                Automatically creates Cartesian combinations of all selected attribute values with SKUs and default pricing.
-                                            </p>
-                                        </div>
+                                                                    <div className="flex-1 min-w-0 space-y-1">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={v.name}
+                                                                            onChange={(e) => {
+                                                                                const updated = [...form.data.variants];
+                                                                                updated[idx].name = e.target.value;
+                                                                                form.setData('variants', updated);
+                                                                            }}
+                                                                            placeholder="Variant title"
+                                                                            className="w-full text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                                                        />
 
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <Button
-                                                type="button"
-                                                variant="secondary"
-                                                size="sm"
-                                                pill
-                                                leftIcon={<Plus className="w-3.5 h-3.5" />}
-                                                onClick={addVariant}
-                                                className="text-xs px-3.5 py-1.5 rounded-full whitespace-nowrap"
-                                            >
-                                                Add Custom
-                                            </Button>
-
-                                            <Button
-                                                type="button"
-                                                variant="primary"
-                                                size="sm"
-                                                pill
-                                                leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                                                onClick={generateVariantCombinations}
-                                                className="shadow-md shadow-indigo-600/25 font-semibold px-4.5 py-1.5 rounded-full whitespace-nowrap text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                                            >
-                                                ⚡ Generate Combinations
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {variantNotice && (
-                                        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <AlertCircle className="w-4 h-4 shrink-0" />
-                                                <span>{variantNotice}</span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setVariantNotice(null)}
-                                                className="text-amber-700 dark:text-amber-400 hover:opacity-80 text-xs font-bold"
-                                            >
-                                                &times;
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* 5.4 Variants Matrix List */}
-                                    {form.data.variants.length > 0 && (
-                                        <div className="space-y-3 pt-2">
-                                            <div className="flex items-center justify-between pb-1">
-                                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                                    Configured Variants ({form.data.variants.length})
-                                                </span>
-                                                <span className="text-[11px] text-slate-400">
-                                                    Total Variant Stock:{' '}
-                                                    <strong className="text-slate-900 dark:text-white">
-                                                        {form.data.variants.reduce((acc, v) => acc + (Number(v.stock_quantity) || 0), 0)} units
-                                                    </strong>
-                                                </span>
-                                            </div>
-
-                                            <div className="space-y-3">
-                                                {form.data.variants.map((v, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className={`p-4 rounded-2xl border transition-all ${
-                                                            v.is_active
-                                                                ? 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30'
-                                                                : 'border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/40 opacity-70'
-                                                        }`}
-                                                    >
-                                                        {/* Top Row: Variant Header & Actions */}
-                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                                                    #{idx + 1}
-                                                                </span>
-
-                                                                {/* Attribute Badges */}
-                                                                {v.attributes && Object.keys(v.attributes).length > 0 ? (
-                                                                    Object.entries(v.attributes).map(([attrName, attrVal]) => (
-                                                                        <span
-                                                                            key={attrName}
-                                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
-                                                                        >
-                                                                            <span>{attrName}:</span>
-                                                                            <strong>{attrVal}</strong>
-                                                                        </span>
-                                                                    ))
-                                                                ) : (
-                                                                    <span className="text-[10px] text-slate-400 italic">
-                                                                        (Custom variant)
-                                                                    </span>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex items-center gap-3">
-                                                                {/* Status toggle */}
-                                                                <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={v.is_active}
-                                                                        onChange={(e) => {
-                                                                            const updated = [...form.data.variants];
-                                                                            updated[idx].is_active = e.target.checked;
-                                                                            form.setData('variants', updated);
-                                                                        }}
-                                                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
-                                                                    />
-                                                                    <span className="text-[11px] font-medium">
-                                                                        {v.is_active ? 'Active' : 'Inactive'}
-                                                                    </span>
-                                                                </label>
-
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => removeVariant(idx)}
-                                                                    className="p-1 text-rose-500 hover:text-rose-700 rounded-lg"
-                                                                    title="Remove Variant"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Main Inputs Row with Variant Image */}
-                                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 items-center">
-                                                            {/* Variant Image Selector (2 cols) */}
-                                                            <div className="md:col-span-2 flex flex-col items-center justify-center">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setPickingImageVariantIndex(idx)}
-                                                                    className="group relative w-16 h-16 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden flex flex-col items-center justify-center hover:border-indigo-500 transition-all shadow-2xs"
-                                                                    title="Click to choose or upload a variant-specific photo"
-                                                                >
-                                                                    {v.image_url ? (
-                                                                        <>
-                                                                            <img
-                                                                                src={v.image_url}
-                                                                                alt={v.name}
-                                                                                className="w-full h-full object-contain p-1"
-                                                                            />
-                                                                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-medium transition-opacity">
-                                                                                Change
+                                                                        {/* Attribute Pills */}
+                                                                        {v.attributes && Object.keys(v.attributes).length > 0 && (
+                                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                {Object.entries(v.attributes).map(([attrName, attrVal]) => (
+                                                                                    <span
+                                                                                        key={attrName}
+                                                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                                                                                    >
+                                                                                        <span className="text-slate-400 font-normal">{attrName}:</span>
+                                                                                        <span>{attrVal}</span>
+                                                                                    </span>
+                                                                                ))}
                                                                             </div>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <ImageIcon className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                                                                            <span className="text-[9px] text-slate-400 mt-0.5">
-                                                                                + Photo
-                                                                            </span>
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                                <span className="text-[10px] text-slate-400 mt-1">
-                                                                    {v.image_url ? 'Photo set' : 'Default photo'}
-                                                                </span>
-                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
 
-                                                            {/* Name & SKU (5 cols) */}
-                                                            <div className="md:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                                <Input
-                                                                    label="Variant Title"
-                                                                    required
-                                                                    value={v.name}
-                                                                    onChange={(e) => {
-                                                                        const updated = [...form.data.variants];
-                                                                        updated[idx].name = e.target.value;
-                                                                        form.setData('variants', updated);
-                                                                    }}
-                                                                    placeholder="Variant title"
-                                                                />
-                                                                <Input
-                                                                    label="Variant SKU"
-                                                                    required
+                                                            {/* SKU */}
+                                                            <td className="py-3 px-3">
+                                                                <input
+                                                                    type="text"
                                                                     value={v.sku}
                                                                     onChange={(e) => {
                                                                         const updated = [...form.data.variants];
@@ -1638,14 +1763,13 @@ export default function CreateOrEditProductPage({
                                                                         form.setData('variants', updated);
                                                                     }}
                                                                     placeholder="SKU"
+                                                                    className="w-full text-xs font-mono uppercase rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                                                 />
-                                                            </div>
+                                                            </td>
 
-                                                            {/* Price & Stock Fields (5 cols) */}
-                                                            <div className="md:col-span-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                                                <Input
-                                                                    label={`Price (${currency})`}
-                                                                    required
+                                                            {/* Price */}
+                                                            <td className="py-3 px-3">
+                                                                <input
                                                                     type="number"
                                                                     step="0.01"
                                                                     value={String(v.price)}
@@ -1654,9 +1778,14 @@ export default function CreateOrEditProductPage({
                                                                         updated[idx].price = Number(e.target.value);
                                                                         form.setData('variants', updated);
                                                                     }}
+                                                                    placeholder="0.00"
+                                                                    className="w-full text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-right"
                                                                 />
-                                                                <Input
-                                                                    label={`MRP (${currency})`}
+                                                            </td>
+
+                                                            {/* MRP */}
+                                                            <td className="py-3 px-3">
+                                                                <input
                                                                     type="number"
                                                                     step="0.01"
                                                                     value={String(v.mrp || '')}
@@ -1665,10 +1794,14 @@ export default function CreateOrEditProductPage({
                                                                         updated[idx].mrp = e.target.value ? Number(e.target.value) : '';
                                                                         form.setData('variants', updated);
                                                                     }}
+                                                                    placeholder="Optional"
+                                                                    className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-right"
                                                                 />
-                                                                <Input
-                                                                    label="Stock"
-                                                                    required
+                                                            </td>
+
+                                                            {/* Stock */}
+                                                            <td className="py-3 px-3">
+                                                                <input
                                                                     type="number"
                                                                     value={String(v.stock_quantity)}
                                                                     onChange={(e) => {
@@ -1676,9 +1809,13 @@ export default function CreateOrEditProductPage({
                                                                         updated[idx].stock_quantity = Number(e.target.value);
                                                                         form.setData('variants', updated);
                                                                     }}
+                                                                    className="w-full text-xs font-bold text-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                                                 />
-                                                                <Input
-                                                                    label="Min Stock"
+                                                            </td>
+
+                                                            {/* Min Stock */}
+                                                            <td className="py-3 px-3">
+                                                                <input
                                                                     type="number"
                                                                     value={String(v.low_stock_threshold || 5)}
                                                                     onChange={(e) => {
@@ -1686,185 +1823,50 @@ export default function CreateOrEditProductPage({
                                                                         updated[idx].low_stock_threshold = Number(e.target.value);
                                                                         form.setData('variants', updated);
                                                                     }}
+                                                                    className="w-full text-xs text-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-slate-500 dark:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                                                 />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                            </td>
+
+                                                            {/* Active Toggle */}
+                                                            <td className="py-3 px-3 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={v.is_active}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...form.data.variants];
+                                                                        updated[idx].is_active = e.target.checked;
+                                                                        form.setData('variants', updated);
+                                                                    }}
+                                                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                                                                    title={v.is_active ? 'Variant Active' : 'Variant Inactive'}
+                                                                />
+                                                            </td>
+
+                                                            {/* Remove Button */}
+                                                            <td className="py-3 px-2 text-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeVariant(idx)}
+                                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
+                                                                    title="Remove Variant"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
-                                    )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-6 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-400">
+                                    No variant combinations generated yet. Select attributes above and click &ldquo;Generate Combinations&rdquo;.
                                 </div>
                             )}
                         </div>
-
-                        {/* 6. Return & Refund Policies */}
-                        <div
-                            id="sec-policies"
-                            className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4"
-                        >
-                            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-                                <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400">
-                                    <ShieldAlert className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                        Return &amp; Refund Policies
-                                    </h3>
-                                    <span className="text-[11px] text-slate-400">
-                                        Storefront customer assurance notices and replacement guidelines
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Return Policy Terms
-                                    </label>
-                                    <textarea
-                                        value={form.data.return_policy}
-                                        onChange={(e) => form.setData('return_policy', e.target.value)}
-                                        rows={3}
-                                        className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                        Refund Policy Terms
-                                    </label>
-                                    <textarea
-                                        value={form.data.refund_policy}
-                                        onChange={(e) => form.setData('refund_policy', e.target.value)}
-                                        rows={3}
-                                        className="w-full text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-slate-900 dark:text-white"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column: Sidebar Panels */}
-                    <div className="space-y-6">
-                        {/* Status & Visibility Card */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <h3 className="font-bold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
-                                Publishing &amp; Visibility
-                            </h3>
-
-                            <Select
-                                label="Storefront Status"
-                                value={form.data.status}
-                                onChange={(e) => form.setData('status', e.target.value)}
-                                options={statuses}
-                                error={form.errors.status}
-                            />
-                        </div>
-
-                        {/* Taxonomy: Brand & Category */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <h3 className="font-bold text-slate-900 dark:text-white text-sm pb-2 border-b border-slate-100 dark:border-slate-800">
-                                Taxonomy &amp; Grouping
-                            </h3>
-
-                            <Select
-                                label="Product Category"
-                                value={form.data.category_id}
-                                onChange={(e) => form.setData('category_id', e.target.value)}
-                                options={[
-                                    { value: '', label: 'Select Category' },
-                                    ...categories.map((c) => ({
-                                        value: String(c.id),
-                                        label: c.parent ? `${c.parent.name} › ${c.name}` : (c.parent_id ? `— ${c.name}` : c.name),
-                                    })),
-                                ]}
-                                error={form.errors.category_id}
-                                clearable
-                                searchable={categories.length > 5}
-                            />
-
-                            <Select
-                                label="Brand / Manufacturer"
-                                value={form.data.brand_id}
-                                onChange={(e) => form.setData('brand_id', e.target.value)}
-                                options={[
-                                    { value: '', label: 'Select Brand' },
-                                    ...brands.map((b) => ({
-                                        value: String(b.id),
-                                        label: b.name,
-                                    })),
-                                ]}
-                                error={form.errors.brand_id}
-                                clearable
-                                searchable={brands.length > 5}
-                            />
-                        </div>
-
-                        {/* Inventory & Thresholds */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800 text-sm">
-                                <Boxes className="w-4 h-4 text-amber-500" />
-                                <span>Stock &amp; Availability</span>
-                            </div>
-
-                            <Input
-                                label="Total Stock Quantity (Units)"
-                                required
-                                type="number"
-                                min="0"
-                                value={String(form.data.stock_quantity)}
-                                onChange={(e) => form.setData('stock_quantity', Number(e.target.value))}
-                                error={form.errors.stock_quantity}
-                            />
-
-                            <Input
-                                label="Low Stock Warning Threshold"
-                                required
-                                type="number"
-                                min="1"
-                                value={String(form.data.low_stock_threshold)}
-                                onChange={(e) => form.setData('low_stock_threshold', Number(e.target.value))}
-                                error={form.errors.low_stock_threshold}
-                            />
-
-                            <Select
-                                label="Out-of-Stock Display Behavior"
-                                value={form.data.stock_visibility}
-                                onChange={(e) => form.setData('stock_visibility', e.target.value)}
-                                options={stockVisibilities}
-                                error={form.errors.stock_visibility}
-                            />
-                        </div>
-
-                        {/* Geolocation Availability */}
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
-                            <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800 text-sm">
-                                <MapPin className="w-4 h-4 text-rose-500" />
-                                <span>Geographic Availability</span>
-                            </div>
-
-                            <Select
-                                label="Delivery Scope"
-                                value={form.data.location_availability_type}
-                                onChange={(e) => form.setData('location_availability_type', e.target.value)}
-                                options={locationTypes}
-                                error={form.errors.location_availability_type}
-                            />
-
-                            {form.data.location_availability_type === 'radius' && (
-                                <Input
-                                    label="Max Delivery Radius (in Kilometers)"
-                                    type="number"
-                                    step="0.5"
-                                    value={String(form.data.delivery_radius_km)}
-                                    onChange={(e) => form.setData('delivery_radius_km', Number(e.target.value))}
-                                    error={form.errors.delivery_radius_km}
-                                    placeholder="e.g. 25 km from store location"
-                                />
-                            )}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </form>
 
