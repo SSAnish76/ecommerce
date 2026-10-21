@@ -10,6 +10,7 @@ export interface ModalProps {
     children: React.ReactNode;
     footer?: React.ReactNode;
     maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -19,7 +20,8 @@ export const Modal: React.FC<ModalProps> = ({
     description,
     children,
     footer,
-    maxWidth = 'lg',
+    maxWidth,
+    size = 'lg',
 }) => {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -63,7 +65,7 @@ export const Modal: React.FC<ModalProps> = ({
             <div
                 className={cn(
                     'relative w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150',
-                    maxWidths[maxWidth]
+                    maxWidths[maxWidth || size || 'lg']
                 )}
                 role="dialog"
                 aria-modal="true"

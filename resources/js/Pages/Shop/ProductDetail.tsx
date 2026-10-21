@@ -575,7 +575,7 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
 
                                             {/* Attribute values picker */}
                                             <div className="flex flex-wrap gap-2.5">
-                                                {attr.values.map((val) => {
+                                                {attr.values?.map((val) => {
                                                     const isSelected = selectedVal === val.value;
 
                                                     if (attr.type === 'color') {

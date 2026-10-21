@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import { Attribute, AttributeValue, PageProps } from '../../types';
+import { Attribute, PageProps } from '../../types';
+import { slugify } from '../../lib/utils';
 import {
     Button,
     Input,
     Select,
+    SlugInput,
     Badge,
     Modal,
-    PageHeader,
     EmptyState,
 } from '../../Components/UI';
 import {
@@ -23,9 +24,6 @@ import {
     Layers,
     Check,
     X,
-    Sparkles,
-    Hash,
-    HelpCircle,
 } from 'lucide-react';
 
 interface PaginatedAttributes {
@@ -55,13 +53,28 @@ export default function AttributesPage({
     const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('attributes.edit') || true;
     const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('attributes.delete') || true;
 
-    const [search, setSearch] = useState(filters.search || '');
-    const [typeFilter, setTypeFilter] = useState(filters.type || '');
+    const [search, setSearch] = useState(filters?.search || '');
+    const [typeFilter, setTypeFilter] = useState(filters?.type || '');
+
+    useEffect(() => {
+        setSearch(filters?.search || '');
+        setTypeFilter(filters?.type || '');
+    }, [filters?.search, filters?.type]);
 
     // Modals state
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isCreateOpen, setIsCreateOpen] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('create') === '1' || params.get('create') === 'true';
+        }
+        return false;
+    });
     const [editingAttribute, setEditingAttribute] = useState<Attribute | null>(null);
-    const [managingAttribute, setManagingAttribute] = useState<Attribute | null>(null);
+    const [managingAttributeId, setManagingAttributeId] = useState<string | null>(null);
+    const managingAttribute = useMemo(() => {
+        if (!managingAttributeId) return null;
+        return attributes.data.find((a) => a.id === managingAttributeId) || null;
+    }, [managingAttributeId, attributes.data]);
     const [deletingAttribute, setDeletingAttribute] = useState<Attribute | null>(null);
 
     // Create Attribute Form
@@ -104,12 +117,22 @@ export default function AttributesPage({
         router.get(
             '/admin/attributes',
             { search, type: typeFilter },
-            { preserveState: true }
+            { preserveState: true, replace: true }
         );
+    };
+
+    const handleClearFilters = () => {
+        setSearch('');
+        setTypeFilter('');
+        router.get('/admin/attributes', {}, { preserveState: true, replace: true });
     };
 
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        createForm.transform((data) => ({
+            ...data,
+            code: data.code || slugify(data.name),
+        }));
         createForm.post('/admin/attributes', {
             onSuccess: () => {
                 setIsCreateOpen(false);
@@ -121,6 +144,10 @@ export default function AttributesPage({
     const handleEditSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingAttribute) return;
+        editForm.transform((data) => ({
+            ...data,
+            code: data.code || slugify(data.name),
+        }));
         editForm.put(`/admin/attributes/${editingAttribute.id}`, {
             onSuccess: () => {
                 setEditingAttribute(null);
@@ -190,225 +217,282 @@ export default function AttributesPage({
     };
 
     return (
-        <AdminLayout>
+        <AdminLayout
+            title="Attributes"
+            breadcrumbs={[{ label: 'Catalog' }, { label: 'Attributes' }]}
+        >
             <Head title="Product Attributes - Catalog Admin" />
 
             <div className="space-y-6">
-                {/* Header */}
-                <PageHeader
-                    title="Product Attributes"
-                    description="Configure reusable attributes such as Color, Size, RAM, and Storage for dynamic variant combinations."
-                    breadcrumbs={[
-                        { label: 'Admin', href: '/admin/dashboard' },
-                        { label: 'Catalog', href: '/admin/products' },
-                        { label: 'Attributes' },
-                    ]}
-                    action={
-                        canCreate && (
-                            <Button
-                                variant="primary"
-                                leftIcon={<Plus className="w-4 h-4" />}
-                                onClick={() => setIsCreateOpen(true)}
-                                className="shadow-lg shadow-indigo-600/20 font-medium px-4 py-2 text-xs"
-                            >
-                                New Attribute
-                            </Button>
-                        )
-                    }
-                />
-
-                {/* Filter & Search Bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-                    <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-3 w-full">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
+                {/* Filter & View Toolbar */}
+                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row items-center gap-2.5 flex-1 w-full">
+                        <div className="relative flex-1 w-full">
+                            <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search attributes by name or code..."
-                                className="w-full text-xs pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                                rightIcon={
+                                    search ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearch('');
+                                                router.get('/admin/attributes', { type: typeFilter }, { preserveState: true, replace: true });
+                                            }}
+                                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer text-xs"
+                                            title="Clear search"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : undefined
+                                }
+                                className="w-full text-xs"
                             />
                         </div>
 
-                        <select
-                            value={typeFilter}
-                            onChange={(e) => {
-                                setTypeFilter(e.target.value);
-                                router.get(
-                                    '/admin/attributes',
-                                    { search, type: e.target.value },
-                                    { preserveState: true }
-                                );
-                            }}
-                            className="text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">All Display Types</option>
-                            {attributeTypes.map((t) => (
-                                <option key={t.value} value={t.value}>
-                                    {t.label}
-                                </option>
-                            ))}
-                        </select>
+                        {/* Attribute Display Type Filter Dropdown */}
+                        <div className="w-full sm:w-56 shrink-0">
+                            <Select
+                                value={typeFilter}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setTypeFilter(val);
+                                    router.get(
+                                        '/admin/attributes',
+                                        { search, type: val },
+                                        { preserveState: true, replace: true }
+                                    );
+                                }}
+                                options={[
+                                    { value: '', label: 'All Display Types' },
+                                    ...attributeTypes.map((t) => ({
+                                        value: t.value,
+                                        label: t.label,
+                                    })),
+                                ]}
+                            />
+                        </div>
 
                         <Button type="submit" variant="secondary" size="sm" className="hidden sm:inline-flex">
                             Filter
                         </Button>
                     </form>
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
-                        Total: <span className="font-bold text-slate-900 dark:text-white">{attributes.total}</span> attributes
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                            Total: <span className="font-bold text-slate-900 dark:text-white">{attributes.total}</span>
+                        </div>
+                        {canCreate && (
+                            <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                pill
+                                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                                onClick={() => setIsCreateOpen(true)}
+                                className="text-xs px-3.5 py-1.5"
+                            >
+                                Add Attribute
+                            </Button>
+                        )}
                     </div>
                 </div>
 
                 {/* Attributes Grid */}
                 {attributes.data.length === 0 ? (
-                    <EmptyState
-                        icon={<Sliders className="w-10 h-10 text-slate-400" />}
-                        title="No Attributes Configured"
-                        description="Create global attributes like Color, Size, RAM, or Storage to enable product variants."
-                        action={
-                            canCreate && (
-                                <Button variant="primary" size="sm" onClick={() => setIsCreateOpen(true)}>
-                                    Create First Attribute
-                                </Button>
-                            )
-                        }
-                    />
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-8 sm:p-12 text-center shadow-2xs">
+                        <EmptyState
+                            icon={Sliders}
+                            title={search || typeFilter ? 'No attributes found' : 'No Attributes Configured'}
+                            description={
+                                search || typeFilter
+                                    ? 'No attributes match your filter criteria. Try adjusting your search query or display type filter.'
+                                    : 'Create global attributes like Color, Size, RAM, or Storage to enable product variants.'
+                            }
+                            action={
+                                search || typeFilter ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleClearFilters}
+                                        className="shadow-2xs font-semibold rounded-xl whitespace-nowrap"
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                ) : (
+                                    canCreate && (
+                                        <Button variant="primary" size="sm" onClick={() => setIsCreateOpen(true)}>
+                                            Create First Attribute
+                                        </Button>
+                                    )
+                                )
+                            }
+                        />
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {attributes.data.map((attr) => (
-                            <div
-                                key={attr.id}
-                                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 transition-all flex flex-col justify-between group"
-                            >
-                                <div>
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                                {getTypeIcon(attr.type)}
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                                    {attr.name}
-                                                </h3>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className="font-mono text-[11px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                                        {attr.code}
-                                                    </span>
-                                                    <span className="text-[11px] text-slate-400">
-                                                        {getTypeLabel(attr.type)}
-                                                    </span>
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {attributes.data.map((attr) => (
+                                <div
+                                    key={attr.id}
+                                    className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-2xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 transition-all flex flex-col justify-between group"
+                                >
+                                    <div>
+                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                    {getTypeIcon(attr.type)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                                        {attr.name}
+                                                    </h3>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="font-mono text-[11px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                                            {attr.code}
+                                                        </span>
+                                                        <span className="text-[11px] text-slate-400">
+                                                            {getTypeLabel(attr.type)}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            <Badge variant={attr.is_active ? 'success' : 'default'} size="sm">
+                                                {attr.is_active ? 'Active' : 'Inactive'}
+                                            </Badge>
                                         </div>
 
-                                        <Badge variant={attr.is_active ? 'success' : 'default'} size="sm">
-                                            {attr.is_active ? 'Active' : 'Inactive'}
-                                        </Badge>
+                                        {attr.description && (
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">
+                                                {attr.description}
+                                            </p>
+                                        )}
+
+                                        {/* Attribute Values Preview */}
+                                        <div className="space-y-1.5 mb-4">
+                                            <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                                                <span>Configured Values ({attr.values?.length || 0})</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setManagingAttributeId(attr.id)}
+                                                    className="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                                                >
+                                                    Manage All
+                                                </button>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800/80">
+                                                {attr.values && attr.values.length > 0 ? (
+                                                    attr.values.slice(0, 8).map((val) => (
+                                                        <div
+                                                            key={val.id}
+                                                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-3xs text-slate-800 dark:text-slate-200"
+                                                        >
+                                                            {attr.type === 'color' && val.color_code && (
+                                                                <span
+                                                                    className="w-2.5 h-2.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0"
+                                                                    style={{ backgroundColor: val.color_code }}
+                                                                />
+                                                            )}
+                                                            <span>{val.value}</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-[11px] text-slate-400 italic">No values added yet</span>
+                                                )}
+                                                {attr.values && attr.values.length > 8 && (
+                                                    <span className="text-[10px] text-slate-400 self-center font-bold">
+                                                        +{attr.values.length - 8} more
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {attr.description && (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">
-                                            {attr.description}
-                                        </p>
-                                    )}
+                                    {/* Actions Footer */}
+                                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => setManagingAttributeId(attr.id)}
+                                            leftIcon={<Layers className="w-3.5 h-3.5 text-indigo-500" />}
+                                            className="text-xs py-1.5 px-3 rounded-xl"
+                                        >
+                                            Manage Values
+                                        </Button>
 
-                                    {/* Attribute Values Preview */}
-                                    <div className="space-y-1.5 mb-4">
-                                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                                            <span>Configured Values ({attr.values?.length || 0})</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setManagingAttribute(attr)}
-                                                className="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
-                                            >
-                                                Manage All
-                                            </button>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800/80">
-                                            {attr.values && attr.values.length > 0 ? (
-                                                attr.values.slice(0, 8).map((val) => (
-                                                    <div
-                                                        key={val.id}
-                                                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-3xs text-slate-800 dark:text-slate-200"
-                                                    >
-                                                        {attr.type === 'color' && val.color_code && (
-                                                            <span
-                                                                className="w-2.5 h-2.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0"
-                                                                style={{ backgroundColor: val.color_code }}
-                                                            />
-                                                        )}
-                                                        <span>{val.value}</span>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <span className="text-[11px] text-slate-400 italic">No values added yet</span>
+                                        <div className="flex items-center gap-1">
+                                            {canEdit && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setEditingAttribute(attr);
+                                                        editForm.setData({
+                                                            name: attr.name,
+                                                            code: attr.code,
+                                                            type: attr.type,
+                                                            description: attr.description || '',
+                                                            sort_order: attr.sort_order || 0,
+                                                            is_active: attr.is_active,
+                                                        });
+                                                    }}
+                                                    className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-lg"
+                                                    title="Edit Attribute"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </Button>
                                             )}
-                                            {attr.values && attr.values.length > 8 && (
-                                                <span className="text-[10px] text-slate-400 self-center font-bold">
-                                                    +{attr.values.length - 8} more
-                                                </span>
+
+                                            {canDelete && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setDeletingAttribute(attr)}
+                                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                                                    title="Delete Attribute"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
 
-                                {/* Actions Footer */}
-                                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() => setManagingAttribute(attr)}
-                                        leftIcon={<Layers className="w-3.5 h-3.5 text-indigo-500" />}
-                                        className="text-xs py-1.5 px-3 rounded-xl"
-                                    >
-                                        Manage Values
-                                    </Button>
-
-                                    <div className="flex items-center gap-1">
-                                        {canEdit && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setEditingAttribute(attr);
-                                                    editForm.setData({
-                                                        name: attr.name,
-                                                        code: attr.code,
-                                                        type: attr.type,
-                                                        description: attr.description || '',
-                                                        sort_order: attr.sort_order || 0,
-                                                        is_active: attr.is_active,
-                                                    });
-                                                }}
-                                                className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-lg"
-                                                title="Edit Attribute"
-                                            >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                            </Button>
-                                        )}
-
-                                        {canDelete && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeletingAttribute(attr)}
-                                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
-                                                title="Delete Attribute"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                        )}
-                                    </div>
+                        {/* Pagination */}
+                        {attributes.last_page > 1 && (
+                            <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-3 gap-3">
+                                <span>
+                                    Showing {attributes.data.length} of {attributes.total} attributes in catalog
+                                </span>
+                                <div className="flex gap-1.5 flex-wrap justify-center">
+                                    {attributes.links.map((link, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                            disabled={!link.url || link.active}
+                                            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                                                link.active
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                                    : link.url
+                                                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                                    : 'border-transparent text-slate-400 opacity-40 cursor-not-allowed'
+                                            }`}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    ))}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -424,43 +508,36 @@ export default function AttributesPage({
                         label="Attribute Name"
                         required
                         value={createForm.data.name}
-                        onChange={(e) => {
-                            createForm.setData((prev) => ({
-                                ...prev,
-                                name: e.target.value,
-                                code: prev.code || e.target.value.toLowerCase().replace(/\s+/g, '-'),
-                            }));
-                        }}
+                        onChange={(e) => createForm.setData('name', e.target.value)}
                         error={createForm.errors.name}
                         placeholder="e.g. Color, Size, RAM, Storage, Material"
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
+                        <SlugInput
                             label="Attribute Code / Slug"
                             value={createForm.data.code}
-                            onChange={(e) => createForm.setData('code', e.target.value)}
+                            onChange={(slug) => createForm.setData('code', slug)}
+                            sourceValue={createForm.data.name}
+                            autoSync
                             error={createForm.errors.code}
-                            placeholder="e.g. color, shoe-size, ram"
+                            placeholder="auto-generated from attribute name"
                             helperText="Machine-readable unique key used in variants"
                         />
 
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                Display UI Type
-                            </label>
-                            <select
-                                value={createForm.data.type}
-                                onChange={(e) => createForm.setData('type', e.target.value)}
-                                className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                            >
-                                {attributeTypes.map((t) => (
-                                    <option key={t.value} value={t.value}>
-                                        {t.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Display UI Type"
+                            required
+                            value={createForm.data.type}
+                            onChange={(e) =>
+                                createForm.setData(
+                                    'type',
+                                    e.target.value as 'select' | 'color' | 'button' | 'radio'
+                                )
+                            }
+                            options={attributeTypes}
+                            error={createForm.errors.type}
+                        />
                     </div>
 
                     <div>
@@ -573,30 +650,29 @@ export default function AttributesPage({
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                            label="Attribute Code"
+                        <SlugInput
+                            label="Attribute Code / Slug"
                             required
                             value={editForm.data.code}
-                            onChange={(e) => editForm.setData('code', e.target.value)}
+                            onChange={(slug) => editForm.setData('code', slug)}
+                            sourceValue={editForm.data.name}
                             error={editForm.errors.code}
+                            placeholder="auto-generated from attribute name"
                         />
 
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                Display UI Type
-                            </label>
-                            <select
-                                value={editForm.data.type}
-                                onChange={(e) => editForm.setData('type', e.target.value)}
-                                className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 text-slate-900 dark:text-white"
-                            >
-                                {attributeTypes.map((t) => (
-                                    <option key={t.value} value={t.value}>
-                                        {t.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="Display UI Type"
+                            required
+                            value={editForm.data.type}
+                            onChange={(e) =>
+                                editForm.setData(
+                                    'type',
+                                    e.target.value as 'select' | 'color' | 'button' | 'radio'
+                                )
+                            }
+                            options={attributeTypes}
+                            error={editForm.errors.type}
+                        />
                     </div>
 
                     <div>
@@ -638,7 +714,7 @@ export default function AttributesPage({
             {/* Modal: Manage Attribute Values */}
             <Modal
                 isOpen={Boolean(managingAttribute)}
-                onClose={() => setManagingAttribute(null)}
+                onClose={() => setManagingAttributeId(null)}
                 title={`Manage Values: ${managingAttribute?.name || ''}`}
                 size="lg"
             >
@@ -799,7 +875,7 @@ export default function AttributesPage({
                     </div>
 
                     <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <Button type="button" variant="secondary" onClick={() => setManagingAttribute(null)}>
+                        <Button type="button" variant="secondary" onClick={() => setManagingAttributeId(null)}>
                             Close
                         </Button>
                     </div>

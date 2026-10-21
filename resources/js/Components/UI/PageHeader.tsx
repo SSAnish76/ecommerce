@@ -14,6 +14,7 @@ export interface PageHeaderProps {
     badge?: React.ReactNode;
     icon?: React.ReactNode;
     breadcrumbs?: BreadcrumbItem[];
+    action?: React.ReactNode;
     actions?: React.ReactNode;
     className?: string;
 }
@@ -24,9 +25,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     badge,
     icon,
     breadcrumbs,
+    action,
     actions,
     className,
 }) => {
+    const renderActions = actions || action;
     return (
         <div className={cn('space-y-3 mb-6', className)}>
             {breadcrumbs && breadcrumbs.length > 0 && (
@@ -70,7 +73,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                     )}
                 </div>
 
-                {actions && <div className="flex items-center gap-2.5 flex-wrap shrink-0">{actions}</div>}
+                {renderActions && <div className="flex items-center gap-2.5 flex-wrap shrink-0">{renderActions}</div>}
             </div>
         </div>
     );

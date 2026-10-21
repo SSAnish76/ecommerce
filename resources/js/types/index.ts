@@ -291,6 +291,7 @@ export interface Attribute {
     id: string;
     name: string;
     code: string;
+    slug?: string;
     type: 'select' | 'color' | 'button' | 'radio' | string;
     description?: string | null;
     sort_order: number;

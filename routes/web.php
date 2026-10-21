@@ -153,6 +153,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/attributes', [AttributeController::class, 'index'])
             ->middleware('permission:attributes.view')
             ->name('attributes.index');
+        Route::get('/attributes/create', function () {
+            return redirect()->route('admin.attributes.index', ['create' => 1]);
+        })->middleware('permission:attributes.create')
+            ->name('attributes.create');
         Route::post('/attributes', [AttributeController::class, 'store'])
             ->middleware('permission:attributes.create')
             ->name('attributes.store');

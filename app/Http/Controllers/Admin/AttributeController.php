@@ -66,9 +66,14 @@ class AttributeController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if ($request->filled('slug') && ! $request->filled('code')) {
+            $request->merge(['code' => $request->input('slug')]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:100', 'unique:attributes,code'],
+            'slug' => ['nullable', 'string', 'max:100'],
             'type' => ['required', 'string', 'in:select,color,button,radio'],
             'description' => ['nullable', 'string', 'max:500'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -82,7 +87,7 @@ class AttributeController extends Controller
 
         $code = ! empty($validated['code'])
             ? Str::slug($validated['code'])
-            : Str::slug($validated['name']);
+            : (! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']));
 
         $originalCode = $code;
         $counter = 1;
@@ -123,18 +128,27 @@ class AttributeController extends Controller
      */
     public function update(Request $request, Attribute $attribute): RedirectResponse
     {
+        if ($request->filled('slug') && ! $request->filled('code')) {
+            $request->merge(['code' => $request->input('slug')]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:100', Rule::unique('attributes', 'code')->ignore($attribute->id)],
+            'code' => ['nullable', 'string', 'max:100', Rule::unique('attributes', 'code')->ignore($attribute->id)],
+            'slug' => ['nullable', 'string', 'max:100'],
             'type' => ['required', 'string', 'in:select,color,button,radio'],
             'description' => ['nullable', 'string', 'max:500'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
         ]);
 
+        $code = ! empty($validated['code'])
+            ? Str::slug($validated['code'])
+            : (! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']));
+
         $attribute->update([
             'name' => $validated['name'],
-            'code' => Str::slug($validated['code']),
+            'code' => $code,
             'type' => $validated['type'],
             'description' => $validated['description'] ?? null,
             'sort_order' => $validated['sort_order'] ?? 0,

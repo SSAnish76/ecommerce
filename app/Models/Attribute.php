@@ -30,6 +30,23 @@ class Attribute extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'slug',
+    ];
+
+    /**
+     * Get slug alias for code.
+     */
+    public function getSlugAttribute(): string
+    {
+        return (string) ($this->code ?? '');
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

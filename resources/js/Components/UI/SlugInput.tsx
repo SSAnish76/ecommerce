@@ -33,50 +33,93 @@ export const SlugInput: React.FC<SlugInputProps> = ({
     ...rest
 }) => {
     const [isManuallyEdited, setIsManuallyEdited] = useState(false);
-    const lastSourceRef = useRef(sourceValue);
+    const [displayValue, setDisplayValue] = useState<string>(value || '');
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
+    const onGeneratedRef = useRef(onGenerated);
+    onGeneratedRef.current = onGenerated;
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastEmittedValueRef = useRef<string>(value || '');
 
-    // If slug value became empty, re-enable auto-sync
+    // Synchronize displayValue when parent `value` prop changes externally (e.g. form reset, modal open)
     useEffect(() => {
-        if (!value && isManuallyEdited) {
-            setIsManuallyEdited(false);
+        if (value !== lastEmittedValueRef.current) {
+            setDisplayValue(value || '');
+            lastEmittedValueRef.current = value || '';
+            if (!value) {
+                setIsManuallyEdited(false);
+            }
         }
-    }, [value, isManuallyEdited]);
+    }, [value]);
 
-    // Automatic real-time sync when sourceValue (e.g. name / title) changes
+    // Handle auto-sync from sourceValue smoothly without race condition flickering
     useEffect(() => {
         if (!autoSync || isManuallyEdited || sourceValue === undefined) {
             return;
         }
 
-        // Only run when sourceValue actually changed
-        if (lastSourceRef.current !== sourceValue) {
-            lastSourceRef.current = sourceValue;
-            const generated = slugify(sourceValue);
-            if (value !== generated) {
-                onChange(generated);
-                if (onGenerated) onGenerated(generated);
-            }
+        const generated = slugify(sourceValue);
+
+        // 1. Instantly update local UI display so it never flickers, clears, or lags
+        setDisplayValue(generated);
+
+        // 2. Debounce emitting to parent Inertia form to avoid state update collisions with rapid keystrokes
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
         }
-    }, [sourceValue, autoSync, isManuallyEdited, value, onChange, onGenerated]);
+
+        debounceTimerRef.current = setTimeout(() => {
+            if (lastEmittedValueRef.current !== generated) {
+                lastEmittedValueRef.current = generated;
+                onChangeRef.current(generated);
+                if (onGeneratedRef.current) {
+                    onGeneratedRef.current(generated);
+                }
+            }
+        }, 90);
+
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, [sourceValue, autoSync, isManuallyEdited]);
 
     const handleGenerate = () => {
         setIsManuallyEdited(false);
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
         if (!sourceValue) return;
         const generated = slugify(sourceValue);
-        onChange(generated);
-        if (onGenerated) onGenerated(generated);
+        setDisplayValue(generated);
+        lastEmittedValueRef.current = generated;
+        onChangeRef.current(generated);
+        if (onGeneratedRef.current) {
+            onGeneratedRef.current(generated);
+        }
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setIsManuallyEdited(true);
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
         const raw = e.target.value.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-        onChange(raw);
+        setDisplayValue(raw);
+        lastEmittedValueRef.current = raw;
+        onChangeRef.current(raw);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
         const cleaned = slugify(e.target.value);
-        if (cleaned !== e.target.value) {
-            onChange(cleaned);
+        setDisplayValue(cleaned);
+        if (lastEmittedValueRef.current !== cleaned) {
+            lastEmittedValueRef.current = cleaned;
+            onChangeRef.current(cleaned);
         }
     };
 
@@ -111,7 +154,7 @@ export const SlugInput: React.FC<SlugInputProps> = ({
                 )}
                 <Input
                     {...rest}
-                    value={value}
+                    value={displayValue}
                     onChange={handleInputChange}
                     onBlur={handleBlur}
                     placeholder={placeholder}
