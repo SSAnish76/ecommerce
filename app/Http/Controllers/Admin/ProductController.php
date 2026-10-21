@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Product\DiscountType;
 use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
@@ -108,6 +109,7 @@ class ProductController extends Controller
             'statuses' => ProductStatus::options(),
             'stockVisibilities' => StockVisibility::options(),
             'locationTypes' => LocationAvailabilityType::options(),
+            'discountTypes' => DiscountType::options(),
         ]);
     }
 
@@ -128,6 +130,8 @@ class ProductController extends Controller
             'mrp' => ['required', 'numeric', 'min:0'],
             'retail_price' => ['required', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
+            'discount_type' => ['nullable', 'string', Rule::enum(DiscountType::class)],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'discount_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'stock_quantity' => ['required', 'integer', 'min:0'],
             'low_stock_threshold' => ['required', 'integer', 'min:0'],
@@ -234,6 +238,8 @@ class ProductController extends Controller
                 'mrp' => $validated['mrp'],
                 'retail_price' => $validated['retail_price'],
                 'sale_price' => $validated['sale_price'] ?? null,
+                'discount_type' => $validated['discount_type'] ?? DiscountType::Percentage->value,
+                'discount_amount' => $validated['discount_amount'] ?? null,
                 'discount_percentage' => $validated['discount_percentage'] ?? null,
                 'stock_quantity' => $totalStock,
                 'low_stock_threshold' => $validated['low_stock_threshold'],
@@ -325,6 +331,7 @@ class ProductController extends Controller
             'statuses' => ProductStatus::options(),
             'stockVisibilities' => StockVisibility::options(),
             'locationTypes' => LocationAvailabilityType::options(),
+            'discountTypes' => DiscountType::options(),
         ]);
     }
 
@@ -345,6 +352,8 @@ class ProductController extends Controller
             'mrp' => ['required', 'numeric', 'min:0'],
             'retail_price' => ['required', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
+            'discount_type' => ['nullable', 'string', Rule::enum(DiscountType::class)],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'discount_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'stock_quantity' => ['required', 'integer', 'min:0'],
             'low_stock_threshold' => ['required', 'integer', 'min:0'],
@@ -445,6 +454,8 @@ class ProductController extends Controller
                 'mrp' => $validated['mrp'],
                 'retail_price' => $validated['retail_price'],
                 'sale_price' => $validated['sale_price'] ?? null,
+                'discount_type' => $validated['discount_type'] ?? ($product->discount_type?->value ?? DiscountType::Percentage->value),
+                'discount_amount' => $validated['discount_amount'] ?? null,
                 'discount_percentage' => $validated['discount_percentage'] ?? null,
                 'stock_quantity' => $totalStock,
                 'low_stock_threshold' => $validated['low_stock_threshold'],

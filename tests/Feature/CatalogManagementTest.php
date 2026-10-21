@@ -101,6 +101,7 @@ class CatalogManagementTest extends TestCase
             'mrp' => 149.99,
             'retail_price' => 129.99,
             'sale_price' => 99.99,
+            'discount_type' => 'percentage',
             'discount_percentage' => 33.33,
             'stock_quantity' => 50,
             'low_stock_threshold' => 10,
@@ -118,9 +119,35 @@ class CatalogManagementTest extends TestCase
         $response->assertRedirect('/admin/products');
         $response->assertSessionHas('success');
 
-        $this->assertDatabaseHas('products', ['sku' => 'KEY-MECH-RGB']);
+        $this->assertDatabaseHas('products', [
+            'sku' => 'KEY-MECH-RGB',
+            'discount_type' => 'percentage',
+        ]);
         $this->assertDatabaseHas('product_images', ['alt_text' => 'Keyboard Front', 'is_primary' => true]);
         $this->assertDatabaseHas('product_variants', ['sku' => 'KEY-MECH-RED']);
+    }
+
+    public function test_admin_can_create_product_with_fixed_discount_type(): void
+    {
+        $response = $this->actingAs($this->adminUser)->post('/admin/products', [
+            'name' => 'Fixed Discount Wireless Mouse',
+            'sku' => 'MOUSE-WL-FIXED',
+            'mrp' => 80.00,
+            'retail_price' => 60.00,
+            'discount_type' => 'fixed',
+            'discount_amount' => 20.00,
+            'discount_percentage' => 25.00,
+            'stock_quantity' => 30,
+            'low_stock_threshold' => 5,
+            'status' => 'active',
+        ]);
+
+        $response->assertRedirect('/admin/products');
+        $this->assertDatabaseHas('products', [
+            'sku' => 'MOUSE-WL-FIXED',
+            'discount_type' => 'fixed',
+            'discount_amount' => 20.00,
+        ]);
     }
 
     public function test_admin_can_view_inventory_and_update_stock(): void

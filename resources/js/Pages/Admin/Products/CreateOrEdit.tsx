@@ -103,6 +103,7 @@ interface CreateOrEditProps {
     statuses: { value: string; label: string }[];
     stockVisibilities: { value: string; label: string }[];
     locationTypes: { value: string; label: string }[];
+    discountTypes?: { value: string; label: string }[];
 }
 
 export default function CreateOrEditProductPage({
@@ -113,6 +114,7 @@ export default function CreateOrEditProductPage({
     statuses,
     stockVisibilities,
     locationTypes,
+    discountTypes = [{ value: 'percentage', label: 'Percentage (%)' }],
 }: CreateOrEditProps) {
     const isEdit = Boolean(product);
     const { store } = usePage<PageProps>().props;
@@ -131,6 +133,8 @@ export default function CreateOrEditProductPage({
         mrp: product?.mrp ?? 0,
         retail_price: product?.retail_price ?? 0,
         sale_price: product?.sale_price ?? '',
+        discount_type: product?.discount_type || 'percentage',
+        discount_amount: product?.discount_amount ?? '',
         discount_percentage: product?.discount_percentage ?? '',
         stock_quantity: product?.stock_quantity ?? 0,
         low_stock_threshold: product?.low_stock_threshold ?? 5,
@@ -588,10 +592,15 @@ export default function CreateOrEditProductPage({
         form.setData((prev) => {
             const mrp = Number(prev.mrp);
             let discount = prev.discount_percentage;
+            let discountAmt = prev.discount_amount;
             if (mrp > 0 && val > 0 && mrp > val) {
                 discount = Number((((mrp - val) / mrp) * 100).toFixed(2));
+                discountAmt = Number((mrp - val).toFixed(2));
+            } else if (val >= mrp) {
+                discount = '';
+                discountAmt = '';
             }
-            return { ...prev, retail_price: val, discount_percentage: discount };
+            return { ...prev, retail_price: val, discount_percentage: discount, discount_amount: discountAmt };
         });
     };
 
@@ -599,10 +608,43 @@ export default function CreateOrEditProductPage({
         form.setData((prev) => {
             const retail = Number(prev.retail_price);
             let discount = prev.discount_percentage;
+            let discountAmt = prev.discount_amount;
             if (val > 0 && retail > 0 && val > retail) {
                 discount = Number((((val - retail) / val) * 100).toFixed(2));
+                discountAmt = Number((val - retail).toFixed(2));
+            } else if (retail >= val) {
+                discount = '';
+                discountAmt = '';
             }
-            return { ...prev, mrp: val, discount_percentage: discount };
+            return { ...prev, mrp: val, discount_percentage: discount, discount_amount: discountAmt };
+        });
+    };
+
+    const handleDiscountValueChange = (val: string) => {
+        form.setData((prev) => {
+            const mrp = Number(prev.mrp);
+            const isFixed = prev.discount_type === 'fixed';
+            if (val === '') {
+                return { ...prev, discount_percentage: '', discount_amount: '' };
+            }
+            const num = Number(val);
+            if (isNaN(num)) return prev;
+
+            if (isFixed) {
+                const pct = mrp > 0 ? Number(((num / mrp) * 100).toFixed(2)) : '';
+                return {
+                    ...prev,
+                    discount_amount: num,
+                    discount_percentage: pct,
+                };
+            } else {
+                const amt = mrp > 0 ? Number(((mrp * num) / 100).toFixed(2)) : '';
+                return {
+                    ...prev,
+                    discount_percentage: num,
+                    discount_amount: amt,
+                };
+            }
         });
     };
 
@@ -863,7 +905,7 @@ export default function CreateOrEditProductPage({
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                                 <Input
                                     label={`MRP (${currency})`}
                                     required
@@ -899,15 +941,24 @@ export default function CreateOrEditProductPage({
                                     helperText="Flash promo or special rate"
                                 />
 
+                                <Select
+                                    label="Discount Type"
+                                    value={form.data.discount_type || 'percentage'}
+                                    onChange={(e) => form.setData('discount_type', e.target.value)}
+                                    options={discountTypes}
+                                    error={form.errors.discount_type}
+                                    helperText="Percentage or Fixed reduction"
+                                />
+
                                 <Input
-                                    label="Discount %"
+                                    label={form.data.discount_type === 'fixed' ? `Discount Amount (${currency})` : 'Discount %'}
                                     type="number"
-                                    step="0.1"
-                                    value={String(form.data.discount_percentage)}
-                                    onChange={(e) => form.setData('discount_percentage', e.target.value ? Number(e.target.value) : '')}
-                                    error={form.errors.discount_percentage}
-                                    placeholder="Auto-calculated"
-                                    helperText="Badge shown on card"
+                                    step={form.data.discount_type === 'fixed' ? '0.01' : '0.1'}
+                                    value={String(form.data.discount_type === 'fixed' ? (form.data.discount_amount ?? '') : (form.data.discount_percentage ?? ''))}
+                                    onChange={(e) => handleDiscountValueChange(e.target.value)}
+                                    error={form.data.discount_type === 'fixed' ? form.errors.discount_amount : form.errors.discount_percentage}
+                                    placeholder={form.data.discount_type === 'fixed' ? '0.00' : '0.0'}
+                                    helperText={form.data.discount_type === 'fixed' ? `Flat ${currency} savings off MRP` : 'Badge shown on card (%)'}
                                 />
                             </div>
                         </div>

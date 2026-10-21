@@ -739,16 +739,16 @@ export default function AttributesPage({
                                 value={addValueForm.data.value}
                                 onChange={(e) => addValueForm.setData('value', e.target.value)}
                                 placeholder="Value text (e.g. 512GB, Navy Blue)"
-                                className="flex-1 w-full text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-slate-900 dark:text-white"
+                                className="flex-1 w-full h-10 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                             />
 
                             {managingAttribute?.type === 'color' && (
-                                <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                                <div className="flex items-center gap-2 h-10 bg-white dark:bg-slate-900 px-3 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
                                     <input
                                         type="color"
                                         value={addValueForm.data.color_code || '#3b82f6'}
                                         onChange={(e) => addValueForm.setData('color_code', e.target.value)}
-                                        className="w-7 h-7 rounded-lg cursor-pointer border-0 bg-transparent"
+                                        className="w-6 h-6 rounded-lg cursor-pointer border-0 bg-transparent"
                                         title="Pick Hex Color"
                                     />
                                     <span className="text-xs font-mono text-slate-600 dark:text-slate-300">
@@ -761,10 +761,10 @@ export default function AttributesPage({
                                 type="submit"
                                 variant="primary"
                                 size="sm"
+                                leftIcon={<Plus className="w-3.5 h-3.5" />}
                                 disabled={addValueForm.processing}
-                                className="w-full sm:w-auto text-xs py-2.5 px-4 rounded-xl shrink-0"
+                                className="h-10 px-4 font-semibold rounded-xl shadow-xs shadow-indigo-600/20 whitespace-nowrap shrink-0"
                             >
-                                <Plus className="w-3.5 h-3.5" />
                                 Add Value
                             </Button>
                         </div>

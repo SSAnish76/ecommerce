@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Product\DiscountType;
 use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
@@ -39,6 +40,8 @@ class Product extends Model
         'mrp',
         'retail_price',
         'sale_price',
+        'discount_type',
+        'discount_amount',
         'discount_percentage',
         'stock_quantity',
         'low_stock_threshold',
@@ -63,6 +66,8 @@ class Product extends Model
             'mrp' => 'decimal:2',
             'retail_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
+            'discount_type' => DiscountType::class,
+            'discount_amount' => 'decimal:2',
             'discount_percentage' => 'decimal:2',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',

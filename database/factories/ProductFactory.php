@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\Product\DiscountType;
 use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
@@ -50,6 +51,8 @@ class ProductFactory extends Factory
             'mrp' => $mrp,
             'retail_price' => $retailPrice,
             'sale_price' => $salePrice,
+            'discount_type' => DiscountType::Percentage,
+            'discount_amount' => $salePrice ? round($mrp - $salePrice, 2) : null,
             'discount_percentage' => $discount,
             'stock_quantity' => fake()->numberBetween(0, 150),
             'low_stock_threshold' => 10,

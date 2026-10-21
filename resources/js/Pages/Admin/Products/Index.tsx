@@ -395,10 +395,12 @@ export default function ProductsIndexPage({
                                             </div>
 
                                             {/* Discount Pill if available */}
-                                            {prod.discount_percentage ? (
+                                            {prod.discount_percentage || prod.discount_amount ? (
                                                 <div className="absolute top-2.5 right-2.5">
                                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-2xs">
-                                                        {prod.discount_percentage}% OFF
+                                                        {prod.discount_type === 'fixed' && prod.discount_amount
+                                                            ? `${currency}${Number(prod.discount_amount).toFixed(2)} OFF`
+                                                            : `${prod.discount_percentage}% OFF`}
                                                     </span>
                                                 </div>
                                             ) : null}

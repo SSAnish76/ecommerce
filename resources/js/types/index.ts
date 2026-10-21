@@ -336,6 +336,8 @@ export interface Product {
     mrp: number | string;
     retail_price: number | string;
     sale_price?: number | string | null;
+    discount_type?: 'percentage' | 'fixed' | string | null;
+    discount_amount?: number | string | null;
     discount_percentage?: number | string | null;
     stock_quantity: number;
     low_stock_threshold: number;
