@@ -89,6 +89,11 @@ export const Modal: React.FC<ModalProps> = ({
     const headingId = useId();
     const descId = useId();
 
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+    const closeOnEscapeRef = useRef(closeOnEscape);
+    closeOnEscapeRef.current = closeOnEscape;
+
     useEffect(() => {
         if (!isOpen) return;
 
@@ -98,9 +103,14 @@ export const Modal: React.FC<ModalProps> = ({
         // 2. Lock scrolling globally
         lockScroll();
 
-        // 3. Focus into modal on mount
+        // 3. Focus into modal on mount only if focus is not already inside
         const timer = setTimeout(() => {
             if (!dialogRef.current) return;
+
+            // Do not steal focus if an element inside the dialog is already focused
+            if (dialogRef.current.contains(document.activeElement)) {
+                return;
+            }
 
             // Check if there is an element with explicit autofocus
             const autoFocusEl = dialogRef.current.querySelector<HTMLElement>('[autofocus], [data-autofocus]');
@@ -125,14 +135,14 @@ export const Modal: React.FC<ModalProps> = ({
             } else {
                 dialogRef.current.focus();
             }
-        }, 30);
+        }, 50);
 
         // 4. Trap Tab and Shift+Tab key navigation inside modal, handle Escape
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && closeOnEscape) {
+            if (e.key === 'Escape' && closeOnEscapeRef.current) {
                 e.preventDefault();
                 e.stopPropagation();
-                onClose();
+                onCloseRef.current();
                 return;
             }
 
@@ -174,30 +184,11 @@ export const Modal: React.FC<ModalProps> = ({
             }
         };
 
-        // 5. Global focus containment: if focus somehow escapes outside modal, redirect it back
-        const handleFocusIn = (e: FocusEvent) => {
-            if (!dialogRef.current) return;
-            if (e.target && !dialogRef.current.contains(e.target as Node)) {
-                e.preventDefault();
-                const focusables = Array.from(
-                    dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-                ).filter(isElementVisible);
-
-                if (focusables.length > 0) {
-                    focusables[0].focus();
-                } else {
-                    dialogRef.current.focus();
-                }
-            }
-        };
-
         window.addEventListener('keydown', handleKeyDown);
-        document.addEventListener('focusin', handleFocusIn);
 
         return () => {
             clearTimeout(timer);
             window.removeEventListener('keydown', handleKeyDown);
-            document.removeEventListener('focusin', handleFocusIn);
 
             // Unlock scrolling globally
             unlockScroll();
@@ -216,7 +207,7 @@ export const Modal: React.FC<ModalProps> = ({
                 }, 0);
             }
         };
-    }, [isOpen, onClose, closeOnEscape]);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 

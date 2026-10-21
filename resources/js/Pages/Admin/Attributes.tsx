@@ -132,6 +132,13 @@ export default function AttributesPage({
         createForm.transform((data) => ({
             ...data,
             code: data.code || slugify(data.name),
+            values: (data.values || [])
+                .filter((v) => v.value && v.value.trim().length > 0)
+                .map((v) => ({
+                    ...v,
+                    value: v.value.trim(),
+                    label: v.label?.trim() || v.value.trim(),
+                })),
         }));
         createForm.post('/admin/attributes', {
             onSuccess: () => {

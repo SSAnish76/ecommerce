@@ -70,6 +70,13 @@ class AttributeController extends Controller
             $request->merge(['code' => $request->input('slug')]);
         }
 
+        if ($request->has('values') && is_array($request->input('values'))) {
+            $filteredValues = array_values(array_filter($request->input('values'), function ($val): bool {
+                return is_array($val) && isset($val['value']) && trim((string) $val['value']) !== '';
+            }));
+            $request->merge(['values' => $filteredValues]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:100', 'unique:attributes,code'],
