@@ -155,6 +155,26 @@ class Product extends Model
     }
 
     /**
+     * Collections this product belongs to.
+     *
+     * @return BelongsToMany<Collection, $this>
+     */
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'collection_product', 'product_id', 'collection_id');
+    }
+
+    /**
+     * Coupons specifically applicable to this product.
+     *
+     * @return BelongsToMany<Coupon, $this>
+     */
+    public function coupons(): BelongsToMany
+    {
+        return $this->belongsToMany(Coupon::class, 'coupon_product', 'product_id', 'coupon_id');
+    }
+
+    /**
      * Scope a query to only include active products.
      *
      * @param  Builder<Product>  $query

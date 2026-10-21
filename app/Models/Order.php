@@ -25,6 +25,8 @@ class Order extends Model
         'customer_phone',
         'shipping_address',
         'subtotal',
+        'coupon_code',
+        'discount_amount',
         'tax',
         'shipping_fee',
         'total',
@@ -69,6 +71,7 @@ class Order extends Model
     {
         return [
             'subtotal' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'tax' => 'decimal:2',
             'shipping_fee' => 'decimal:2',
             'total' => 'decimal:2',
@@ -83,6 +86,26 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Coupon used in this order.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<Coupon, $this>
+     */
+    public function coupon(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Coupon::class, 'coupon_code', 'code');
+    }
+
+    /**
+     * Coupon usage record for this order.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<CouponUsage, $this>
+     */
+    public function couponUsage(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(CouponUsage::class);
     }
 
     /**

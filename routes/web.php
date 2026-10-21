@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Admin\Auth\TwoFactorManagementController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CollectionController;
+use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
@@ -179,6 +181,23 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->middleware('permission:attributes.create')
             ->name('attributes.quick-value');
 
+        // Catalog: Collections Management
+        Route::get('/collections', [CollectionController::class, 'index'])
+            ->middleware('permission:collections.view')
+            ->name('collections.index');
+        Route::post('/collections', [CollectionController::class, 'store'])
+            ->middleware('permission:collections.create')
+            ->name('collections.store');
+        Route::put('/collections/{collection}', [CollectionController::class, 'update'])
+            ->middleware('permission:collections.edit')
+            ->name('collections.update');
+        Route::delete('/collections/{collection}', [CollectionController::class, 'destroy'])
+            ->middleware('permission:collections.delete')
+            ->name('collections.destroy');
+        Route::patch('/collections/{collection}/toggle-status', [CollectionController::class, 'toggleStatus'])
+            ->middleware('permission:collections.edit')
+            ->name('collections.toggle-status');
+
         // Sales: Orders Management
         Route::get('/orders', [OrderController::class, 'index'])
             ->middleware('permission:orders.view')
@@ -186,6 +205,26 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])
             ->middleware('permission:orders.edit')
             ->name('orders.update-status');
+
+        // Sales: Coupons & Deals Management
+        Route::get('/coupons', [CouponController::class, 'index'])
+            ->middleware('permission:coupons.view')
+            ->name('coupons.index');
+        Route::post('/coupons', [CouponController::class, 'store'])
+            ->middleware('permission:coupons.create')
+            ->name('coupons.store');
+        Route::put('/coupons/{coupon}', [CouponController::class, 'update'])
+            ->middleware('permission:coupons.edit')
+            ->name('coupons.update');
+        Route::delete('/coupons/{coupon}', [CouponController::class, 'destroy'])
+            ->middleware('permission:coupons.delete')
+            ->name('coupons.destroy');
+        Route::patch('/coupons/{coupon}/toggle-status', [CouponController::class, 'toggleStatus'])
+            ->middleware('permission:coupons.edit')
+            ->name('coupons.toggle-status');
+        Route::post('/coupons/test', [CouponController::class, 'test'])
+            ->middleware('permission:coupons.view')
+            ->name('coupons.test');
 
         // Analytics
         Route::get('/analytics', function () {
@@ -245,5 +284,6 @@ Route::get('/media/download/{mediaFile}', [MediaController::class, 'download'])-
 Route::get('/product/{product:slug}', [ShopController::class, 'show'])->name('shop.product');
 Route::get('/products/{product:slug}', [ShopController::class, 'show']);
 Route::post('/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
+Route::post('/coupon/validate', [ShopController::class, 'validateCoupon'])->name('shop.coupon.validate');
 
 

@@ -381,6 +381,8 @@ export interface Order {
     customer_phone?: string | null;
     shipping_address: string;
     subtotal: number | string;
+    coupon_code?: string | null;
+    discount_amount?: number | string;
     tax: number | string;
     shipping_fee: number | string;
     total: number | string;
@@ -391,5 +393,67 @@ export interface Order {
     items?: OrderItem[];
     created_at?: string;
     updated_at?: string;
+}
+
+export type CollectionType = 'product' | 'brand' | 'category';
+
+export interface Collection {
+    id: string;
+    name: string;
+    slug: string;
+    type: CollectionType;
+    description?: string | null;
+    image_id?: string | null;
+    image_url?: string | null;
+    is_active: boolean;
+    sort_order?: number;
+    products_count?: number;
+    brands_count?: number;
+    categories_count?: number;
+    products?: Product[];
+    brands?: Brand[];
+    categories?: Category[];
+    created_at?: string;
+    updated_at?: string;
+}
+
+export type CouponType = 'percentage' | 'fixed';
+export type CouponApplyTo = 'all' | 'products' | 'categories' | 'collections';
+export type CouponStatus = 'active' | 'inactive' | 'expired' | 'scheduled' | 'exhausted';
+
+export interface Coupon {
+    id: string;
+    code: string;
+    name: string;
+    description?: string | null;
+    type: CouponType;
+    value: number | string;
+    min_order_amount?: number | string | null;
+    max_discount_amount?: number | string | null;
+    applies_to: CouponApplyTo;
+    usage_limit?: number | null;
+    usage_limit_per_customer?: number | null;
+    times_used: number;
+    starts_at?: string | null;
+    expires_at?: string | null;
+    is_active: boolean;
+    status_badge?: CouponStatus;
+    products?: Product[];
+    categories?: Category[];
+    collections?: Collection[];
+    usages_count?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface CouponUsage {
+    id: string;
+    coupon_id: string;
+    order_id?: string | null;
+    customer_email: string;
+    discount_amount: number | string;
+    used_at: string;
+    coupon?: Coupon;
+    order?: Order;
 }
 

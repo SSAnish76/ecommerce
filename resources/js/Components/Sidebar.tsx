@@ -22,6 +22,7 @@ import {
     ShoppingCart,
     TicketPercent,
     Sliders,
+    Layers,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -51,6 +52,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     UserCheck,
     TicketPercent,
     Sliders,
+    Layers,
     Users,
     Shield,
     Store: StoreIcon,

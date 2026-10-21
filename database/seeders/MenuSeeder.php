@@ -113,6 +113,18 @@ class MenuSeeder extends Seeder
                 'is_import_export' => false,
                 'status' => MenuStatus::Active,
             ],
+            [
+                'slug' => 'collections',
+                'parent_slug' => 'catalog',
+                'name' => 'Collections',
+                'description' => 'Curated product groupings (Trending, Most Viewed, Seasonal)',
+                'href' => '/admin/collections',
+                'icon' => 'Layers',
+                'sort_order' => 'B07',
+                'is_crud' => true,
+                'is_import_export' => false,
+                'status' => MenuStatus::Active,
+            ],
 
             // 3. Sales & Fulfillment (Root) & Children
             [

@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
+use App\Services\CouponService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,9 @@ use Inertia\Response;
 
 class ShopController extends Controller
 {
+    public function __construct(
+        protected CouponService $couponService
+    ) {}
     /**
      * Display the dynamic customer product detail page with reactive variant selection.
      */
@@ -72,6 +76,7 @@ class ShopController extends Controller
             'shipping_address' => ['required', 'string', 'max:1000'],
             'payment_method' => ['required', 'string', 'in:cod,card,wire'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'coupon_code' => ['nullable', 'string', 'max:50'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'string', 'exists:products,id'],
             'items.*.product_variant_id' => ['nullable', 'string', 'exists:product_variants,id'],
@@ -164,9 +169,30 @@ class ShopController extends Controller
                     }
                 }
 
+                // Coupon Discount Processing
+                $couponCode = ! empty($validated['coupon_code']) ? strtoupper(trim($validated['coupon_code'])) : null;
+                $discountAmount = 0.0;
+                $applicableCoupon = null;
+
+                if ($couponCode !== null) {
+                    $couponResult = $this->couponService->validate(
+                        $couponCode,
+                        $subtotal,
+                        $processedItems,
+                        $validated['customer_email']
+                    );
+
+                    if (! $couponResult['valid']) {
+                        throw new \RuntimeException($couponResult['message']);
+                    }
+
+                    $discountAmount = $couponResult['discount'];
+                    $applicableCoupon = $couponResult['coupon'] ?? null;
+                }
+
                 $tax = 0.0;
                 $shippingFee = 0.0;
-                $total = round($subtotal + $tax + $shippingFee, 2);
+                $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
 
                 $orderNumber = 'ORD-' . strtoupper(Str::random(8));
 
@@ -177,6 +203,8 @@ class ShopController extends Controller
                     'customer_phone' => $validated['customer_phone'] ?? null,
                     'shipping_address' => $validated['shipping_address'],
                     'subtotal' => $subtotal,
+                    'coupon_code' => $couponCode,
+                    'discount_amount' => $discountAmount,
                     'tax' => $tax,
                     'shipping_fee' => $shippingFee,
                     'total' => $total,
@@ -189,6 +217,10 @@ class ShopController extends Controller
                 foreach ($processedItems as $item) {
                     $item['order_id'] = $order->id;
                     OrderItem::create($item);
+                }
+
+                if ($applicableCoupon !== null && $discountAmount > 0) {
+                    $this->couponService->recordUsage($applicableCoupon, $order, $discountAmount, $validated['customer_email']);
                 }
 
                 return $order->load('items');
@@ -227,5 +259,37 @@ class ShopController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    /**
+     * Validate coupon code for storefront checkout.
+     */
+    public function validateCoupon(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string'],
+            'subtotal' => ['required', 'numeric', 'min:0'],
+            'items' => ['nullable', 'array'],
+            'customer_email' => ['nullable', 'email'],
+        ]);
+
+        $result = $this->couponService->validate(
+            $validated['code'],
+            (float) $validated['subtotal'],
+            $validated['items'] ?? [],
+            $validated['customer_email'] ?? null
+        );
+
+        return response()->json([
+            'success' => $result['valid'],
+            'discount' => $result['discount'],
+            'message' => $result['message'],
+            'coupon' => $result['valid'] && isset($result['coupon']) ? [
+                'code' => $result['coupon']->code,
+                'name' => $result['coupon']->name,
+                'type' => $result['coupon']->type->value,
+                'value' => $result['coupon']->value,
+            ] : null,
+        ], $result['valid'] ? 200 : 422);
     }
 }
