@@ -26,6 +26,7 @@ import {
     Bell,
     Wallet,
     Banknote,
+    Zap,
     Eye,
     EyeOff,
     Mail,
@@ -60,6 +61,7 @@ interface SettingsProps extends PageProps {
         payment_cod_enabled: boolean;
         payment_stripe_enabled: boolean;
         payment_paypal_enabled: boolean;
+        payment_razorpay_enabled?: boolean;
 
         mail_host?: string;
         mail_port?: number;
@@ -110,6 +112,8 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
     const [showStripeSecret, setShowStripeSecret] = useState<boolean>(false);
     const [showStripeWebhookSecret, setShowStripeWebhookSecret] = useState<boolean>(false);
     const [showPaypalSecret, setShowPaypalSecret] = useState<boolean>(false);
+    const [showRazorpaySecret, setShowRazorpaySecret] = useState<boolean>(false);
+    const [showRazorpayWebhookSecret, setShowRazorpayWebhookSecret] = useState<boolean>(false);
     const [showS3Secret, setShowS3Secret] = useState<boolean>(false);
     const [showCarrierSecret, setShowCarrierSecret] = useState<boolean>(false);
 
@@ -133,6 +137,10 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         payment_cod_enabled: settings?.payment_cod_enabled ?? true,
         payment_stripe_enabled: settings?.payment_stripe_enabled ?? true,
         payment_paypal_enabled: settings?.payment_paypal_enabled ?? true,
+        payment_razorpay_enabled:
+            settings?.payment_razorpay_enabled ??
+            (settings as any)?.payment_settings?.razorpay?.enabled ??
+            false,
 
         // Payment Gateway Credentials
         payment_stripe_publishable_key: (settings as any)?.payment_settings?.stripe?.publishable_key ?? '',
@@ -141,6 +149,9 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         payment_paypal_mode: (settings as any)?.payment_settings?.paypal?.mode ?? 'sandbox',
         payment_paypal_client_id: (settings as any)?.payment_settings?.paypal?.client_id ?? '',
         payment_paypal_client_secret: (settings as any)?.payment_settings?.paypal?.client_secret ?? '',
+        payment_razorpay_key_id: (settings as any)?.payment_settings?.razorpay?.key_id ?? '',
+        payment_razorpay_key_secret: (settings as any)?.payment_settings?.razorpay?.key_secret ?? '',
+        payment_razorpay_webhook_secret: (settings as any)?.payment_settings?.razorpay?.webhook_secret ?? '',
         payment_cod_instructions: (settings as any)?.payment_settings?.cod?.instructions ?? '',
 
         // Storage Settings
@@ -229,6 +240,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
     };
 
     const activePaymentCount = [
+        form.data.payment_razorpay_enabled,
         form.data.payment_stripe_enabled,
         form.data.payment_paypal_enabled,
         form.data.payment_cod_enabled,
@@ -236,7 +248,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
 
     interface SettingListItem {
         id: string;
-        category: 'store' | 'orders' | 'inventory' | 'payments' | 'shipping' | 'storage' | 'notifications';
+        category: 'store' | 'orders' | 'inventory' | 'payments' | 'storage' | 'notifications';
         categoryLabel: string;
         title: string;
         description: string;
@@ -441,238 +453,399 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         {
             id: 'payments',
             category: 'payments',
-            categoryLabel: 'Payments',
-            title: 'Payment Gateways & Methods',
-            description: 'Stripe, PayPal Express, Cash on Delivery, and Bank Wire.',
+            categoryLabel: 'Payments & Shipping',
+            title: 'Payment & Shipping Methods',
+            description: 'Checkout payment gateways (Razorpay, Stripe, PayPal, COD) and courier shipping logistics.',
             icon: CreditCard,
             iconBg: 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800/60',
             iconColor: 'text-blue-600 dark:text-blue-400',
             badges: [
                 { label: `${activePaymentCount} Gateways Active`, variant: activePaymentCount > 0 ? 'emerald' : 'amber' },
-            ],
-            renderForm: () => (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {/* Stripe */}
-                        <div
-                            className={`p-3.5 rounded-xl border transition-all ${
-                                form.data.payment_stripe_enabled
-                                    ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <CreditCard className="w-4 h-4 text-indigo-600 shrink-0" />
-                                    <span className="text-xs font-bold truncate">Stripe</span>
-                                </div>
-                                <Toggle
-                                    checked={form.data.payment_stripe_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('payment_stripe_enabled', checked)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        {/* PayPal */}
-                        <div
-                            className={`p-3.5 rounded-xl border transition-all ${
-                                form.data.payment_paypal_enabled
-                                    ? 'bg-white dark:bg-slate-800 border-sky-300 dark:border-sky-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <Wallet className="w-4 h-4 text-sky-600 shrink-0" />
-                                    <span className="text-xs font-bold truncate">PayPal</span>
-                                </div>
-                                <Toggle
-                                    checked={form.data.payment_paypal_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('payment_paypal_enabled', checked)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        {/* COD */}
-                        <div
-                            className={`p-3.5 rounded-xl border transition-all ${
-                                form.data.payment_cod_enabled
-                                    ? 'bg-white dark:bg-slate-800 border-emerald-300 dark:border-emerald-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
-                                    <span className="text-xs font-bold truncate">Cash on Delivery</span>
-                                </div>
-                                <Toggle
-                                    checked={form.data.payment_cod_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('payment_cod_enabled', checked)
-                                    }
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Stripe Credentials Section */}
-                    {form.data.payment_stripe_enabled && (
-                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                Stripe Credentials
-                            </span>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <Input
-                                    label="Publishable Key"
-                                    placeholder="pk_live_..."
-                                    value={form.data.payment_stripe_publishable_key}
-                                    onChange={(e) => form.setData('payment_stripe_publishable_key', e.target.value)}
-                                    leftIcon={<Key className="w-4 h-4" />}
-                                />
-                                <Input
-                                    label="Secret Key"
-                                    type={showStripeSecret ? 'text' : 'password'}
-                                    placeholder="sk_live_..."
-                                    value={form.data.payment_stripe_secret_key}
-                                    onChange={(e) => form.setData('payment_stripe_secret_key', e.target.value)}
-                                    leftIcon={<Lock className="w-4 h-4" />}
-                                    rightIcon={
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowStripeSecret(!showStripeSecret)}
-                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                            tabIndex={-1}
-                                        >
-                                            {showStripeSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    }
-                                />
-                            </div>
-                            <Input
-                                label="Webhook Secret"
-                                type={showStripeWebhookSecret ? 'text' : 'password'}
-                                placeholder="whsec_..."
-                                value={form.data.payment_stripe_webhook_secret}
-                                onChange={(e) => form.setData('payment_stripe_webhook_secret', e.target.value)}
-                                leftIcon={<Lock className="w-4 h-4" />}
-                                rightIcon={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowStripeWebhookSecret(!showStripeWebhookSecret)}
-                                        className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                        tabIndex={-1}
-                                    >
-                                        {showStripeWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                }
-                            />
-                        </div>
-                    )}
-
-                    {/* PayPal Credentials Section */}
-                    {form.data.payment_paypal_enabled && (
-                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                PayPal Credentials
-                            </span>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <Select
-                                    label="Environment"
-                                    value={form.data.payment_paypal_mode}
-                                    onChange={(e) => form.setData('payment_paypal_mode', e.target.value)}
-                                >
-                                    <option value="sandbox">Sandbox</option>
-                                    <option value="live">Live</option>
-                                </Select>
-                                <Input
-                                    label="Client ID"
-                                    placeholder="Client ID..."
-                                    value={form.data.payment_paypal_client_id}
-                                    onChange={(e) => form.setData('payment_paypal_client_id', e.target.value)}
-                                    leftIcon={<Key className="w-4 h-4" />}
-                                />
-                                <Input
-                                    label="Client Secret"
-                                    type={showPaypalSecret ? 'text' : 'password'}
-                                    placeholder="Secret Key..."
-                                    value={form.data.payment_paypal_client_secret}
-                                    onChange={(e) => form.setData('payment_paypal_client_secret', e.target.value)}
-                                    leftIcon={<Lock className="w-4 h-4" />}
-                                    rightIcon={
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPaypalSecret(!showPaypalSecret)}
-                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                            tabIndex={-1}
-                                        >
-                                            {showPaypalSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    }
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* COD Instructions */}
-                    {form.data.payment_cod_enabled && (
-                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                            <Input
-                                label="COD Instructions"
-                                placeholder="Instructions for customer at checkout..."
-                                value={form.data.payment_cod_instructions}
-                                onChange={(e) => form.setData('payment_cod_instructions', e.target.value)}
-                            />
-                        </div>
-                    )}
-                </div>
-            ),
-        },
-        {
-            id: 'shipping',
-            category: 'shipping',
-            categoryLabel: 'Logistics',
-            title: 'Shipping & Carrier Logistics',
-            description: 'Automated carrier calculation and shipping API integration.',
-            icon: Truck,
-            iconBg: 'bg-cyan-50 dark:bg-cyan-950/60 border-cyan-200 dark:border-cyan-800/60',
-            iconColor: 'text-cyan-600 dark:text-cyan-400',
-            badges: [
                 {
                     label: form.data.shipping_carrier_provider !== 'none'
-                        ? `Carrier: ${form.data.shipping_carrier_provider.toUpperCase()}`
-                        : 'Manual Shipping',
+                        ? `Shipping: ${form.data.shipping_carrier_provider.toUpperCase()}`
+                        : 'Manual Delivery',
                     variant: form.data.shipping_carrier_provider !== 'none' ? 'indigo' : 'slate',
                 },
             ],
             renderForm: () => (
-                <div className="space-y-4">
-                    {/* Carrier API Configuration */}
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                        <Select
-                            label="Carrier Provider"
-                            value={form.data.shipping_carrier_provider}
-                            onChange={(e) => form.setData('shipping_carrier_provider', e.target.value)}
-                        >
-                            <option value="none">None (Manual Rates)</option>
-                            <option value="fedex">FedEx</option>
-                            <option value="ups">UPS</option>
-                            <option value="dhl">DHL</option>
-                        </Select>
+                <div className="space-y-6">
+                    {/* Payment Gateways Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                            <div>
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                                    Payment Gateways
+                                </span>
+                                <span className="text-2xs text-slate-400">
+                                    Enable credit card processors, payment providers, and cash on delivery.
+                                </span>
+                            </div>
+                            <span className="text-2xs font-medium text-slate-400">
+                                {activePaymentCount} of 4 Active
+                            </span>
+                        </div>
 
-                        {form.data.shipping_carrier_provider !== 'none' && (
-                            <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700/80">
-                                <Input
-                                    label="Account Number"
-                                    placeholder="Account number..."
-                                    value={form.data.shipping_carrier_account_number}
-                                    onChange={(e) => form.setData('shipping_carrier_account_number', e.target.value)}
-                                />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            {/* Razorpay */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.payment_razorpay_enabled
+                                        ? 'bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Zap className="w-4 h-4 text-blue-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">Razorpay</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.payment_razorpay_enabled}
+                                        onChange={(checked) =>
+                                            form.setData('payment_razorpay_enabled', checked)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Stripe */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.payment_stripe_enabled
+                                        ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <CreditCard className="w-4 h-4 text-indigo-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">Stripe</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.payment_stripe_enabled}
+                                        onChange={(checked) =>
+                                            form.setData('payment_stripe_enabled', checked)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {/* PayPal */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.payment_paypal_enabled
+                                        ? 'bg-white dark:bg-slate-800 border-sky-300 dark:border-sky-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Wallet className="w-4 h-4 text-sky-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">PayPal</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.payment_paypal_enabled}
+                                        onChange={(checked) =>
+                                            form.setData('payment_paypal_enabled', checked)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {/* COD */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.payment_cod_enabled
+                                        ? 'bg-white dark:bg-slate-800 border-emerald-300 dark:border-emerald-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">Cash on Delivery</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.payment_cod_enabled}
+                                        onChange={(checked) =>
+                                            form.setData('payment_cod_enabled', checked)
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Razorpay Credentials Section */}
+                        {form.data.payment_razorpay_enabled && (
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                    Razorpay Credentials
+                                </span>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input
+                                        label="Key ID"
+                                        placeholder="rzp_live_... or rzp_test_..."
+                                        value={form.data.payment_razorpay_key_id}
+                                        onChange={(e) => form.setData('payment_razorpay_key_id', e.target.value)}
+                                        leftIcon={<Key className="w-4 h-4" />}
+                                    />
+                                    <Input
+                                        label="Key Secret"
+                                        type={showRazorpaySecret ? 'text' : 'password'}
+                                        placeholder="Razorpay Secret Key..."
+                                        value={form.data.payment_razorpay_key_secret}
+                                        onChange={(e) => form.setData('payment_razorpay_key_secret', e.target.value)}
+                                        leftIcon={<Lock className="w-4 h-4" />}
+                                        rightIcon={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
+                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                tabIndex={-1}
+                                            >
+                                                {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        }
+                                    />
+                                </div>
+                                <Input
+                                    label="Webhook Secret"
+                                    type={showRazorpayWebhookSecret ? 'text' : 'password'}
+                                    placeholder="Razorpay Webhook Secret..."
+                                    value={form.data.payment_razorpay_webhook_secret}
+                                    onChange={(e) => form.setData('payment_razorpay_webhook_secret', e.target.value)}
+                                    leftIcon={<Lock className="w-4 h-4" />}
+                                    rightIcon={
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowRazorpayWebhookSecret(!showRazorpayWebhookSecret)}
+                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                            tabIndex={-1}
+                                        >
+                                            {showRazorpayWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    }
+                                />
+                            </div>
+                        )}
+
+                        {/* Stripe Credentials Section */}
+                        {form.data.payment_stripe_enabled && (
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                    Stripe Credentials
+                                </span>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input
+                                        label="Publishable Key"
+                                        placeholder="pk_live_..."
+                                        value={form.data.payment_stripe_publishable_key}
+                                        onChange={(e) => form.setData('payment_stripe_publishable_key', e.target.value)}
+                                        leftIcon={<Key className="w-4 h-4" />}
+                                    />
+                                    <Input
+                                        label="Secret Key"
+                                        type={showStripeSecret ? 'text' : 'password'}
+                                        placeholder="sk_live_..."
+                                        value={form.data.payment_stripe_secret_key}
+                                        onChange={(e) => form.setData('payment_stripe_secret_key', e.target.value)}
+                                        leftIcon={<Lock className="w-4 h-4" />}
+                                        rightIcon={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowStripeSecret(!showStripeSecret)}
+                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                tabIndex={-1}
+                                            >
+                                                {showStripeSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        }
+                                    />
+                                </div>
+                                <Input
+                                    label="Webhook Secret"
+                                    type={showStripeWebhookSecret ? 'text' : 'password'}
+                                    placeholder="whsec_..."
+                                    value={form.data.payment_stripe_webhook_secret}
+                                    onChange={(e) => form.setData('payment_stripe_webhook_secret', e.target.value)}
+                                    leftIcon={<Lock className="w-4 h-4" />}
+                                    rightIcon={
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowStripeWebhookSecret(!showStripeWebhookSecret)}
+                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                            tabIndex={-1}
+                                        >
+                                            {showStripeWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    }
+                                />
+                            </div>
+                        )}
+
+                        {/* PayPal Credentials Section */}
+                        {form.data.payment_paypal_enabled && (
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                    PayPal Credentials
+                                </span>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <Select
+                                        label="Environment"
+                                        value={form.data.payment_paypal_mode}
+                                        onChange={(e) => form.setData('payment_paypal_mode', e.target.value)}
+                                    >
+                                        <option value="sandbox">Sandbox</option>
+                                        <option value="live">Live</option>
+                                    </Select>
+                                    <Input
+                                        label="Client ID"
+                                        placeholder="Client ID..."
+                                        value={form.data.payment_paypal_client_id}
+                                        onChange={(e) => form.setData('payment_paypal_client_id', e.target.value)}
+                                        leftIcon={<Key className="w-4 h-4" />}
+                                    />
+                                    <Input
+                                        label="Client Secret"
+                                        type={showPaypalSecret ? 'text' : 'password'}
+                                        placeholder="Secret Key..."
+                                        value={form.data.payment_paypal_client_secret}
+                                        onChange={(e) => form.setData('payment_paypal_client_secret', e.target.value)}
+                                        leftIcon={<Lock className="w-4 h-4" />}
+                                        rightIcon={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPaypalSecret(!showPaypalSecret)}
+                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                tabIndex={-1}
+                                            >
+                                                {showPaypalSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* COD Instructions */}
+                        {form.data.payment_cod_enabled && (
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                                <Input
+                                    label="COD Instructions"
+                                    placeholder="Instructions for customer at checkout..."
+                                    value={form.data.payment_cod_instructions}
+                                    onChange={(e) => form.setData('payment_cod_instructions', e.target.value)}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Shipping & Delivery Logistics Section - Designed identically to Payment cards! */}
+                    <div className="space-y-4 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                            <div>
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                                    Courier & Shipping Logistics
+                                </span>
+                                <span className="text-2xs text-slate-400">
+                                    Enable carrier rate calculation and live parcel tracking API.
+                                </span>
+                            </div>
+                            <span className="text-2xs font-medium text-slate-400">
+                                {form.data.shipping_carrier_provider !== 'none'
+                                    ? `${form.data.shipping_carrier_provider.toUpperCase()} Active`
+                                    : 'Manual Rates'}
+                            </span>
+                        </div>
+
+                        {/* 3 Carrier Cards in Grid matching Payment style */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {/* FedEx */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.shipping_carrier_provider === 'fedex'
+                                        ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Truck className="w-4 h-4 text-indigo-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">FedEx Express</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.shipping_carrier_provider === 'fedex'}
+                                        onChange={(checked) =>
+                                            form.setData('shipping_carrier_provider', checked ? 'fedex' : 'none')
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {/* UPS */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.shipping_carrier_provider === 'ups'
+                                        ? 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Truck className="w-4 h-4 text-amber-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">UPS Logistics</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.shipping_carrier_provider === 'ups'}
+                                        onChange={(checked) =>
+                                            form.setData('shipping_carrier_provider', checked ? 'ups' : 'none')
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {/* DHL */}
+                            <div
+                                className={`p-3.5 rounded-xl border transition-all ${
+                                    form.data.shipping_carrier_provider === 'dhl'
+                                        ? 'bg-white dark:bg-slate-800 border-rose-300 dark:border-rose-700 shadow-2xs'
+                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Truck className="w-4 h-4 text-rose-600 shrink-0" />
+                                        <span className="text-xs font-bold truncate">DHL Express</span>
+                                    </div>
+                                    <Toggle
+                                        checked={form.data.shipping_carrier_provider === 'dhl'}
+                                        onChange={(checked) =>
+                                            form.setData('shipping_carrier_provider', checked ? 'dhl' : 'none')
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Carrier API Credentials Section */}
+                        {form.data.shipping_carrier_provider !== 'none' && (
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                        {form.data.shipping_carrier_provider.toUpperCase()} API Credentials
+                                    </span>
+                                    <span className="text-2xs text-slate-400">
+                                        Automated rates & tracking tokens
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <Input
+                                        label="Account Number"
+                                        placeholder="Account number..."
+                                        value={form.data.shipping_carrier_account_number}
+                                        onChange={(e) => form.setData('shipping_carrier_account_number', e.target.value)}
+                                    />
                                     <Input
                                         label="API Key"
                                         placeholder="API key..."
@@ -1086,8 +1259,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         { id: 'all', label: 'All', count: settingsList.length },
         { id: 'store', label: 'Storefront', count: settingsList.filter((s) => s.category === 'store').length },
         { id: 'orders', label: 'Orders & Catalog', count: settingsList.filter((s) => s.category === 'orders').length },
-        { id: 'payments', label: 'Payments', count: settingsList.filter((s) => s.category === 'payments').length },
-        { id: 'shipping', label: 'Shipping', count: settingsList.filter((s) => s.category === 'shipping').length },
+        { id: 'payments', label: 'Payments & Shipping', count: settingsList.filter((s) => s.category === 'payments').length },
         { id: 'storage', label: 'Storage', count: settingsList.filter((s) => s.category === 'storage').length },
         { id: 'notifications', label: 'Communications', count: settingsList.filter((s) => s.category === 'notifications').length },
     ];

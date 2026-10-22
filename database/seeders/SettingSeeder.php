@@ -137,6 +137,12 @@ class SettingSeeder extends Seeder
                         'enabled' => true,
                         'instructions' => 'Pay cash to delivery courier on parcel arrival.',
                     ],
+                    'razorpay' => [
+                        'enabled' => false,
+                        'key_id' => 'rzp_test_sample_key_id',
+                        'key_secret' => Setting::encryptSensitive('sample_razorpay_secret_key'),
+                        'webhook_secret' => Setting::encryptSensitive('sample_razorpay_webhook_secret'),
+                    ],
                 ], JSON_THROW_ON_ERROR),
                 'group' => 'payment',
                 'type' => 'json',

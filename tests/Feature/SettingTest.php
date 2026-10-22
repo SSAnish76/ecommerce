@@ -85,6 +85,10 @@ class SettingTest extends TestCase
             'payment_paypal_mode' => 'live',
             'payment_paypal_client_id' => 'paypal_client_abc',
             'payment_paypal_client_secret' => 'paypal_secret_xyz',
+            'payment_razorpay_enabled' => true,
+            'payment_razorpay_key_id' => 'rzp_live_test123',
+            'payment_razorpay_key_secret' => 'rzp_secret_key_456',
+            'payment_razorpay_webhook_secret' => 'rzp_whsec_789',
 
             'storage_default_disk' => 's3',
             'storage_s3_key' => 'AKIA_CUSTOM',
@@ -167,6 +171,8 @@ class SettingTest extends TestCase
         $this->assertStringStartsWith('enc:', $rawPaymentData['stripe']['secret_key']);
         $this->assertStringStartsWith('enc:', $rawPaymentData['stripe']['webhook_secret']);
         $this->assertStringStartsWith('enc:', $rawPaymentData['paypal']['client_secret']);
+        $this->assertStringStartsWith('enc:', $rawPaymentData['razorpay']['key_secret']);
+        $this->assertStringStartsWith('enc:', $rawPaymentData['razorpay']['webhook_secret']);
 
         $rawStorageRow = \Illuminate\Support\Facades\DB::table('settings')->where('key', 'storage_settings')->value('value');
         $rawStorageData = json_decode((string) $rawStorageRow, true);
@@ -185,8 +191,13 @@ class SettingTest extends TestCase
         $this->assertTrue($paymentSettings['stripe']['enabled']);
         $this->assertSame('sk_live_custom456', $paymentSettings['stripe']['secret_key']);
         $this->assertSame('paypal_secret_xyz', $paymentSettings['paypal']['client_secret']);
+        $this->assertTrue($paymentSettings['razorpay']['enabled']);
+        $this->assertSame('rzp_live_test123', $paymentSettings['razorpay']['key_id']);
+        $this->assertSame('rzp_secret_key_456', $paymentSettings['razorpay']['key_secret']);
+        $this->assertSame('rzp_whsec_789', $paymentSettings['razorpay']['webhook_secret']);
         $this->assertTrue(Setting::get('payment_stripe_enabled'));
         $this->assertFalse(Setting::get('payment_cod_enabled'));
+        $this->assertTrue(Setting::get('payment_razorpay_enabled'));
 
         $storageSettings = Setting::getStorageSettings();
         $this->assertSame('s3', $storageSettings['default_disk']);

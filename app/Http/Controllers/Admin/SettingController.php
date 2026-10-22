@@ -63,6 +63,10 @@ class SettingController extends Controller
             'payment_paypal_mode' => ['sometimes', 'nullable', 'string', 'in:sandbox,live'],
             'payment_paypal_client_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'payment_paypal_client_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'payment_razorpay_enabled' => ['sometimes', 'boolean'],
+            'payment_razorpay_key_id' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'payment_razorpay_key_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'payment_razorpay_webhook_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
 
             'storage_default_disk' => ['sometimes', 'nullable', 'string', 'in:local,public,s3'],
             'storage_s3_key' => ['sometimes', 'nullable', 'string', 'max:150'],
@@ -102,8 +106,10 @@ class SettingController extends Controller
 
         // 1. Bundle Payment Gateways & Methods
         $paymentKeys = [
-            'payment_cod_enabled', 'payment_cod_instructions', 'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
+            'payment_cod_enabled', 'payment_cod_instructions',
+            'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
             'payment_paypal_enabled', 'payment_paypal_mode', 'payment_paypal_client_id', 'payment_paypal_client_secret',
+            'payment_razorpay_enabled', 'payment_razorpay_key_id', 'payment_razorpay_key_secret', 'payment_razorpay_webhook_secret',
         ];
 
         $existingPayment = Setting::getPaymentSettings();
@@ -123,6 +129,12 @@ class SettingController extends Controller
             'cod' => [
                 'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : $existingPayment['cod']['enabled'],
                 'instructions' => $input['payment_cod_instructions'] ?? $existingPayment['cod']['instructions'],
+            ],
+            'razorpay' => [
+                'enabled' => isset($input['payment_razorpay_enabled']) ? (bool) $input['payment_razorpay_enabled'] : ($existingPayment['razorpay']['enabled'] ?? false),
+                'key_id' => $input['payment_razorpay_key_id'] ?? ($existingPayment['razorpay']['key_id'] ?? ''),
+                'key_secret' => ! empty($input['payment_razorpay_key_secret']) ? $input['payment_razorpay_key_secret'] : ($existingPayment['razorpay']['key_secret'] ?? ''),
+                'webhook_secret' => ! empty($input['payment_razorpay_webhook_secret']) ? $input['payment_razorpay_webhook_secret'] : ($existingPayment['razorpay']['webhook_secret'] ?? ''),
             ],
         ];
 

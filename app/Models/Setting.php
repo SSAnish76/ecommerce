@@ -214,6 +214,7 @@ class Setting extends Model
             'payment_stripe_enabled' => 'stripe.enabled',
             'payment_paypal_enabled' => 'paypal.enabled',
             'payment_cod_enabled' => 'cod.enabled',
+            'payment_razorpay_enabled' => 'razorpay.enabled',
         ];
 
         if (isset($paymentMap[$key]) && isset($all['payment_settings']) && is_array($all['payment_settings'])) {
@@ -229,7 +230,8 @@ class Setting extends Model
      * @return array{
      *     stripe: array{enabled: bool, publishable_key: string, secret_key: string, webhook_secret: string},
      *     paypal: array{enabled: bool, mode: string, client_id: string, client_secret: string},
-     *     cod: array{enabled: bool, instructions: string}
+     *     cod: array{enabled: bool, instructions: string},
+     *     razorpay: array{enabled: bool, key_id: string, key_secret: string, webhook_secret: string}
      * }
      */
     public static function getPaymentSettings(): array
@@ -251,6 +253,12 @@ class Setting extends Model
                 'enabled' => true,
                 'instructions' => 'Pay cash to delivery courier on arrival.',
             ],
+            'razorpay' => [
+                'enabled' => false,
+                'key_id' => 'rzp_test_sample_key_id',
+                'key_secret' => 'sample_razorpay_secret_key',
+                'webhook_secret' => 'sample_razorpay_webhook_secret',
+            ],
         ];
 
         /** @var array<string, mixed> $all */
@@ -262,6 +270,7 @@ class Setting extends Model
                 'stripe' => array_merge($default['stripe'], $configured['stripe'] ?? []),
                 'paypal' => array_merge($default['paypal'], $configured['paypal'] ?? []),
                 'cod' => array_merge($default['cod'], $configured['cod'] ?? []),
+                'razorpay' => array_merge($default['razorpay'], $configured['razorpay'] ?? []),
             ];
         }
 
@@ -281,6 +290,12 @@ class Setting extends Model
             'cod' => [
                 'enabled' => (bool) ($all['payment_cod_enabled'] ?? $default['cod']['enabled']),
                 'instructions' => (string) ($all['payment_cod_instructions'] ?? $default['cod']['instructions']),
+            ],
+            'razorpay' => [
+                'enabled' => (bool) ($all['payment_razorpay_enabled'] ?? $default['razorpay']['enabled']),
+                'key_id' => (string) ($all['payment_razorpay_key_id'] ?? $default['razorpay']['key_id']),
+                'key_secret' => (string) ($all['payment_razorpay_key_secret'] ?? $default['razorpay']['key_secret']),
+                'webhook_secret' => (string) ($all['payment_razorpay_webhook_secret'] ?? $default['razorpay']['webhook_secret']),
             ],
         ];
     }
