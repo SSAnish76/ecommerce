@@ -21,6 +21,43 @@ use Inertia\Response;
 class SettingController extends Controller
 {
     /**
+     * Keys grouped into JSON settings or legacy obsolete keys that should not exist as individual DB rows.
+     *
+     * @var list<string>
+     */
+    private const OBSOLETE_OR_GROUPED_KEYS = [
+        // Payment individual keys
+        'payment_cod_enabled', 'payment_cod_instructions',
+        'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
+        'payment_paypal_enabled', 'payment_paypal_mode', 'payment_paypal_client_id', 'payment_paypal_client_secret',
+        'payment_razorpay_enabled', 'payment_razorpay_key_id', 'payment_razorpay_key_secret', 'payment_razorpay_webhook_secret',
+        'payment_bank_transfer_enabled', 'payment_bank_name', 'payment_bank_account_name', 'payment_bank_account_number',
+        'payment_bank_routing_number', 'payment_bank_swift_code', 'payment_bank_instructions',
+
+        // Storage individual keys
+        'storage_default_disk', 'storage_s3_key', 'storage_s3_secret', 'storage_s3_region',
+        'storage_s3_bucket', 'storage_s3_url', 'storage_s3_endpoint',
+
+        // Shipping individual keys
+        'shipping_fedex_enabled', 'shipping_fedex_account_number', 'shipping_fedex_api_key', 'shipping_fedex_api_secret',
+        'shipping_ups_enabled', 'shipping_ups_account_number', 'shipping_ups_api_key', 'shipping_ups_api_secret',
+        'shipping_dhl_enabled', 'shipping_dhl_account_number', 'shipping_dhl_api_key', 'shipping_dhl_api_secret',
+        'shipping_carrier_provider', 'shipping_carrier_account_number', 'shipping_carrier_api_key', 'shipping_carrier_api_secret',
+        'shipping_default_method', 'shipping_flat_rate_cost', 'shipping_free_shipping_enabled', 'shipping_free_shipping_min_order',
+
+        // Mail & SMS individual keys
+        'mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_name', 'mail_from_address', 'mail_mailer',
+        'sms_provider', 'sms_username', 'sms_password', 'sms_from_number',
+
+        // Obsolete legacy individual settings
+        'currency_position', 'session_lifetime_minutes', 'max_login_attempts', 'lockout_duration_minutes',
+        'require_strong_passwords', 'min_order_amount', 'enable_email_notifications', 'enable_in_app_notifications',
+        'maintenance_mode', 'maintenance_notice', 'allow_admin_bypass_maintenance',
+        'notify_order_placed_customer', 'notify_order_placed_admin', 'notify_order_status_updated',
+        'notify_order_cancelled', 'notify_low_stock_admin', 'notify_new_customer_welcome', 'notify_new_review_admin',
+    ];
+
+    /**
      * Display the comprehensive store and platform settings page.
      */
     public function index(): Response
@@ -115,7 +152,6 @@ class SettingController extends Controller
 
             'enable_order_sms_notifications' => ['sometimes', 'boolean'],
 
-            // Customer Event Notification Triggers (Email & SMS independent channels)
             'notify_order_placed_customer_email' => ['sometimes', 'boolean'],
             'notify_order_placed_customer_sms' => ['sometimes', 'boolean'],
             'notify_order_status_updated_email' => ['sometimes', 'boolean'],
@@ -127,7 +163,6 @@ class SettingController extends Controller
             'notify_new_customer_welcome_email' => ['sometimes', 'boolean'],
             'notify_new_customer_welcome_sms' => ['sometimes', 'boolean'],
 
-            // Admin & Staff Notification Triggers (Email & SMS independent channels)
             'notify_order_placed_admin_email' => ['sometimes', 'boolean'],
             'notify_order_placed_admin_sms' => ['sometimes', 'boolean'],
             'notify_order_cancelled_admin_email' => ['sometimes', 'boolean'],
@@ -137,7 +172,6 @@ class SettingController extends Controller
             'notify_new_review_admin_email' => ['sometimes', 'boolean'],
             'notify_new_review_admin_sms' => ['sometimes', 'boolean'],
 
-            // Admin & Staff Alerts Recipient Routing
             'admin_alert_recipient_type' => ['sometimes', 'nullable', 'string', 'in:email,roles,users'],
             'admin_alert_email' => ['sometimes', 'nullable', 'string', 'max:255'],
             'admin_alert_roles' => ['sometimes', 'nullable', 'array'],
@@ -146,251 +180,188 @@ class SettingController extends Controller
             'admin_alert_users.*' => ['string'],
         ]);
 
-        // 1. Bundle Payment Gateways & Methods
-        $paymentKeys = [
-            'payment_cod_enabled', 'payment_cod_instructions',
-            'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
-            'payment_paypal_enabled', 'payment_paypal_mode', 'payment_paypal_client_id', 'payment_paypal_client_secret',
-            'payment_razorpay_enabled', 'payment_razorpay_key_id', 'payment_razorpay_key_secret', 'payment_razorpay_webhook_secret',
-        ];
+        // Save grouped configurations as json rows
+        $input['payment_settings'] = $this->buildPaymentSettings($input);
+        $input['storage_settings'] = $this->buildStorageSettings($input);
+        $input['shipping_settings'] = $this->buildShippingSettings($input);
+        $input['mail_settings'] = $this->buildMailSettings($input);
+        $input['sms_settings'] = $this->buildSmsSettings($input);
 
-        $existingPayment = Setting::getPaymentSettings();
-        $paymentSettings = [
-            'stripe' => [
-                'enabled' => isset($input['payment_stripe_enabled']) ? (bool) $input['payment_stripe_enabled'] : $existingPayment['stripe']['enabled'],
-                'publishable_key' => $input['payment_stripe_publishable_key'] ?? $existingPayment['stripe']['publishable_key'],
-                'secret_key' => ! empty($input['payment_stripe_secret_key']) ? $input['payment_stripe_secret_key'] : $existingPayment['stripe']['secret_key'],
-                'webhook_secret' => ! empty($input['payment_stripe_webhook_secret']) ? $input['payment_stripe_webhook_secret'] : $existingPayment['stripe']['webhook_secret'],
-            ],
-            'paypal' => [
-                'enabled' => isset($input['payment_paypal_enabled']) ? (bool) $input['payment_paypal_enabled'] : $existingPayment['paypal']['enabled'],
-                'mode' => $input['payment_paypal_mode'] ?? $existingPayment['paypal']['mode'],
-                'client_id' => $input['payment_paypal_client_id'] ?? $existingPayment['paypal']['client_id'],
-                'client_secret' => ! empty($input['payment_paypal_client_secret']) ? $input['payment_paypal_client_secret'] : $existingPayment['paypal']['client_secret'],
-            ],
-            'cod' => [
-                'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : $existingPayment['cod']['enabled'],
-                'instructions' => $input['payment_cod_instructions'] ?? $existingPayment['cod']['instructions'],
-            ],
-            'razorpay' => [
-                'enabled' => isset($input['payment_razorpay_enabled']) ? (bool) $input['payment_razorpay_enabled'] : ($existingPayment['razorpay']['enabled'] ?? false),
-                'key_id' => $input['payment_razorpay_key_id'] ?? ($existingPayment['razorpay']['key_id'] ?? ''),
-                'key_secret' => ! empty($input['payment_razorpay_key_secret']) ? $input['payment_razorpay_key_secret'] : ($existingPayment['razorpay']['key_secret'] ?? ''),
-                'webhook_secret' => ! empty($input['payment_razorpay_webhook_secret']) ? $input['payment_razorpay_webhook_secret'] : ($existingPayment['razorpay']['webhook_secret'] ?? ''),
-            ],
-        ];
-
-        // 2. Bundle Storage Settings
-        $storageKeys = [
-            'storage_default_disk', 'storage_s3_key', 'storage_s3_secret', 'storage_s3_region', 'storage_s3_bucket', 'storage_s3_url', 'storage_s3_endpoint',
-        ];
-
-        $existingStorage = Setting::getStorageSettings();
-        $storageSettings = [
-            'default_disk' => $input['storage_default_disk'] ?? $existingStorage['default_disk'],
-            's3' => [
-                'key' => $input['storage_s3_key'] ?? $existingStorage['s3']['key'],
-                'secret' => ! empty($input['storage_s3_secret']) ? $input['storage_s3_secret'] : $existingStorage['s3']['secret'],
-                'region' => $input['storage_s3_region'] ?? $existingStorage['s3']['region'],
-                'bucket' => $input['storage_s3_bucket'] ?? $existingStorage['s3']['bucket'],
-                'url' => $input['storage_s3_url'] ?? $existingStorage['s3']['url'],
-                'endpoint' => $input['storage_s3_endpoint'] ?? $existingStorage['s3']['endpoint'],
-            ],
-        ];
-
-        // 3. Bundle Shipping Settings
-        $shippingKeys = [
-            'shipping_fedex_enabled', 'shipping_fedex_account_number', 'shipping_fedex_api_key', 'shipping_fedex_api_secret',
-            'shipping_ups_enabled', 'shipping_ups_account_number', 'shipping_ups_api_key', 'shipping_ups_api_secret',
-            'shipping_dhl_enabled', 'shipping_dhl_account_number', 'shipping_dhl_api_key', 'shipping_dhl_api_secret',
-            'shipping_carrier_provider', 'shipping_carrier_account_number', 'shipping_carrier_api_key', 'shipping_carrier_api_secret',
-        ];
-
-        $existingShipping = Setting::getShippingSettings();
-
-        $fedexEnabled = isset($input['shipping_fedex_enabled'])
-            ? (bool) $input['shipping_fedex_enabled']
-            : (isset($input['shipping_carrier_provider']) ? $input['shipping_carrier_provider'] === 'fedex' : ($existingShipping['fedex']['enabled'] ?? false));
-
-        $upsEnabled = isset($input['shipping_ups_enabled'])
-            ? (bool) $input['shipping_ups_enabled']
-            : (isset($input['shipping_carrier_provider']) ? $input['shipping_carrier_provider'] === 'ups' : ($existingShipping['ups']['enabled'] ?? false));
-
-        $dhlEnabled = isset($input['shipping_dhl_enabled'])
-            ? (bool) $input['shipping_dhl_enabled']
-            : (isset($input['shipping_carrier_provider']) ? $input['shipping_carrier_provider'] === 'dhl' : ($existingShipping['dhl']['enabled'] ?? false));
-
-        $fedexAccount = $input['shipping_fedex_account_number']
-            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'fedex' ? ($input['shipping_carrier_account_number'] ?? '') : ($existingShipping['fedex']['account_number'] ?? ''));
-
-        $fedexKey = $input['shipping_fedex_api_key']
-            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'fedex' ? ($input['shipping_carrier_api_key'] ?? '') : ($existingShipping['fedex']['api_key'] ?? ''));
-
-        $fedexSecret = ! empty($input['shipping_fedex_api_secret'])
-            ? $input['shipping_fedex_api_secret']
-            : (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'fedex' && ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : ($existingShipping['fedex']['api_secret'] ?? ''));
-
-        $upsAccount = $input['shipping_ups_account_number']
-            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'ups' ? ($input['shipping_carrier_account_number'] ?? '') : ($existingShipping['ups']['account_number'] ?? ''));
-
-        $upsKey = $input['shipping_ups_api_key']
-            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'ups' ? ($input['shipping_carrier_api_key'] ?? '') : ($existingShipping['ups']['api_key'] ?? ''));
-
-        $upsSecret = ! empty($input['shipping_ups_api_secret'])
-            ? $input['shipping_ups_api_secret']
-            : (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'ups' && ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : ($existingShipping['ups']['api_secret'] ?? ''));
-
-        $dhlAccount = $input['shipping_dhl_account_number']
-            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'dhl' ? ($input['shipping_carrier_account_number'] ?? '') : ($existingShipping['dhl']['account_number'] ?? ''));
-
-        $dhlKey = $input['shipping_dhl_api_key']
-            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'dhl' ? ($input['shipping_carrier_api_key'] ?? '') : ($existingShipping['dhl']['api_key'] ?? ''));
-
-        $dhlSecret = ! empty($input['shipping_dhl_api_secret'])
-            ? $input['shipping_dhl_api_secret']
-            : (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'dhl' && ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : ($existingShipping['dhl']['api_secret'] ?? ''));
-
-        $primaryProvider = $fedexEnabled ? 'fedex' : ($upsEnabled ? 'ups' : ($dhlEnabled ? 'dhl' : ($input['shipping_carrier_provider'] ?? 'none')));
-        $primaryAccount = match ($primaryProvider) {
-            'fedex' => $fedexAccount,
-            'ups' => $upsAccount,
-            'dhl' => $dhlAccount,
-            default => '',
-        };
-        $primaryKey = match ($primaryProvider) {
-            'fedex' => $fedexKey,
-            'ups' => $upsKey,
-            'dhl' => $dhlKey,
-            default => '',
-        };
-        $primarySecret = match ($primaryProvider) {
-            'fedex' => $fedexSecret,
-            'ups' => $upsSecret,
-            'dhl' => $dhlSecret,
-            default => '',
-        };
-
-        $shippingSettings = [
-            'carrier' => [
-                'provider' => $primaryProvider,
-                'account_number' => $primaryAccount,
-                'api_key' => $primaryKey,
-                'api_secret' => $primarySecret,
-            ],
-            'fedex' => [
-                'enabled' => $fedexEnabled,
-                'account_number' => $fedexAccount,
-                'api_key' => $fedexKey,
-                'api_secret' => $fedexSecret,
-            ],
-            'ups' => [
-                'enabled' => $upsEnabled,
-                'account_number' => $upsAccount,
-                'api_key' => $upsKey,
-                'api_secret' => $upsSecret,
-            ],
-            'dhl' => [
-                'enabled' => $dhlEnabled,
-                'account_number' => $dhlAccount,
-                'api_key' => $dhlKey,
-                'api_secret' => $dhlSecret,
-            ],
-        ];
-
-        // 4. Bundle Notifications (Mail & SMS)
-        $mailKeys = ['mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_name', 'mail_from_address'];
-        $smsKeys = ['sms_provider', 'sms_username', 'sms_password', 'sms_from_number'];
-
-        $existingMail = Setting::getMailSettings();
-        $mailSettings = [
-            'host' => $input['mail_host'] ?? $existingMail['host'],
-            'port' => isset($input['mail_port']) ? (int) $input['mail_port'] : $existingMail['port'],
-            'username' => $input['mail_username'] ?? $existingMail['username'],
-            'password' => ! empty($input['mail_password']) ? $input['mail_password'] : $existingMail['password'],
-            'encryption' => $input['mail_encryption'] ?? $existingMail['encryption'],
-            'from_name' => $input['mail_from_name'] ?? $existingMail['from_name'],
-            'from_address' => $input['mail_from_address'] ?? $existingMail['from_address'],
-        ];
-
-        $existingSms = Setting::getSmsSettings();
-        $smsSettings = [
-            'provider' => $input['sms_provider'] ?? $existingSms['provider'],
-            'username' => $input['sms_username'] ?? $existingSms['username'],
-            'password' => ! empty($input['sms_password']) ? $input['sms_password'] : $existingSms['password'],
-            'from_number' => $input['sms_from_number'] ?? $existingSms['from_number'],
-        ];
-
-        // Remove legacy individual keys from input so they are not saved as individual rows
-        $legacyKeys = array_merge(
-            $paymentKeys,
-            $storageKeys,
-            $shippingKeys,
-            $mailKeys,
-            $smsKeys,
-            [
-                'currency_position',
-                'session_lifetime_minutes',
-                'max_login_attempts',
-                'lockout_duration_minutes',
-                'require_strong_passwords',
-                'min_order_amount',
-                'payment_bank_transfer_enabled',
-                'payment_bank_name',
-                'payment_bank_account_name',
-                'payment_bank_account_number',
-                'payment_bank_routing_number',
-                'payment_bank_swift_code',
-                'payment_bank_instructions',
-                'shipping_default_method',
-                'shipping_flat_rate_cost',
-                'shipping_free_shipping_enabled',
-                'shipping_free_shipping_min_order',
-                'mail_mailer',
-                'enable_email_notifications',
-                'enable_in_app_notifications',
-                'maintenance_mode',
-                'maintenance_notice',
-                'allow_admin_bypass_maintenance',
-                'notify_order_placed_customer',
-                'notify_order_placed_admin',
-                'notify_order_status_updated',
-                'notify_order_cancelled',
-                'notify_low_stock_admin',
-                'notify_new_customer_welcome',
-                'notify_new_review_admin',
-            ]
-        );
-        foreach ($legacyKeys as $key) {
-            unset($input[$key]);
-        }
+        // Remove individual keys from input so they are not saved as individual rows
+        $input = array_diff_key($input, array_flip(self::OBSOLETE_OR_GROUPED_KEYS));
 
         // Delete any obsolete individual rows from settings table
-        Setting::whereIn('key', $legacyKeys)->delete();
-
-        // Save grouped configurations as json rows (automatically encrypts sensitive keys)
-        $input['payment_settings'] = $paymentSettings;
-        $input['storage_settings'] = $storageSettings;
-        $input['shipping_settings'] = $shippingSettings;
-        $input['mail_settings'] = $mailSettings;
-        $input['sms_settings'] = $smsSettings;
+        Setting::whereIn('key', self::OBSOLETE_OR_GROUPED_KEYS)->delete();
 
         // Filter admin alert recipient settings: ONLY save the active option's data
         if (isset($input['admin_alert_recipient_type'])) {
-            $recipientType = $input['admin_alert_recipient_type'];
-            if ($recipientType === 'email') {
-                $input['admin_alert_roles'] = [];
-                $input['admin_alert_users'] = [];
-            } elseif ($recipientType === 'roles') {
-                $input['admin_alert_users'] = [];
-                $input['admin_alert_email'] = '';
-            } elseif ($recipientType === 'users') {
-                $input['admin_alert_roles'] = [];
-                $input['admin_alert_email'] = '';
-            }
+            match ($input['admin_alert_recipient_type']) {
+                'email' => $input = array_merge($input, ['admin_alert_roles' => [], 'admin_alert_users' => []]),
+                'roles' => $input = array_merge($input, ['admin_alert_users' => [], 'admin_alert_email' => '']),
+                'users' => $input = array_merge($input, ['admin_alert_roles' => [], 'admin_alert_email' => '']),
+                default => null,
+            };
         }
 
         Setting::setMany($input);
 
         return redirect()->back()->with('success', 'Global E-Commerce & Platform settings updated successfully.');
+    }
+
+    /**
+     * Build payment settings array preserving credentials if unmodified.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function buildPaymentSettings(array $input): array
+    {
+        $existing = Setting::getPaymentSettings();
+
+        return [
+            'stripe' => [
+                'enabled' => isset($input['payment_stripe_enabled']) ? (bool) $input['payment_stripe_enabled'] : $existing['stripe']['enabled'],
+                'publishable_key' => $input['payment_stripe_publishable_key'] ?? $existing['stripe']['publishable_key'],
+                'secret_key' => ! empty($input['payment_stripe_secret_key']) ? $input['payment_stripe_secret_key'] : $existing['stripe']['secret_key'],
+                'webhook_secret' => ! empty($input['payment_stripe_webhook_secret']) ? $input['payment_stripe_webhook_secret'] : $existing['stripe']['webhook_secret'],
+            ],
+            'paypal' => [
+                'enabled' => isset($input['payment_paypal_enabled']) ? (bool) $input['payment_paypal_enabled'] : $existing['paypal']['enabled'],
+                'mode' => $input['payment_paypal_mode'] ?? $existing['paypal']['mode'],
+                'client_id' => $input['payment_paypal_client_id'] ?? $existing['paypal']['client_id'],
+                'client_secret' => ! empty($input['payment_paypal_client_secret']) ? $input['payment_paypal_client_secret'] : $existing['paypal']['client_secret'],
+            ],
+            'cod' => [
+                'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : $existing['cod']['enabled'],
+                'instructions' => $input['payment_cod_instructions'] ?? $existing['cod']['instructions'],
+            ],
+            'razorpay' => [
+                'enabled' => isset($input['payment_razorpay_enabled']) ? (bool) $input['payment_razorpay_enabled'] : ($existing['razorpay']['enabled'] ?? false),
+                'key_id' => $input['payment_razorpay_key_id'] ?? ($existing['razorpay']['key_id'] ?? ''),
+                'key_secret' => ! empty($input['payment_razorpay_key_secret']) ? $input['payment_razorpay_key_secret'] : ($existing['razorpay']['key_secret'] ?? ''),
+                'webhook_secret' => ! empty($input['payment_razorpay_webhook_secret']) ? $input['payment_razorpay_webhook_secret'] : ($existing['razorpay']['webhook_secret'] ?? ''),
+            ],
+        ];
+    }
+
+    /**
+     * Build storage settings array preserving credentials if unmodified.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function buildStorageSettings(array $input): array
+    {
+        $existing = Setting::getStorageSettings();
+
+        return [
+            'default_disk' => $input['storage_default_disk'] ?? $existing['default_disk'],
+            's3' => [
+                'key' => $input['storage_s3_key'] ?? $existing['s3']['key'],
+                'secret' => ! empty($input['storage_s3_secret']) ? $input['storage_s3_secret'] : $existing['s3']['secret'],
+                'region' => $input['storage_s3_region'] ?? $existing['s3']['region'],
+                'bucket' => $input['storage_s3_bucket'] ?? $existing['s3']['bucket'],
+                'url' => $input['storage_s3_url'] ?? $existing['s3']['url'],
+                'endpoint' => $input['storage_s3_endpoint'] ?? $existing['s3']['endpoint'],
+            ],
+        ];
+    }
+
+    /**
+     * Build shipping settings array for multi-carrier and primary carrier.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function buildShippingSettings(array $input): array
+    {
+        $existing = Setting::getShippingSettings();
+        $legacyProvider = $input['shipping_carrier_provider'] ?? null;
+        $carriers = ['fedex', 'ups', 'dhl'];
+
+        $settings = [];
+        $firstEnabled = null;
+
+        foreach ($carriers as $carrier) {
+            $isLegacyMatch = $legacyProvider === $carrier;
+            $enabled = isset($input["shipping_{$carrier}_enabled"])
+                ? (bool) $input["shipping_{$carrier}_enabled"]
+                : ($isLegacyMatch || ($existing[$carrier]['enabled'] ?? false));
+
+            $account = $input["shipping_{$carrier}_account_number"]
+                ?? ($isLegacyMatch ? ($input['shipping_carrier_account_number'] ?? '') : ($existing[$carrier]['account_number'] ?? ''));
+
+            $apiKey = $input["shipping_{$carrier}_api_key"]
+                ?? ($isLegacyMatch ? ($input['shipping_carrier_api_key'] ?? '') : ($existing[$carrier]['api_key'] ?? ''));
+
+            $secretInput = $input["shipping_{$carrier}_api_secret"] ?? ($isLegacyMatch ? ($input['shipping_carrier_api_secret'] ?? '') : '');
+            $secret = ! empty($secretInput) ? $secretInput : ($existing[$carrier]['api_secret'] ?? '');
+
+            $settings[$carrier] = [
+                'enabled' => $enabled,
+                'account_number' => $account,
+                'api_key' => $apiKey,
+                'api_secret' => $secret,
+            ];
+
+            if ($enabled && $firstEnabled === null) {
+                $firstEnabled = $carrier;
+            }
+        }
+
+        $primaryProvider = $firstEnabled ?? ($legacyProvider ?? ($existing['carrier']['provider'] ?? 'none'));
+        $primaryCarrier = $settings[$primaryProvider] ?? ($existing['carrier'] ?? [
+            'account_number' => '',
+            'api_key' => '',
+            'api_secret' => '',
+        ]);
+
+        $settings['carrier'] = [
+            'provider' => $primaryProvider,
+            'account_number' => $primaryCarrier['account_number'] ?? '',
+            'api_key' => $primaryCarrier['api_key'] ?? '',
+            'api_secret' => $primaryCarrier['api_secret'] ?? '',
+        ];
+
+        return $settings;
+    }
+
+    /**
+     * Build mail settings array preserving password if unmodified.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function buildMailSettings(array $input): array
+    {
+        $existing = Setting::getMailSettings();
+
+        return [
+            'host' => $input['mail_host'] ?? $existing['host'],
+            'port' => isset($input['mail_port']) ? (int) $input['mail_port'] : $existing['port'],
+            'username' => $input['mail_username'] ?? $existing['username'],
+            'password' => ! empty($input['mail_password']) ? $input['mail_password'] : $existing['password'],
+            'encryption' => $input['mail_encryption'] ?? $existing['encryption'],
+            'from_name' => $input['mail_from_name'] ?? $existing['from_name'],
+            'from_address' => $input['mail_from_address'] ?? $existing['from_address'],
+        ];
+    }
+
+    /**
+     * Build SMS settings array preserving password if unmodified.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function buildSmsSettings(array $input): array
+    {
+        $existing = Setting::getSmsSettings();
+
+        return [
+            'provider' => $input['sms_provider'] ?? $existing['provider'],
+            'username' => $input['sms_username'] ?? $existing['username'],
+            'password' => ! empty($input['sms_password']) ? $input['sms_password'] : $existing['password'],
+            'from_number' => $input['sms_from_number'] ?? $existing['from_number'],
+        ];
     }
 }

@@ -13,7 +13,6 @@ import {
     Button,
     Input,
     Select,
-    SelectOption,
     Toggle,
     Badge,
     PageHeader,
@@ -47,6 +46,7 @@ import {
     UserCheck,
     XCircle,
     Users,
+    SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -68,24 +68,42 @@ interface SettingsProps extends PageProps {
         enable_customer_reviews: boolean;
         auto_approve_reviews: boolean;
 
-        payment_cod_enabled: boolean;
-        payment_stripe_enabled: boolean;
-        payment_paypal_enabled: boolean;
+        payment_cod_enabled?: boolean;
+        payment_stripe_enabled?: boolean;
+        payment_paypal_enabled?: boolean;
         payment_razorpay_enabled?: boolean;
+
+        payment_settings?: {
+            stripe?: { publishable_key?: string; secret_key?: string; webhook_secret?: string; enabled?: boolean };
+            paypal?: { mode?: string; client_id?: string; client_secret?: string; enabled?: boolean };
+            cod?: { instructions?: string; enabled?: boolean };
+            razorpay?: { key_id?: string; key_secret?: string; webhook_secret?: string; enabled?: boolean };
+        };
+
+        storage_settings?: {
+            default_disk?: string;
+            s3?: { key?: string; secret?: string; region?: string; bucket?: string; url?: string; endpoint?: string };
+        };
+
+        shipping_settings?: {
+            carrier?: { provider?: string; account_number?: string; api_key?: string; api_secret?: string };
+            fedex?: { enabled?: boolean; account_number?: string; api_key?: string; api_secret?: string };
+            ups?: { enabled?: boolean; account_number?: string; api_key?: string; api_secret?: string };
+            dhl?: { enabled?: boolean; account_number?: string; api_key?: string; api_secret?: string };
+        };
 
         mail_host?: string;
         mail_port?: number;
         mail_username?: string;
         mail_password?: string;
         mail_encryption?: MailEncryption;
+        mail_from_name?: string;
+        mail_from_address?: string;
 
         sms_provider?: SmsProvider;
         sms_username?: string;
         sms_password?: string;
         sms_from_number?: string;
-
-        mail_from_name?: string;
-        mail_from_address?: string;
         enable_order_sms_notifications?: boolean;
 
         // Customer Alerts
@@ -122,6 +140,164 @@ interface SettingsProps extends PageProps {
     staffUsers?: Array<{ id: string; name: string; email: string; role_id?: string | null }>;
 }
 
+const ALL_SECTION_IDS = ['localization', 'orders', 'payments', 'storage', 'email_sms', 'triggers'];
+
+const CARRIER_CONFIGS = [
+    {
+        id: 'fedex' as const,
+        name: 'FedEx Express',
+        colorClass: 'border-indigo-300 dark:border-indigo-700',
+        badgeBg: 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800/60',
+        iconColor: 'text-indigo-600 dark:text-indigo-400',
+        enabledKey: 'shipping_fedex_enabled' as const,
+        accountKey: 'shipping_fedex_account_number' as const,
+        apiKey: 'shipping_fedex_api_key' as const,
+        secretKey: 'shipping_fedex_api_secret' as const,
+    },
+    {
+        id: 'ups' as const,
+        name: 'UPS Logistics',
+        colorClass: 'border-amber-300 dark:border-amber-700',
+        badgeBg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800/60',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        enabledKey: 'shipping_ups_enabled' as const,
+        accountKey: 'shipping_ups_account_number' as const,
+        apiKey: 'shipping_ups_api_key' as const,
+        secretKey: 'shipping_ups_api_secret' as const,
+    },
+    {
+        id: 'dhl' as const,
+        name: 'DHL Express',
+        colorClass: 'border-rose-300 dark:border-rose-700',
+        badgeBg: 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800/60',
+        iconColor: 'text-rose-600 dark:text-rose-400',
+        enabledKey: 'shipping_dhl_enabled' as const,
+        accountKey: 'shipping_dhl_account_number' as const,
+        apiKey: 'shipping_dhl_api_key' as const,
+        secretKey: 'shipping_dhl_api_secret' as const,
+    },
+];
+
+const CUSTOMER_ALERTS = [
+    {
+        icon: ShoppingCart,
+        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40',
+        title: 'Order Confirmation',
+        description: 'Sent immediately when customer places an order',
+        emailKey: 'notify_order_placed_customer_email' as const,
+        smsKey: 'notify_order_placed_customer_sms' as const,
+    },
+    {
+        icon: Truck,
+        iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40',
+        title: 'Order Shipped & In Transit',
+        description: 'Sent when shipment is dispatched with courier tracking link',
+        emailKey: 'notify_order_status_updated_email' as const,
+        smsKey: 'notify_order_status_updated_sms' as const,
+    },
+    {
+        icon: PackageCheck,
+        iconBg: 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-200/50 dark:border-teal-800/40',
+        title: 'Order Delivered',
+        description: 'Sent when parcel is marked successfully delivered',
+        emailKey: 'notify_order_delivered_customer_email' as const,
+        smsKey: 'notify_order_delivered_customer_sms' as const,
+    },
+    {
+        icon: XCircle,
+        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40',
+        title: 'Order Cancelled / Refunded',
+        description: 'Sent when an order is cancelled or refunded',
+        emailKey: 'notify_order_cancelled_customer_email' as const,
+        smsKey: 'notify_order_cancelled_customer_sms' as const,
+    },
+    {
+        icon: UserCheck,
+        iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/40',
+        title: 'Customer Welcome',
+        description: 'Sent upon new customer account registration',
+        emailKey: 'notify_new_customer_welcome_email' as const,
+        smsKey: 'notify_new_customer_welcome_sms' as const,
+    },
+];
+
+const ADMIN_ALERTS = [
+    {
+        icon: ShoppingCart,
+        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40',
+        title: 'New Order Received',
+        description: 'Alert store team whenever a customer places an order',
+        emailKey: 'notify_order_placed_admin_email' as const,
+        smsKey: 'notify_order_placed_admin_sms' as const,
+    },
+    {
+        icon: XCircle,
+        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40',
+        title: 'Order Cancelled Notice',
+        description: 'Alert staff when a customer or system cancels an order',
+        emailKey: 'notify_order_cancelled_admin_email' as const,
+        smsKey: 'notify_order_cancelled_admin_sms' as const,
+    },
+    {
+        icon: AlertTriangle,
+        iconBg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/40',
+        title: 'Low Stock Inventory Warning',
+        description: 'Alert inventory team when product stock falls below threshold',
+        emailKey: 'notify_low_stock_admin_email' as const,
+        smsKey: 'notify_low_stock_admin_sms' as const,
+    },
+    {
+        icon: Star,
+        iconBg: 'bg-yellow-50 dark:bg-yellow-950/60 text-yellow-600 dark:text-yellow-400 border border-yellow-200/50 dark:border-yellow-800/40',
+        title: 'New Review Submitted',
+        description: 'Alert staff to moderate and respond to new customer reviews',
+        emailKey: 'notify_new_review_admin_email' as const,
+        smsKey: 'notify_new_review_admin_sms' as const,
+    },
+];
+
+interface SecretInputProps {
+    label: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    placeholder?: string;
+    isVisible: boolean;
+    onToggle: () => void;
+    error?: string;
+}
+
+function SecretInput({
+    label,
+    value,
+    onChange,
+    placeholder = 'Secret...',
+    isVisible,
+    onToggle,
+    error,
+}: SecretInputProps) {
+    return (
+        <Input
+            label={label}
+            type={isVisible ? 'text' : 'password'}
+            placeholder={placeholder}
+            value={value}
+            onChange={onChange}
+            error={error}
+            leftIcon={<Lock className="w-4 h-4" />}
+            rightIcon={
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                    tabIndex={-1}
+                >
+                    {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+            }
+        />
+    );
+}
+
 export default function Settings({
     settings,
     timezones,
@@ -129,7 +305,7 @@ export default function Settings({
     roles = [],
     staffUsers = [],
 }: SettingsProps) {
-    const { getOptions, constants, toOptions } = useEssentials();
+    const { getOptions } = useEssentials();
 
     const stockVisibilityOptions = getOptions<StockVisibility>('stock_visibility');
     const mailEncryptionOptions = getOptions<MailEncryption>('mail_encryption');
@@ -145,18 +321,15 @@ export default function Settings({
     const [savingSection, setSavingSection] = useState<string | null>(null);
     const [savedSection, setSavedSection] = useState<string | null>(null);
 
-    // Password & Secret visibility toggles
-    const [showSmtpPassword, setShowSmtpPassword] = useState<boolean>(false);
-    const [showSmsPassword, setShowSmsPassword] = useState<boolean>(false);
-    const [showStripeSecret, setShowStripeSecret] = useState<boolean>(false);
-    const [showStripeWebhookSecret, setShowStripeWebhookSecret] = useState<boolean>(false);
-    const [showPaypalSecret, setShowPaypalSecret] = useState<boolean>(false);
-    const [showRazorpaySecret, setShowRazorpaySecret] = useState<boolean>(false);
-    const [showRazorpayWebhookSecret, setShowRazorpayWebhookSecret] = useState<boolean>(false);
-    const [showS3Secret, setShowS3Secret] = useState<boolean>(false);
-    const [showFedexSecret, setShowFedexSecret] = useState<boolean>(false);
-    const [showUpsSecret, setShowUpsSecret] = useState<boolean>(false);
-    const [showDhlSecret, setShowDhlSecret] = useState<boolean>(false);
+    // Unified secret visibility state
+    const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
+    const toggleSecret = (key: string) => {
+        setShowSecret((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const pay = settings?.payment_settings;
+    const storeDisk = settings?.storage_settings;
+    const ship = settings?.shipping_settings;
 
     const form = useForm({
         currency_code: settings?.currency_code ?? 'USD',
@@ -175,101 +348,47 @@ export default function Settings({
         enable_customer_reviews: settings?.enable_customer_reviews ?? true,
         auto_approve_reviews: settings?.auto_approve_reviews ?? false,
 
-        payment_cod_enabled: settings?.payment_cod_enabled ?? true,
-        payment_stripe_enabled: settings?.payment_stripe_enabled ?? true,
-        payment_paypal_enabled: settings?.payment_paypal_enabled ?? true,
-        payment_razorpay_enabled:
-            settings?.payment_razorpay_enabled ??
-            (settings as any)?.payment_settings?.razorpay?.enabled ??
-            false,
+        payment_cod_enabled: settings?.payment_cod_enabled ?? pay?.cod?.enabled ?? true,
+        payment_stripe_enabled: settings?.payment_stripe_enabled ?? pay?.stripe?.enabled ?? true,
+        payment_paypal_enabled: settings?.payment_paypal_enabled ?? pay?.paypal?.enabled ?? true,
+        payment_razorpay_enabled: settings?.payment_razorpay_enabled ?? pay?.razorpay?.enabled ?? false,
 
         // Payment Gateway Credentials
-        payment_stripe_publishable_key: (settings as any)?.payment_settings?.stripe?.publishable_key ?? '',
-        payment_stripe_secret_key: (settings as any)?.payment_settings?.stripe?.secret_key ?? '',
-        payment_stripe_webhook_secret: (settings as any)?.payment_settings?.stripe?.webhook_secret ?? '',
-        payment_paypal_mode: (settings as any)?.payment_settings?.paypal?.mode ?? 'sandbox',
-        payment_paypal_client_id: (settings as any)?.payment_settings?.paypal?.client_id ?? '',
-        payment_paypal_client_secret: (settings as any)?.payment_settings?.paypal?.client_secret ?? '',
-        payment_razorpay_key_id: (settings as any)?.payment_settings?.razorpay?.key_id ?? '',
-        payment_razorpay_key_secret: (settings as any)?.payment_settings?.razorpay?.key_secret ?? '',
-        payment_razorpay_webhook_secret: (settings as any)?.payment_settings?.razorpay?.webhook_secret ?? '',
-        payment_cod_instructions: (settings as any)?.payment_settings?.cod?.instructions ?? '',
+        payment_stripe_publishable_key: pay?.stripe?.publishable_key ?? '',
+        payment_stripe_secret_key: pay?.stripe?.secret_key ?? '',
+        payment_stripe_webhook_secret: pay?.stripe?.webhook_secret ?? '',
+        payment_paypal_mode: pay?.paypal?.mode ?? 'sandbox',
+        payment_paypal_client_id: pay?.paypal?.client_id ?? '',
+        payment_paypal_client_secret: pay?.paypal?.client_secret ?? '',
+        payment_razorpay_key_id: pay?.razorpay?.key_id ?? '',
+        payment_razorpay_key_secret: pay?.razorpay?.key_secret ?? '',
+        payment_razorpay_webhook_secret: pay?.razorpay?.webhook_secret ?? '',
+        payment_cod_instructions: pay?.cod?.instructions ?? '',
 
         // Storage Settings
-        storage_default_disk: (settings as any)?.storage_settings?.default_disk ?? 'public',
-        storage_s3_key: (settings as any)?.storage_settings?.s3?.key ?? '',
-        storage_s3_secret: (settings as any)?.storage_settings?.s3?.secret ?? '',
-        storage_s3_region: (settings as any)?.storage_settings?.s3?.region ?? 'us-east-1',
-        storage_s3_bucket: (settings as any)?.storage_settings?.s3?.bucket ?? '',
-        storage_s3_url: (settings as any)?.storage_settings?.s3?.url ?? '',
-        storage_s3_endpoint: (settings as any)?.storage_settings?.s3?.endpoint ?? '',
+        storage_default_disk: storeDisk?.default_disk ?? 'public',
+        storage_s3_key: storeDisk?.s3?.key ?? '',
+        storage_s3_secret: storeDisk?.s3?.secret ?? '',
+        storage_s3_region: storeDisk?.s3?.region ?? 'us-east-1',
+        storage_s3_bucket: storeDisk?.s3?.bucket ?? '',
+        storage_s3_url: storeDisk?.s3?.url ?? '',
+        storage_s3_endpoint: storeDisk?.s3?.endpoint ?? '',
 
         // Shipping Settings - Multi-Carrier Support
-        shipping_fedex_enabled:
-            (settings as any)?.shipping_settings?.fedex?.enabled ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'),
-        shipping_fedex_account_number:
-            (settings as any)?.shipping_settings?.fedex?.account_number ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'
-                ? (settings as any)?.shipping_settings?.carrier?.account_number
-                : '') ??
-            '',
-        shipping_fedex_api_key:
-            (settings as any)?.shipping_settings?.fedex?.api_key ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'
-                ? (settings as any)?.shipping_settings?.carrier?.api_key
-                : '') ??
-            '',
-        shipping_fedex_api_secret:
-            (settings as any)?.shipping_settings?.fedex?.api_secret ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'
-                ? (settings as any)?.shipping_settings?.carrier?.api_secret
-                : '') ??
-            '',
+        shipping_fedex_enabled: ship?.fedex?.enabled ?? (ship?.carrier?.provider === 'fedex'),
+        shipping_fedex_account_number: ship?.fedex?.account_number ?? (ship?.carrier?.provider === 'fedex' ? (ship?.carrier?.account_number ?? '') : ''),
+        shipping_fedex_api_key: ship?.fedex?.api_key ?? (ship?.carrier?.provider === 'fedex' ? (ship?.carrier?.api_key ?? '') : ''),
+        shipping_fedex_api_secret: ship?.fedex?.api_secret ?? (ship?.carrier?.provider === 'fedex' ? (ship?.carrier?.api_secret ?? '') : ''),
 
-        shipping_ups_enabled:
-            (settings as any)?.shipping_settings?.ups?.enabled ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'),
-        shipping_ups_account_number:
-            (settings as any)?.shipping_settings?.ups?.account_number ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'
-                ? (settings as any)?.shipping_settings?.carrier?.account_number
-                : '') ??
-            '',
-        shipping_ups_api_key:
-            (settings as any)?.shipping_settings?.ups?.api_key ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'
-                ? (settings as any)?.shipping_settings?.carrier?.api_key
-                : '') ??
-            '',
-        shipping_ups_api_secret:
-            (settings as any)?.shipping_settings?.ups?.api_secret ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'
-                ? (settings as any)?.shipping_settings?.carrier?.api_secret
-                : '') ??
-            '',
+        shipping_ups_enabled: ship?.ups?.enabled ?? (ship?.carrier?.provider === 'ups'),
+        shipping_ups_account_number: ship?.ups?.account_number ?? (ship?.carrier?.provider === 'ups' ? (ship?.carrier?.account_number ?? '') : ''),
+        shipping_ups_api_key: ship?.ups?.api_key ?? (ship?.carrier?.provider === 'ups' ? (ship?.carrier?.api_key ?? '') : ''),
+        shipping_ups_api_secret: ship?.ups?.api_secret ?? (ship?.carrier?.provider === 'ups' ? (ship?.carrier?.api_secret ?? '') : ''),
 
-        shipping_dhl_enabled:
-            (settings as any)?.shipping_settings?.dhl?.enabled ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'),
-        shipping_dhl_account_number:
-            (settings as any)?.shipping_settings?.dhl?.account_number ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'
-                ? (settings as any)?.shipping_settings?.carrier?.account_number
-                : '') ??
-            '',
-        shipping_dhl_api_key:
-            (settings as any)?.shipping_settings?.dhl?.api_key ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'
-                ? (settings as any)?.shipping_settings?.carrier?.api_key
-                : '') ??
-            '',
-        shipping_dhl_api_secret:
-            (settings as any)?.shipping_settings?.dhl?.api_secret ??
-            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'
-                ? (settings as any)?.shipping_settings?.carrier?.api_secret
-                : '') ??
-            '',
+        shipping_dhl_enabled: ship?.dhl?.enabled ?? (ship?.carrier?.provider === 'dhl'),
+        shipping_dhl_account_number: ship?.dhl?.account_number ?? (ship?.carrier?.provider === 'dhl' ? (ship?.carrier?.account_number ?? '') : ''),
+        shipping_dhl_api_key: ship?.dhl?.api_key ?? (ship?.carrier?.provider === 'dhl' ? (ship?.carrier?.api_key ?? '') : ''),
+        shipping_dhl_api_secret: ship?.dhl?.api_secret ?? (ship?.carrier?.provider === 'dhl' ? (ship?.carrier?.api_secret ?? '') : ''),
 
         // SMTP Credentials
         mail_host: settings?.mail_host ?? 'smtp.mailtrap.io',
@@ -289,7 +408,7 @@ export default function Settings({
         mail_from_address: settings?.mail_from_address ?? 'notifications@example.com',
         enable_order_sms_notifications: settings?.enable_order_sms_notifications ?? false,
 
-        // Customer Alerts (Email & SMS independent toggles)
+        // Customer Alerts
         notify_order_placed_customer_email: settings?.notify_order_placed_customer_email ?? true,
         notify_order_placed_customer_sms: settings?.notify_order_placed_customer_sms ?? true,
         notify_order_status_updated_email: settings?.notify_order_status_updated_email ?? true,
@@ -301,7 +420,7 @@ export default function Settings({
         notify_new_customer_welcome_email: settings?.notify_new_customer_welcome_email ?? true,
         notify_new_customer_welcome_sms: settings?.notify_new_customer_welcome_sms ?? false,
 
-        // Admin & Staff Alerts (Email & SMS independent toggles)
+        // Admin & Staff Alerts
         notify_order_placed_admin_email: settings?.notify_order_placed_admin_email ?? true,
         notify_order_placed_admin_sms: settings?.notify_order_placed_admin_sms ?? false,
         notify_order_cancelled_admin_email: settings?.notify_order_cancelled_admin_email ?? true,
@@ -338,7 +457,7 @@ export default function Settings({
 
     const handleExpandAll = () => {
         const all: Record<string, boolean> = {};
-        allListKeys.forEach((key) => {
+        ALL_SECTION_IDS.forEach((key) => {
             all[key] = true;
         });
         setOpenSections(all);
@@ -377,7 +496,7 @@ export default function Settings({
 
     interface SettingListItem {
         id: string;
-        category: 'store' | 'orders' | 'inventory' | 'payments' | 'storage' | 'notifications';
+        category: 'store' | 'orders' | 'payments' | 'storage' | 'notifications';
         categoryLabel: string;
         title: string;
         description: string;
@@ -388,7 +507,7 @@ export default function Settings({
         renderForm: () => React.ReactNode;
     }
 
-    const settingsList: SettingListItem[] = [
+    const settingsList: SettingListItem[] = useMemo(() => [
         {
             id: 'localization',
             category: 'store',
@@ -664,42 +783,22 @@ export default function Settings({
                                             onChange={(e) => form.setData('payment_razorpay_key_id', e.target.value)}
                                             leftIcon={<Key className="w-4 h-4" />}
                                         />
-                                        <Input
+                                        <SecretInput
                                             label="Key Secret"
-                                            type={showRazorpaySecret ? 'text' : 'password'}
                                             placeholder="Razorpay Secret Key..."
                                             value={form.data.payment_razorpay_key_secret}
                                             onChange={(e) => form.setData('payment_razorpay_key_secret', e.target.value)}
-                                            leftIcon={<Lock className="w-4 h-4" />}
-                                            rightIcon={
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
-                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                    tabIndex={-1}
-                                                >
-                                                    {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
-                                            }
+                                            isVisible={Boolean(showSecret['payment_razorpay_key_secret'])}
+                                            onToggle={() => toggleSecret('payment_razorpay_key_secret')}
                                         />
                                     </div>
-                                    <Input
+                                    <SecretInput
                                         label="Webhook Secret"
-                                        type={showRazorpayWebhookSecret ? 'text' : 'password'}
                                         placeholder="Razorpay Webhook Secret..."
                                         value={form.data.payment_razorpay_webhook_secret}
                                         onChange={(e) => form.setData('payment_razorpay_webhook_secret', e.target.value)}
-                                        leftIcon={<Lock className="w-4 h-4" />}
-                                        rightIcon={
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowRazorpayWebhookSecret(!showRazorpayWebhookSecret)}
-                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                tabIndex={-1}
-                                            >
-                                                {showRazorpayWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        }
+                                        isVisible={Boolean(showSecret['payment_razorpay_webhook_secret'])}
+                                        onToggle={() => toggleSecret('payment_razorpay_webhook_secret')}
                                     />
                                 </div>
                             )}
@@ -738,42 +837,22 @@ export default function Settings({
                                             onChange={(e) => form.setData('payment_stripe_publishable_key', e.target.value)}
                                             leftIcon={<Key className="w-4 h-4" />}
                                         />
-                                        <Input
+                                        <SecretInput
                                             label="Secret Key"
-                                            type={showStripeSecret ? 'text' : 'password'}
                                             placeholder="sk_live_..."
                                             value={form.data.payment_stripe_secret_key}
                                             onChange={(e) => form.setData('payment_stripe_secret_key', e.target.value)}
-                                            leftIcon={<Lock className="w-4 h-4" />}
-                                            rightIcon={
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowStripeSecret(!showStripeSecret)}
-                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                    tabIndex={-1}
-                                                >
-                                                    {showStripeSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
-                                            }
+                                            isVisible={Boolean(showSecret['payment_stripe_secret_key'])}
+                                            onToggle={() => toggleSecret('payment_stripe_secret_key')}
                                         />
                                     </div>
-                                    <Input
+                                    <SecretInput
                                         label="Webhook Secret"
-                                        type={showStripeWebhookSecret ? 'text' : 'password'}
                                         placeholder="whsec_..."
                                         value={form.data.payment_stripe_webhook_secret}
                                         onChange={(e) => form.setData('payment_stripe_webhook_secret', e.target.value)}
-                                        leftIcon={<Lock className="w-4 h-4" />}
-                                        rightIcon={
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowStripeWebhookSecret(!showStripeWebhookSecret)}
-                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                tabIndex={-1}
-                                            >
-                                                {showStripeWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        }
+                                        isVisible={Boolean(showSecret['payment_stripe_webhook_secret'])}
+                                        onToggle={() => toggleSecret('payment_stripe_webhook_secret')}
                                     />
                                 </div>
                             )}
@@ -820,23 +899,13 @@ export default function Settings({
                                             onChange={(e) => form.setData('payment_paypal_client_id', e.target.value)}
                                             leftIcon={<Key className="w-4 h-4" />}
                                         />
-                                        <Input
+                                        <SecretInput
                                             label="Client Secret"
-                                            type={showPaypalSecret ? 'text' : 'password'}
                                             placeholder="Secret Key..."
                                             value={form.data.payment_paypal_client_secret}
                                             onChange={(e) => form.setData('payment_paypal_client_secret', e.target.value)}
-                                            leftIcon={<Lock className="w-4 h-4" />}
-                                            rightIcon={
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPaypalSecret(!showPaypalSecret)}
-                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                    tabIndex={-1}
-                                                >
-                                                    {showPaypalSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
-                                            }
+                                            isVisible={Boolean(showSecret['payment_paypal_client_secret'])}
+                                            onToggle={() => toggleSecret('payment_paypal_client_secret')}
                                         />
                                     </div>
                                 </div>
@@ -897,191 +966,62 @@ export default function Settings({
                             </span>
                         </div>
 
-                        {/* FedEx */}
-                        <div
-                            className={`rounded-xl border transition-all ${
-                                form.data.shipping_fedex_enabled
-                                    ? 'bg-white dark:bg-slate-800/90 border-indigo-300 dark:border-indigo-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
-                            }`}
-                        >
-                            <div className="p-3.5 flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
-                                        <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">FedEx Express</span>
-                                </div>
-                                <Toggle
-                                    checked={form.data.shipping_fedex_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('shipping_fedex_enabled', checked)
-                                    }
-                                />
-                            </div>
-
-                            {form.data.shipping_fedex_enabled && (
-                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
-                                        <Input
-                                            label="Account Number"
-                                            placeholder="Account number..."
-                                            value={form.data.shipping_fedex_account_number}
-                                            onChange={(e) => form.setData('shipping_fedex_account_number', e.target.value)}
-                                        />
-                                        <Input
-                                            label="API Key"
-                                            placeholder="API key..."
-                                            value={form.data.shipping_fedex_api_key}
-                                            onChange={(e) => form.setData('shipping_fedex_api_key', e.target.value)}
-                                            leftIcon={<Key className="w-4 h-4" />}
-                                        />
-                                        <Input
-                                            label="API Secret"
-                                            type={showFedexSecret ? 'text' : 'password'}
-                                            placeholder="Secret..."
-                                            value={form.data.shipping_fedex_api_secret}
-                                            onChange={(e) => form.setData('shipping_fedex_api_secret', e.target.value)}
-                                            leftIcon={<Lock className="w-4 h-4" />}
-                                            rightIcon={
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowFedexSecret(!showFedexSecret)}
-                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                    tabIndex={-1}
-                                                >
-                                                    {showFedexSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
+                        {CARRIER_CONFIGS.map((carrier) => {
+                            const isEnabled = Boolean(form.data[carrier.enabledKey]);
+                            return (
+                                <div
+                                    key={carrier.id}
+                                    className={`rounded-xl border transition-all ${
+                                        isEnabled
+                                            ? `bg-white dark:bg-slate-800/90 ${carrier.colorClass} shadow-2xs`
+                                            : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                                    }`}
+                                >
+                                    <div className="p-3.5 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className={`p-1.5 rounded-lg border shrink-0 ${carrier.badgeBg}`}>
+                                                <Truck className={`w-4 h-4 ${carrier.iconColor}`} />
+                                            </div>
+                                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{carrier.name}</span>
+                                        </div>
+                                        <Toggle
+                                            checked={isEnabled}
+                                            onChange={(checked) =>
+                                                form.setData(carrier.enabledKey, checked)
                                             }
                                         />
                                     </div>
-                                </div>
-                            )}
-                        </div>
 
-                        {/* UPS */}
-                        <div
-                            className={`rounded-xl border transition-all ${
-                                form.data.shipping_ups_enabled
-                                    ? 'bg-white dark:bg-slate-800/90 border-amber-300 dark:border-amber-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
-                            }`}
-                        >
-                            <div className="p-3.5 flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 shrink-0">
-                                        <Truck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">UPS Logistics</span>
+                                    {isEnabled && (
+                                        <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+                                                <Input
+                                                    label="Account Number"
+                                                    placeholder="Account number..."
+                                                    value={String(form.data[carrier.accountKey] ?? '')}
+                                                    onChange={(e) => form.setData(carrier.accountKey, e.target.value)}
+                                                />
+                                                <Input
+                                                    label="API Key"
+                                                    placeholder="API key..."
+                                                    value={String(form.data[carrier.apiKey] ?? '')}
+                                                    onChange={(e) => form.setData(carrier.apiKey, e.target.value)}
+                                                    leftIcon={<Key className="w-4 h-4" />}
+                                                />
+                                                <SecretInput
+                                                    label="API Secret"
+                                                    placeholder="Secret..."
+                                                    value={String(form.data[carrier.secretKey] ?? '')}
+                                                    onChange={(e) => form.setData(carrier.secretKey, e.target.value)}
+                                                    isVisible={Boolean(showSecret[carrier.secretKey])}
+                                                    onToggle={() => toggleSecret(carrier.secretKey)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <Toggle
-                                    checked={form.data.shipping_ups_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('shipping_ups_enabled', checked)
-                                    }
-                                />
-                            </div>
-
-                            {form.data.shipping_ups_enabled && (
-                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
-                                        <Input
-                                            label="Account Number"
-                                            placeholder="Account number..."
-                                            value={form.data.shipping_ups_account_number}
-                                            onChange={(e) => form.setData('shipping_ups_account_number', e.target.value)}
-                                        />
-                                        <Input
-                                            label="API Key"
-                                            placeholder="API key..."
-                                            value={form.data.shipping_ups_api_key}
-                                            onChange={(e) => form.setData('shipping_ups_api_key', e.target.value)}
-                                            leftIcon={<Key className="w-4 h-4" />}
-                                        />
-                                        <Input
-                                            label="API Secret"
-                                            type={showUpsSecret ? 'text' : 'password'}
-                                            placeholder="Secret..."
-                                            value={form.data.shipping_ups_api_secret}
-                                            onChange={(e) => form.setData('shipping_ups_api_secret', e.target.value)}
-                                            leftIcon={<Lock className="w-4 h-4" />}
-                                            rightIcon={
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowUpsSecret(!showUpsSecret)}
-                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                    tabIndex={-1}
-                                                >
-                                                    {showUpsSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* DHL */}
-                        <div
-                            className={`rounded-xl border transition-all ${
-                                form.data.shipping_dhl_enabled
-                                    ? 'bg-white dark:bg-slate-800/90 border-rose-300 dark:border-rose-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
-                            }`}
-                        >
-                            <div className="p-3.5 flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 shrink-0">
-                                        <Truck className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">DHL Express</span>
-                                </div>
-                                <Toggle
-                                    checked={form.data.shipping_dhl_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('shipping_dhl_enabled', checked)
-                                    }
-                                />
-                            </div>
-
-                            {form.data.shipping_dhl_enabled && (
-                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
-                                        <Input
-                                            label="Account Number"
-                                            placeholder="Account number..."
-                                            value={form.data.shipping_dhl_account_number}
-                                            onChange={(e) => form.setData('shipping_dhl_account_number', e.target.value)}
-                                        />
-                                        <Input
-                                            label="API Key"
-                                            placeholder="API key..."
-                                            value={form.data.shipping_dhl_api_key}
-                                            onChange={(e) => form.setData('shipping_dhl_api_key', e.target.value)}
-                                            leftIcon={<Key className="w-4 h-4" />}
-                                        />
-                                        <Input
-                                            label="API Secret"
-                                            type={showDhlSecret ? 'text' : 'password'}
-                                            placeholder="Secret..."
-                                            value={form.data.shipping_dhl_api_secret}
-                                            onChange={(e) => form.setData('shipping_dhl_api_secret', e.target.value)}
-                                            leftIcon={<Lock className="w-4 h-4" />}
-                                            rightIcon={
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowDhlSecret(!showDhlSecret)}
-                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                    tabIndex={-1}
-                                                >
-                                                    {showDhlSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                            );
+                        })}
                     </div>
                 </div>
             ),
@@ -1103,7 +1043,6 @@ export default function Settings({
             ],
             renderForm: () => (
                 <div className="space-y-4">
-                    {/* 2 User-Friendly Storage Option Cards: Local and S3 */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {/* Local Storage */}
                         <div
@@ -1185,23 +1124,13 @@ export default function Settings({
                                     onChange={(e) => form.setData('storage_s3_key', e.target.value)}
                                     leftIcon={<Key className="w-4 h-4" />}
                                 />
-                                <Input
+                                <SecretInput
                                     label="AWS Secret Key"
-                                    type={showS3Secret ? 'text' : 'password'}
                                     placeholder="Secret..."
                                     value={form.data.storage_s3_secret}
                                     onChange={(e) => form.setData('storage_s3_secret', e.target.value)}
-                                    leftIcon={<Lock className="w-4 h-4" />}
-                                    rightIcon={
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowS3Secret(!showS3Secret)}
-                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                            tabIndex={-1}
-                                        >
-                                            {showS3Secret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    }
+                                    isVisible={Boolean(showSecret['storage_s3_secret'])}
+                                    onToggle={() => toggleSecret('storage_s3_secret')}
                                 />
                             </div>
 
@@ -1304,24 +1233,14 @@ export default function Settings({
                             leftIcon={<Key className="w-4 h-4" />}
                         />
 
-                        <Input
+                        <SecretInput
                             label="SMTP Password"
-                            type={showSmtpPassword ? 'text' : 'password'}
                             placeholder="••••••••"
                             value={form.data.mail_password}
                             onChange={(e) => form.setData('mail_password', e.target.value)}
                             error={form.errors.mail_password}
-                            leftIcon={<Lock className="w-4 h-4" />}
-                            rightIcon={
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                    tabIndex={-1}
-                                >
-                                    {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
-                            }
+                            isVisible={Boolean(showSecret['mail_password'])}
+                            onToggle={() => toggleSecret('mail_password')}
                         />
                     </div>
 
@@ -1394,24 +1313,14 @@ export default function Settings({
                                         leftIcon={<Key className="w-4 h-4" />}
                                     />
 
-                                    <Input
+                                    <SecretInput
                                         label="Auth Token / Secret"
-                                        type={showSmsPassword ? 'text' : 'password'}
                                         placeholder="••••••••"
                                         value={form.data.sms_password}
                                         onChange={(e) => form.setData('sms_password', e.target.value)}
                                         error={form.errors.sms_password}
-                                        leftIcon={<Lock className="w-4 h-4" />}
-                                        rightIcon={
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowSmsPassword(!showSmsPassword)}
-                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                tabIndex={-1}
-                                            >
-                                                {showSmsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        }
+                                        isVisible={Boolean(showSecret['sms_password'])}
+                                        onToggle={() => toggleSecret('sms_password')}
                                     />
                                 </div>
                             </div>
@@ -1433,87 +1342,9 @@ export default function Settings({
                 { label: 'Event Triggers', variant: 'indigo' },
             ],
             renderForm: () => {
-                const customerAlerts = [
-                    {
-                        icon: ShoppingCart,
-                        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40',
-                        title: 'Order Confirmation',
-                        description: 'Sent immediately when customer places an order',
-                        emailKey: 'notify_order_placed_customer_email',
-                        smsKey: 'notify_order_placed_customer_sms',
-                    },
-                    {
-                        icon: Truck,
-                        iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40',
-                        title: 'Order Shipped & In Transit',
-                        description: 'Sent when shipment is dispatched with courier tracking link',
-                        emailKey: 'notify_order_status_updated_email',
-                        smsKey: 'notify_order_status_updated_sms',
-                    },
-                    {
-                        icon: PackageCheck,
-                        iconBg: 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-200/50 dark:border-teal-800/40',
-                        title: 'Order Delivered',
-                        description: 'Sent when parcel is marked successfully delivered',
-                        emailKey: 'notify_order_delivered_customer_email',
-                        smsKey: 'notify_order_delivered_customer_sms',
-                    },
-                    {
-                        icon: XCircle,
-                        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40',
-                        title: 'Order Cancelled / Refunded',
-                        description: 'Sent when an order is cancelled or refunded',
-                        emailKey: 'notify_order_cancelled_customer_email',
-                        smsKey: 'notify_order_cancelled_customer_sms',
-                    },
-                    {
-                        icon: UserCheck,
-                        iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/40',
-                        title: 'Customer Welcome',
-                        description: 'Sent upon new customer account registration',
-                        emailKey: 'notify_new_customer_welcome_email',
-                        smsKey: 'notify_new_customer_welcome_sms',
-                    },
-                ];
-
-                const adminAlerts = [
-                    {
-                        icon: ShoppingCart,
-                        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40',
-                        title: 'New Order Received',
-                        description: 'Alert store team whenever a customer places an order',
-                        emailKey: 'notify_order_placed_admin_email',
-                        smsKey: 'notify_order_placed_admin_sms',
-                    },
-                    {
-                        icon: XCircle,
-                        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40',
-                        title: 'Order Cancelled Notice',
-                        description: 'Alert staff when a customer or system cancels an order',
-                        emailKey: 'notify_order_cancelled_admin_email',
-                        smsKey: 'notify_order_cancelled_admin_sms',
-                    },
-                    {
-                        icon: AlertTriangle,
-                        iconBg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/40',
-                        title: 'Low Stock Inventory Warning',
-                        description: 'Alert inventory team when product stock falls below threshold',
-                        emailKey: 'notify_low_stock_admin_email',
-                        smsKey: 'notify_low_stock_admin_sms',
-                    },
-                    {
-                        icon: Star,
-                        iconBg: 'bg-yellow-50 dark:bg-yellow-950/60 text-yellow-600 dark:text-yellow-400 border border-yellow-200/50 dark:border-yellow-800/40',
-                        title: 'New Review Submitted',
-                        description: 'Alert staff to moderate and respond to new customer reviews',
-                        emailKey: 'notify_new_review_admin_email',
-                        smsKey: 'notify_new_review_admin_sms',
-                    },
-                ];
-
                 const isSmsEnabled = Boolean(form.data.enable_order_sms_notifications);
 
-                const renderAlertRow = (alert: (typeof customerAlerts)[number]) => (
+                const renderAlertRow = (alert: (typeof CUSTOMER_ALERTS)[number] | (typeof ADMIN_ALERTS)[number]) => (
                     <div
                         key={alert.title}
                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 transition-colors hover:border-slate-300 dark:hover:border-slate-700"
@@ -1533,26 +1364,24 @@ export default function Settings({
                         </div>
 
                         <div className="flex items-center gap-3 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80 w-full sm:w-auto justify-end">
-                            {/* Email Channel Toggle */}
                             <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
                                 <Mail className="w-3.5 h-3.5 text-blue-500" />
                                 <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Email</span>
                                 <Toggle
                                     size="sm"
-                                    checked={Boolean((form.data as any)[alert.emailKey])}
-                                    onChange={(checked) => form.setData(alert.emailKey as any, checked)}
+                                    checked={Boolean(form.data[alert.emailKey])}
+                                    onChange={(checked) => form.setData(alert.emailKey, checked)}
                                 />
                             </div>
 
-                            {/* SMS Channel Toggle (Displayed only if SMS Gateway is enabled) */}
                             {isSmsEnabled && (
                                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
                                     <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
                                     <span className="text-xs font-medium text-slate-600 dark:text-slate-300">SMS</span>
                                     <Toggle
                                         size="sm"
-                                        checked={Boolean((form.data as any)[alert.smsKey])}
-                                        onChange={(checked) => form.setData(alert.smsKey as any, checked)}
+                                        checked={Boolean(form.data[alert.smsKey])}
+                                        onChange={(checked) => form.setData(alert.smsKey, checked)}
                                     />
                                 </div>
                             )}
@@ -1582,7 +1411,7 @@ export default function Settings({
                             </div>
 
                             <div className="grid grid-cols-1 gap-2.5">
-                                {customerAlerts.map(renderAlertRow)}
+                                {CUSTOMER_ALERTS.map(renderAlertRow)}
                             </div>
                         </div>
 
@@ -1767,16 +1596,27 @@ export default function Settings({
                             </div>
 
                             <div className="grid grid-cols-1 gap-2.5">
-                                {adminAlerts.map(renderAlertRow)}
+                                {ADMIN_ALERTS.map(renderAlertRow)}
                             </div>
                         </div>
                     </div>
                 );
             },
         },
-    ];
-
-    const allListKeys = useMemo(() => settingsList.map((item) => item.id), []);
+    ], [
+        form.data,
+        form.errors,
+        currencies,
+        timezones,
+        stockVisibilityOptions,
+        mailEncryptionOptions,
+        smsProviderOptions,
+        roles,
+        staffUsers,
+        showSecret,
+        activePaymentCount,
+        activeShippingCount,
+    ]);
 
     // Filter list by search query and category
     const filteredSettings = useMemo(() => {
@@ -1796,14 +1636,14 @@ export default function Settings({
         });
     }, [settingsList, searchQuery, selectedCategory]);
 
-    const categories = [
+    const categories = useMemo(() => [
         { id: 'all', label: 'All', count: settingsList.length },
-        { id: 'store', label: 'Storefront', count: settingsList.filter((s) => s.category === 'store').length },
-        { id: 'orders', label: 'Orders & Catalog', count: settingsList.filter((s) => s.category === 'orders').length },
-        { id: 'payments', label: 'Payments & Shipping', count: settingsList.filter((s) => s.category === 'payments').length },
-        { id: 'storage', label: 'Storage', count: settingsList.filter((s) => s.category === 'storage').length },
-        { id: 'notifications', label: 'Communications', count: settingsList.filter((s) => s.category === 'notifications').length },
-    ];
+        { id: 'store', label: 'Storefront', count: 1 },
+        { id: 'orders', label: 'Orders & Catalog', count: 1 },
+        { id: 'payments', label: 'Payments & Shipping', count: 1 },
+        { id: 'storage', label: 'Storage', count: 1 },
+        { id: 'notifications', label: 'Communications', count: 2 },
+    ], [settingsList.length]);
 
     const openCount = Object.values(openSections).filter(Boolean).length;
 
