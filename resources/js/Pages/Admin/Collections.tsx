@@ -18,7 +18,6 @@ import {
     CopyButton,
     Toggle,
     Card,
-    CardContent,
     ImagePicker,
     SlugInput,
 } from '../../Components/UI';
@@ -35,7 +34,6 @@ import {
     AlertCircle,
     LayoutGrid,
     Table as TableIcon,
-    CheckCircle2,
     Filter,
 } from 'lucide-react';
 
