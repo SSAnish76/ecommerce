@@ -22,7 +22,7 @@ class SendOrderCancelledNotification extends BaseNotificationListener
             $this->email()->send(
                 $order['customer_email'],
                 new OrderCancelledMail($order, $event->reason, false),
-                'notify_order_cancelled',
+                'notify_order_cancelled_customer_email',
             );
         }
 
@@ -30,7 +30,7 @@ class SendOrderCancelledNotification extends BaseNotificationListener
         $this->email()->send(
             $this->adminEmail(),
             new OrderCancelledMail($order, $event->reason, true),
-            'notify_order_cancelled',
+            'notify_order_cancelled_admin_email',
         );
 
         // 3. SMS Channel - Customer SMS Cancellation Notice
@@ -38,7 +38,7 @@ class SendOrderCancelledNotification extends BaseNotificationListener
             $this->sms()->send(
                 (string) $order['customer_phone'],
                 "Order #{$order['order_number']} has been cancelled. Reason: {$event->reason}.",
-                'notify_order_cancelled',
+                'notify_order_cancelled_customer_sms',
             );
         }
 

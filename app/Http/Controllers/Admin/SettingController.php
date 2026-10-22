@@ -110,13 +110,28 @@ class SettingController extends Controller
             'sms_from_number' => ['sometimes', 'nullable', 'string', 'max:50'],
 
             'enable_order_sms_notifications' => ['sometimes', 'boolean'],
-            'notify_order_placed_customer' => ['sometimes', 'boolean'],
-            'notify_order_placed_admin' => ['sometimes', 'boolean'],
-            'notify_order_status_updated' => ['sometimes', 'boolean'],
-            'notify_order_cancelled' => ['sometimes', 'boolean'],
-            'notify_low_stock_admin' => ['sometimes', 'boolean'],
-            'notify_new_customer_welcome' => ['sometimes', 'boolean'],
-            'notify_new_review_admin' => ['sometimes', 'boolean'],
+
+            // Customer Event Notification Triggers (Email & SMS independent channels)
+            'notify_order_placed_customer_email' => ['sometimes', 'boolean'],
+            'notify_order_placed_customer_sms' => ['sometimes', 'boolean'],
+            'notify_order_status_updated_email' => ['sometimes', 'boolean'],
+            'notify_order_status_updated_sms' => ['sometimes', 'boolean'],
+            'notify_order_delivered_customer_email' => ['sometimes', 'boolean'],
+            'notify_order_delivered_customer_sms' => ['sometimes', 'boolean'],
+            'notify_order_cancelled_customer_email' => ['sometimes', 'boolean'],
+            'notify_order_cancelled_customer_sms' => ['sometimes', 'boolean'],
+            'notify_new_customer_welcome_email' => ['sometimes', 'boolean'],
+            'notify_new_customer_welcome_sms' => ['sometimes', 'boolean'],
+
+            // Admin & Staff Notification Triggers (Email & SMS independent channels)
+            'notify_order_placed_admin_email' => ['sometimes', 'boolean'],
+            'notify_order_placed_admin_sms' => ['sometimes', 'boolean'],
+            'notify_order_cancelled_admin_email' => ['sometimes', 'boolean'],
+            'notify_order_cancelled_admin_sms' => ['sometimes', 'boolean'],
+            'notify_low_stock_admin_email' => ['sometimes', 'boolean'],
+            'notify_low_stock_admin_sms' => ['sometimes', 'boolean'],
+            'notify_new_review_admin_email' => ['sometimes', 'boolean'],
+            'notify_new_review_admin_sms' => ['sometimes', 'boolean'],
         ]);
 
         // 1. Bundle Payment Gateways & Methods
@@ -325,6 +340,13 @@ class SettingController extends Controller
                 'maintenance_mode',
                 'maintenance_notice',
                 'allow_admin_bypass_maintenance',
+                'notify_order_placed_customer',
+                'notify_order_placed_admin',
+                'notify_order_status_updated',
+                'notify_order_cancelled',
+                'notify_low_stock_admin',
+                'notify_new_customer_welcome',
+                'notify_new_review_admin',
             ]
         );
         foreach ($legacyKeys as $key) {

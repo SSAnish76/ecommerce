@@ -22,7 +22,7 @@ class SendWelcomeNotification extends BaseNotificationListener
         $this->email()->send(
             $user->email,
             new WelcomeUserMail($user, $event->initialPassword),
-            'notify_new_customer_welcome',
+            'notify_new_customer_welcome_email',
         );
 
         // 2. SMS Channel (if user phone is configured)
@@ -30,6 +30,7 @@ class SendWelcomeNotification extends BaseNotificationListener
             $this->sms()->send(
                 (string) $user->phone,
                 "Welcome to {$storeName}! Your account has been created successfully.",
+                'notify_new_customer_welcome_sms',
             );
         }
 

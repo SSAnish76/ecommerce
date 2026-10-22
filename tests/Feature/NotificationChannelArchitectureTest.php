@@ -135,7 +135,7 @@ class NotificationChannelArchitectureTest extends TestCase
         Queue::fake();
 
         Setting::set('enable_in_app_notifications', true);
-        Setting::set('notify_order_placed_admin', false);
+        Setting::set('notify_order_placed_admin_email', false);
 
         $dispatcher = app(NotificationDispatcher::class);
         $result = $dispatcher->push()->send(
@@ -143,7 +143,7 @@ class NotificationChannelArchitectureTest extends TestCase
             'Order Notification',
             'Order received',
             [],
-            'notify_order_placed_admin',
+            'notify_order_placed_admin_email',
         );
 
         $this->assertFalse($result);

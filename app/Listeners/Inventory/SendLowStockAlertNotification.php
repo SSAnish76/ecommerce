@@ -19,7 +19,7 @@ class SendLowStockAlertNotification extends BaseNotificationListener
         $this->email()->send(
             $this->adminEmail(),
             new LowStockAlertMail($event->productData, $event->currentStock, $event->threshold),
-            'notify_low_stock_admin',
+            'notify_low_stock_admin_email',
         );
 
         // 2. In-App / Push Alert Channel

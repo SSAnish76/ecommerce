@@ -117,13 +117,22 @@ class SettingTest extends TestCase
             'mail_from_name' => 'Premium Store Dispatch',
             'mail_from_address' => 'store@example.com',
             'enable_order_sms_notifications' => true,
-            'notify_order_placed_customer' => true,
-            'notify_order_placed_admin' => true,
-            'notify_order_status_updated' => true,
-            'notify_order_cancelled' => true,
-            'notify_low_stock_admin' => true,
-            'notify_new_customer_welcome' => true,
-            'notify_new_review_admin' => true,
+            'notify_order_placed_customer_email' => true,
+            'notify_order_placed_customer_sms' => true,
+            'notify_order_placed_admin_email' => true,
+            'notify_order_placed_admin_sms' => false,
+            'notify_order_status_updated_email' => true,
+            'notify_order_status_updated_sms' => true,
+            'notify_order_delivered_customer_email' => true,
+            'notify_order_delivered_customer_sms' => true,
+            'notify_order_cancelled_customer_email' => true,
+            'notify_order_cancelled_customer_sms' => true,
+            'notify_low_stock_admin_email' => true,
+            'notify_low_stock_admin_sms' => false,
+            'notify_new_customer_welcome_email' => true,
+            'notify_new_customer_welcome_sms' => false,
+            'notify_new_review_admin_email' => true,
+            'notify_new_review_admin_sms' => false,
         ];
 
         $response = $this->actingAs($this->adminUser)->post('/admin/settings', $payload);
@@ -144,8 +153,8 @@ class SettingTest extends TestCase
         $this->assertSame('AC_real_account_sid', Setting::get('sms_username'));
         $this->assertSame('Premium Store Dispatch', Setting::get('mail_from_name'));
         $this->assertSame('store@example.com', Setting::get('mail_from_address'));
-        $this->assertTrue(Setting::get('notify_order_placed_customer'));
-        $this->assertTrue(Setting::get('notify_low_stock_admin'));
+        $this->assertTrue(Setting::get('notify_order_placed_customer_email'));
+        $this->assertTrue(Setting::get('notify_low_stock_admin_email'));
 
         // Verify payment, storage, shipping, mail, and SMS are stored as JSON rows
         $this->assertDatabaseHas('settings', ['key' => 'payment_settings', 'type' => 'json']);

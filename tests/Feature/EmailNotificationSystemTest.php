@@ -279,8 +279,8 @@ class EmailNotificationSystemTest extends TestCase
     {
         Queue::fake();
 
-        Setting::set('notify_order_placed_admin', false);
-        Setting::set('notify_order_placed_customer', true);
+        Setting::set('notify_order_placed_admin_email', false);
+        Setting::set('notify_order_placed_customer_email', true);
 
         $orderData = [
             'order_number' => 'ORD-1234',

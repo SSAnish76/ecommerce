@@ -39,6 +39,12 @@ import {
     X,
     ShieldCheck,
     Cloud,
+    MessageSquare,
+    PackageCheck,
+    AlertTriangle,
+    Star,
+    UserCheck,
+    XCircle,
 } from 'lucide-react';
 
 interface SettingsProps extends PageProps {
@@ -78,13 +84,28 @@ interface SettingsProps extends PageProps {
         mail_from_name?: string;
         mail_from_address?: string;
         enable_order_sms_notifications?: boolean;
-        notify_order_placed_customer?: boolean;
-        notify_order_placed_admin?: boolean;
-        notify_order_status_updated?: boolean;
-        notify_order_cancelled?: boolean;
-        notify_low_stock_admin?: boolean;
-        notify_new_customer_welcome?: boolean;
-        notify_new_review_admin?: boolean;
+
+        // Customer Alerts
+        notify_order_placed_customer_email?: boolean;
+        notify_order_placed_customer_sms?: boolean;
+        notify_order_status_updated_email?: boolean;
+        notify_order_status_updated_sms?: boolean;
+        notify_order_delivered_customer_email?: boolean;
+        notify_order_delivered_customer_sms?: boolean;
+        notify_order_cancelled_customer_email?: boolean;
+        notify_order_cancelled_customer_sms?: boolean;
+        notify_new_customer_welcome_email?: boolean;
+        notify_new_customer_welcome_sms?: boolean;
+
+        // Admin & Staff Alerts
+        notify_order_placed_admin_email?: boolean;
+        notify_order_placed_admin_sms?: boolean;
+        notify_order_cancelled_admin_email?: boolean;
+        notify_order_cancelled_admin_sms?: boolean;
+        notify_low_stock_admin_email?: boolean;
+        notify_low_stock_admin_sms?: boolean;
+        notify_new_review_admin_email?: boolean;
+        notify_new_review_admin_sms?: boolean;
     };
     timezones: Record<string, string>;
     currencies: Array<{ code: string; symbol: string; name: string }>;
@@ -250,13 +271,28 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         mail_from_name: settings?.mail_from_name ?? 'E-Commerce Store',
         mail_from_address: settings?.mail_from_address ?? 'notifications@example.com',
         enable_order_sms_notifications: settings?.enable_order_sms_notifications ?? false,
-        notify_order_placed_customer: settings?.notify_order_placed_customer ?? true,
-        notify_order_placed_admin: settings?.notify_order_placed_admin ?? true,
-        notify_order_status_updated: settings?.notify_order_status_updated ?? true,
-        notify_order_cancelled: settings?.notify_order_cancelled ?? true,
-        notify_low_stock_admin: settings?.notify_low_stock_admin ?? true,
-        notify_new_customer_welcome: settings?.notify_new_customer_welcome ?? true,
-        notify_new_review_admin: settings?.notify_new_review_admin ?? true,
+
+        // Customer Alerts (Email & SMS independent toggles)
+        notify_order_placed_customer_email: settings?.notify_order_placed_customer_email ?? true,
+        notify_order_placed_customer_sms: settings?.notify_order_placed_customer_sms ?? true,
+        notify_order_status_updated_email: settings?.notify_order_status_updated_email ?? true,
+        notify_order_status_updated_sms: settings?.notify_order_status_updated_sms ?? true,
+        notify_order_delivered_customer_email: settings?.notify_order_delivered_customer_email ?? true,
+        notify_order_delivered_customer_sms: settings?.notify_order_delivered_customer_sms ?? true,
+        notify_order_cancelled_customer_email: settings?.notify_order_cancelled_customer_email ?? true,
+        notify_order_cancelled_customer_sms: settings?.notify_order_cancelled_customer_sms ?? true,
+        notify_new_customer_welcome_email: settings?.notify_new_customer_welcome_email ?? true,
+        notify_new_customer_welcome_sms: settings?.notify_new_customer_welcome_sms ?? false,
+
+        // Admin & Staff Alerts (Email & SMS independent toggles)
+        notify_order_placed_admin_email: settings?.notify_order_placed_admin_email ?? true,
+        notify_order_placed_admin_sms: settings?.notify_order_placed_admin_sms ?? false,
+        notify_order_cancelled_admin_email: settings?.notify_order_cancelled_admin_email ?? true,
+        notify_order_cancelled_admin_sms: settings?.notify_order_cancelled_admin_sms ?? false,
+        notify_low_stock_admin_email: settings?.notify_low_stock_admin_email ?? true,
+        notify_low_stock_admin_sms: settings?.notify_low_stock_admin_sms ?? false,
+        notify_new_review_admin_email: settings?.notify_new_review_admin_email ?? true,
+        notify_new_review_admin_sms: settings?.notify_new_review_admin_sms ?? false,
     });
 
     const handleCurrencySelect = (code: string) => {
@@ -1373,74 +1409,186 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             badges: [
                 { label: 'Event Triggers', variant: 'indigo' },
             ],
-            renderForm: () => (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {/* Customer Email Triggers */}
-                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2.5">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                                Customer Triggers
-                            </span>
-                            <Toggle
-                                label="Order Confirmation"
-                                checked={form.data.notify_order_placed_customer}
-                                onChange={(checked) =>
-                                    form.setData('notify_order_placed_customer', checked)
-                                }
-                            />
-                            <Toggle
-                                label="Order Dispatch & Tracking"
-                                checked={form.data.notify_order_status_updated}
-                                onChange={(checked) =>
-                                    form.setData('notify_order_status_updated', checked)
-                                }
-                            />
-                            <Toggle
-                                label="Order Cancellation Notice"
-                                checked={form.data.notify_order_cancelled}
-                                onChange={(checked) =>
-                                    form.setData('notify_order_cancelled', checked)
-                                }
-                            />
-                            <Toggle
-                                label="Customer Welcome Email"
-                                checked={form.data.notify_new_customer_welcome}
-                                onChange={(checked) =>
-                                    form.setData('notify_new_customer_welcome', checked)
-                                }
-                            />
+            renderForm: () => {
+                const customerAlerts = [
+                    {
+                        icon: ShoppingCart,
+                        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40',
+                        title: 'Order Confirmation',
+                        description: 'Sent immediately when customer places an order',
+                        emailKey: 'notify_order_placed_customer_email',
+                        smsKey: 'notify_order_placed_customer_sms',
+                    },
+                    {
+                        icon: Truck,
+                        iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40',
+                        title: 'Order Shipped & In Transit',
+                        description: 'Sent when shipment is dispatched with courier tracking link',
+                        emailKey: 'notify_order_status_updated_email',
+                        smsKey: 'notify_order_status_updated_sms',
+                    },
+                    {
+                        icon: PackageCheck,
+                        iconBg: 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-200/50 dark:border-teal-800/40',
+                        title: 'Order Delivered',
+                        description: 'Sent when parcel is marked successfully delivered',
+                        emailKey: 'notify_order_delivered_customer_email',
+                        smsKey: 'notify_order_delivered_customer_sms',
+                    },
+                    {
+                        icon: XCircle,
+                        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40',
+                        title: 'Order Cancelled / Refunded',
+                        description: 'Sent when an order is cancelled or refunded',
+                        emailKey: 'notify_order_cancelled_customer_email',
+                        smsKey: 'notify_order_cancelled_customer_sms',
+                    },
+                    {
+                        icon: UserCheck,
+                        iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/40',
+                        title: 'Customer Welcome',
+                        description: 'Sent upon new customer account registration',
+                        emailKey: 'notify_new_customer_welcome_email',
+                        smsKey: 'notify_new_customer_welcome_sms',
+                    },
+                ];
+
+                const adminAlerts = [
+                    {
+                        icon: ShoppingCart,
+                        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/40',
+                        title: 'New Order Received',
+                        description: 'Alert store team whenever a customer places an order',
+                        emailKey: 'notify_order_placed_admin_email',
+                        smsKey: 'notify_order_placed_admin_sms',
+                    },
+                    {
+                        icon: XCircle,
+                        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40',
+                        title: 'Order Cancelled Notice',
+                        description: 'Alert staff when a customer or system cancels an order',
+                        emailKey: 'notify_order_cancelled_admin_email',
+                        smsKey: 'notify_order_cancelled_admin_sms',
+                    },
+                    {
+                        icon: AlertTriangle,
+                        iconBg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/40',
+                        title: 'Low Stock Inventory Warning',
+                        description: 'Alert inventory team when product stock falls below threshold',
+                        emailKey: 'notify_low_stock_admin_email',
+                        smsKey: 'notify_low_stock_admin_sms',
+                    },
+                    {
+                        icon: Star,
+                        iconBg: 'bg-yellow-50 dark:bg-yellow-950/60 text-yellow-600 dark:text-yellow-400 border border-yellow-200/50 dark:border-yellow-800/40',
+                        title: 'New Review Submitted',
+                        description: 'Alert staff to moderate and respond to new customer reviews',
+                        emailKey: 'notify_new_review_admin_email',
+                        smsKey: 'notify_new_review_admin_sms',
+                    },
+                ];
+
+                const isSmsEnabled = Boolean(form.data.enable_order_sms_notifications);
+
+                const renderAlertRow = (alert: (typeof customerAlerts)[number]) => (
+                    <div
+                        key={alert.title}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 transition-colors hover:border-slate-300 dark:hover:border-slate-700"
+                    >
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${alert.iconBg}`}>
+                                <alert.icon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                                    {alert.title}
+                                </div>
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                    {alert.description}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Admin Alert Triggers */}
-                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2.5">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                                Admin Staff Triggers
-                            </span>
-                            <Toggle
-                                label="New Order Alert"
-                                checked={form.data.notify_order_placed_admin}
-                                onChange={(checked) =>
-                                    form.setData('notify_order_placed_admin', checked)
-                                }
-                            />
-                            <Toggle
-                                label="Low Stock Warning"
-                                checked={form.data.notify_low_stock_admin}
-                                onChange={(checked) =>
-                                    form.setData('notify_low_stock_admin', checked)
-                                }
-                            />
-                            <Toggle
-                                label="New Review Submitted"
-                                checked={form.data.notify_new_review_admin}
-                                onChange={(checked) =>
-                                    form.setData('notify_new_review_admin', checked)
-                                }
-                            />
+                        <div className="flex items-center gap-3 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80 w-full sm:w-auto justify-end">
+                            {/* Email Channel Toggle */}
+                            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                                <Mail className="w-3.5 h-3.5 text-blue-500" />
+                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Email</span>
+                                <Toggle
+                                    size="sm"
+                                    checked={Boolean((form.data as any)[alert.emailKey])}
+                                    onChange={(checked) => form.setData(alert.emailKey as any, checked)}
+                                />
+                            </div>
+
+                            {/* SMS Channel Toggle (Displayed only if SMS Gateway is enabled) */}
+                            {isSmsEnabled && (
+                                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                                    <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">SMS</span>
+                                    <Toggle
+                                        size="sm"
+                                        checked={Boolean((form.data as any)[alert.smsKey])}
+                                        onChange={(checked) => form.setData(alert.smsKey as any, checked)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
-            ),
+                );
+
+                return (
+                    <div className="space-y-6">
+                        {/* Customer Alerts Group */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800/80">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                                        Customer Alerts
+                                    </span>
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium">
+                                        5 Events
+                                    </span>
+                                </div>
+                                <div className="hidden sm:flex items-center gap-5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 pr-2">
+                                    <span className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-blue-500" /> Email</span>
+                                    {isSmsEnabled && (
+                                        <span className="flex items-center gap-1.5"><MessageSquare className="w-3 h-3 text-emerald-500" /> SMS</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {customerAlerts.map(renderAlertRow)}
+                            </div>
+                        </div>
+
+                        {/* Admin Alerts Group */}
+                        <div className="space-y-3 pt-2">
+                            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800/80">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                                        Admin & Staff Alerts
+                                    </span>
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-medium">
+                                        4 Events
+                                    </span>
+                                </div>
+                                <div className="hidden sm:flex items-center gap-5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 pr-2">
+                                    <span className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-blue-500" /> Email</span>
+                                    {isSmsEnabled && (
+                                        <span className="flex items-center gap-1.5"><MessageSquare className="w-3 h-3 text-emerald-500" /> SMS</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {adminAlerts.map(renderAlertRow)}
+                            </div>
+                        </div>
+                    </div>
+                );
+            },
         },
     ];
 

@@ -232,6 +232,26 @@ class Setting extends Model
             return data_get($all['shipping_settings'], $shippingMap[$key], $default);
         }
 
+        // Backward compatibility mappings for notification keys
+        $notifyAliasMap = [
+            'notify_order_placed_customer' => 'notify_order_placed_customer_email',
+            'notify_order_placed_admin' => 'notify_order_placed_admin_email',
+            'notify_order_status_updated' => 'notify_order_status_updated_email',
+            'notify_order_cancelled' => 'notify_order_cancelled_customer_email',
+            'notify_low_stock_admin' => 'notify_low_stock_admin_email',
+            'notify_new_customer_welcome' => 'notify_new_customer_welcome_email',
+            'notify_new_review_admin' => 'notify_new_review_admin_email',
+        ];
+
+        if (isset($notifyAliasMap[$key]) && isset($all[$notifyAliasMap[$key]])) {
+            return $all[$notifyAliasMap[$key]];
+        }
+
+        $reverseNotifyMap = array_flip($notifyAliasMap);
+        if (isset($reverseNotifyMap[$key]) && isset($all[$reverseNotifyMap[$key]])) {
+            return $all[$reverseNotifyMap[$key]];
+        }
+
         return $default;
     }
 
@@ -649,6 +669,38 @@ class Setting extends Model
                 $result['sms_password'] ??= $sms['password'] ?? '';
                 $result['sms_from_number'] ??= $sms['from_number'] ?? '';
             }
+
+            // Notification event triggers defaults (Email & SMS independent channels)
+            $result['notify_order_placed_customer_email'] ??= true;
+            $result['notify_order_placed_customer_sms'] ??= true;
+            $result['notify_order_status_updated_email'] ??= true;
+            $result['notify_order_status_updated_sms'] ??= true;
+            $result['notify_order_delivered_customer_email'] ??= true;
+            $result['notify_order_delivered_customer_sms'] ??= true;
+            $result['notify_order_cancelled_customer_email'] ??= true;
+            $result['notify_order_cancelled_customer_sms'] ??= true;
+            $result['notify_new_customer_welcome_email'] ??= true;
+            $result['notify_new_customer_welcome_sms'] ??= false;
+
+            $result['notify_order_placed_admin_email'] ??= true;
+            $result['notify_order_placed_admin_sms'] ??= false;
+            $result['notify_order_cancelled_admin_email'] ??= true;
+            $result['notify_order_cancelled_admin_sms'] ??= false;
+            $result['notify_low_stock_admin_email'] ??= true;
+            $result['notify_low_stock_admin_sms'] ??= false;
+            $result['notify_new_review_admin_email'] ??= true;
+            $result['notify_new_review_admin_sms'] ??= false;
+
+            // Remove legacy notify keys from returned settings
+            unset(
+                $result['notify_order_placed_customer'],
+                $result['notify_order_placed_admin'],
+                $result['notify_order_status_updated'],
+                $result['notify_order_cancelled'],
+                $result['notify_low_stock_admin'],
+                $result['notify_new_customer_welcome'],
+                $result['notify_new_review_admin']
+            );
 
             return $result;
         });

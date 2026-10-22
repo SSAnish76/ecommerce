@@ -25,7 +25,7 @@ class SendOrderPlacedNotifications extends BaseNotificationListener
             $this->email()->send(
                 $order['customer_email'],
                 new OrderPlacedCustomerMail($order),
-                'notify_order_placed_customer',
+                'notify_order_placed_customer_email',
             );
         }
 
@@ -33,7 +33,7 @@ class SendOrderPlacedNotifications extends BaseNotificationListener
         $this->email()->send(
             $this->adminEmail(),
             new OrderPlacedAdminMail($order),
-            'notify_order_placed_admin',
+            'notify_order_placed_admin_email',
         );
 
         // 3. SMS Channel - Customer SMS Confirmation
@@ -41,6 +41,7 @@ class SendOrderPlacedNotifications extends BaseNotificationListener
             $this->sms()->send(
                 (string) $order['customer_phone'],
                 "Order #{$order['order_number']} confirmed! Total: {$currency}{$total}. Thank you for your purchase.",
+                'notify_order_placed_customer_sms',
             );
         }
 

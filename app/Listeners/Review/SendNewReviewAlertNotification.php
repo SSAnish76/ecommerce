@@ -19,7 +19,7 @@ class SendNewReviewAlertNotification extends BaseNotificationListener
         $this->email()->send(
             $this->adminEmail(),
             new NewReviewAlertMail($event->reviewData),
-            'notify_new_review_admin',
+            'notify_new_review_admin_email',
         );
 
         // 2. Push / In-App Notification Channel

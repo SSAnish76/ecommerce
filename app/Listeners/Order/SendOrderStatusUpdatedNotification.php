@@ -18,12 +18,16 @@ class SendOrderStatusUpdatedNotification extends BaseNotificationListener
         $order = $event->orderData;
         $statusLabel = ucfirst($event->newStatus);
 
+        $isDelivered = strtolower((string) $event->newStatus) === 'delivered';
+        $emailKey = $isDelivered ? 'notify_order_delivered_customer_email' : 'notify_order_status_updated_email';
+        $smsKey = $isDelivered ? 'notify_order_delivered_customer_sms' : 'notify_order_status_updated_sms';
+
         // 1. Email Channel - Customer Update
         if (! empty($order['customer_email'])) {
             $this->email()->send(
                 $order['customer_email'],
                 new OrderStatusUpdatedMail($order, $event->previousStatus, $event->newStatus),
-                'notify_order_status_updated',
+                $emailKey,
             );
         }
 
@@ -33,7 +37,7 @@ class SendOrderStatusUpdatedNotification extends BaseNotificationListener
             if (! empty($order['tracking_number'])) {
                 $message .= " Tracking: {$order['tracking_number']}";
             }
-            $this->sms()->send((string) $order['customer_phone'], $message);
+            $this->sms()->send((string) $order['customer_phone'], $message, $smsKey);
         }
 
         // 3. Push / In-App Notification Channel
