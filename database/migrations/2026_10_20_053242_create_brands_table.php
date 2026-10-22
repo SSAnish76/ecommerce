@@ -16,10 +16,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
-            $table->string('logo_path')->nullable();
-            $table->string('website')->nullable();
+            $table->foreignUuid('logo_id')->nullable()->nullOnDelete()->constrained('media_files');
             $table->boolean('is_active')->default(true)->index();
-            $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
         });
     }
