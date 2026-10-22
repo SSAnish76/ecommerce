@@ -179,7 +179,7 @@ export default function UsersPage({
             return;
         }
 
-        if (confirm(`Are you sure you want to delete administrator "${user.name}"? This action cannot be reversed.`)) {
+        if (confirm(`Are you sure you want to delete "${user.name}"?`)) {
             router.delete(`/admin/users/${user.id}`);
         }
     };
@@ -191,7 +191,6 @@ export default function UsersPage({
             {/* Page Header */}
             <PageHeader
                 title="User Accounts & Access"
-                description={`Manage administrative accounts, role assignments, and authentication security for ${users.total} team members.`}
                 badge={
                     <Badge variant="indigo" size="md">
                         {users.total} Total Users
@@ -213,27 +212,6 @@ export default function UsersPage({
                 }
             />
 
-            {/* Sub-navigation tabs */}
-            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-6 overflow-x-auto">
-                <Link
-                    href="/admin/users"
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 whitespace-nowrap"
-                >
-                    User Accounts
-                </Link>
-                <Link
-                    href="/admin/roles"
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-                >
-                    Roles &amp; Privileges
-                </Link>
-                <Link
-                    href="/admin/permissions"
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-                >
-                    Permissions Catalog
-                </Link>
-            </div>
 
             {/* Search & Filter Bar */}
             <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 mb-6 shadow-xs">
@@ -494,7 +472,6 @@ export default function UsersPage({
                 isOpen={isCreateOpen}
                 onClose={() => setIsCreateOpen(false)}
                 title="Create User Account"
-                description="Provision a new team member account with credentials and role privileges."
                 maxWidth="md"
                 footer={
                     <>
@@ -543,7 +520,6 @@ export default function UsersPage({
                         type="password"
                         placeholder="••••••••••••"
                         required
-                        helperText="Must be at least 8 characters long."
                         value={createForm.data.password}
                         onChange={(e) => createForm.setData('password', e.target.value)}
                         error={createForm.errors.password}
@@ -555,9 +531,8 @@ export default function UsersPage({
                         value={createForm.data.role_id}
                         onChange={(e) => createForm.setData('role_id', e.target.value)}
                         error={createForm.errors.role_id}
-                        helperText="Determines accessible console menus and granular actions."
                     >
-                        <option value="">Select a security role...</option>
+                        <option value="">Select a role...</option>
                         {roles.map((r) => (
                             <option key={r.id} value={r.id}>
                                 {r.name}
@@ -571,7 +546,6 @@ export default function UsersPage({
                         value={createForm.data.status}
                         onChange={(e) => createForm.setData('status', e.target.value as UserStatus)}
                         error={createForm.errors.status}
-                        helperText="Controls user account accessibility and login permissions."
                     >
                         {userStatusOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -587,7 +561,6 @@ export default function UsersPage({
                 isOpen={!!editingUser}
                 onClose={() => setEditingUser(null)}
                 title={`Edit User: ${editingUser?.name || ''}`}
-                description="Update user account information, modify roles, or reset login password."
                 maxWidth="md"
                 footer={
                     <>
@@ -635,7 +608,6 @@ export default function UsersPage({
                         label="New Password"
                         type="password"
                         placeholder="Leave blank to preserve current password"
-                        helperText="Only fill this field if you want to update the user's password."
                         value={editForm.data.password}
                         onChange={(e) => editForm.setData('password', e.target.value)}
                         error={editForm.errors.password}
@@ -647,9 +619,8 @@ export default function UsersPage({
                         value={editForm.data.role_id}
                         onChange={(e) => editForm.setData('role_id', e.target.value)}
                         error={editForm.errors.role_id}
-                        helperText="Controls allowed menus and authorization scopes."
                     >
-                        <option value="">Select a security role...</option>
+                        <option value="">Select a role...</option>
                         {roles.map((r) => (
                             <option key={r.id} value={r.id}>
                                 {r.name}
@@ -663,7 +634,6 @@ export default function UsersPage({
                         value={editForm.data.status}
                         onChange={(e) => editForm.setData('status', e.target.value as UserStatus)}
                         error={editForm.errors.status}
-                        helperText="Controls user account accessibility and login permissions."
                     >
                         {userStatusOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -684,9 +654,6 @@ export default function UsersPage({
                                         <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
                                             Two-Factor Auth Active
                                         </div>
-                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                                            Account is verified with TOTP authenticator
-                                        </p>
                                     </div>
                                 </div>
                                 {canEdit && (
@@ -730,9 +697,6 @@ export default function UsersPage({
                                     <div className="text-xs font-semibold text-slate-900 dark:text-white">
                                         Two-Factor Auth Disabled
                                     </div>
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                        User signs in with email and password only
-                                    </p>
                                 </div>
                             </div>
                         )}
