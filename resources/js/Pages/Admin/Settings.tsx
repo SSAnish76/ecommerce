@@ -35,9 +35,10 @@ import {
     HardDrive,
     ChevronDown,
     Search,
-    SlidersHorizontal,
     Check,
     X,
+    ShieldCheck,
+    Cloud,
 } from 'lucide-react';
 
 interface SettingsProps extends PageProps {
@@ -347,31 +348,22 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                 },
             ],
             renderForm: () => (
-                <div className="space-y-4">
-                    {currencies && currencies.length > 0 && (
-                        <Select
-                            label="Currency Quick Preset"
-                            value={form.data.currency_code}
-                            onChange={(e) => handleCurrencySelect(e.target.value)}
-                        >
-                            {currencies.map((c) => (
-                                <option key={c.code} value={c.code}>
-                                    {c.code} ({c.symbol}) - {c.name}
-                                </option>
-                            ))}
-                        </Select>
-                    )}
+                <div className="space-y-3.5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {currencies && currencies.length > 0 && (
+                            <Select
+                                label="Currency Preset"
+                                value={form.data.currency_code}
+                                onChange={(e) => handleCurrencySelect(e.target.value)}
+                            >
+                                {currencies.map((c) => (
+                                    <option key={c.code} value={c.code}>
+                                        {c.code} ({c.symbol}) - {c.name}
+                                    </option>
+                                ))}
+                            </Select>
+                        )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                            label="Currency ISO Code"
-                            required
-                            value={form.data.currency_code}
-                            onChange={(e) =>
-                                form.setData('currency_code', e.target.value.toUpperCase())
-                            }
-                            error={form.errors.currency_code}
-                        />
                         <Input
                             label="Currency Symbol"
                             required
@@ -379,9 +371,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                             onChange={(e) => form.setData('currency_symbol', e.target.value)}
                             error={form.errors.currency_symbol}
                         />
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Select
                             label="Decimal Places"
                             value={form.data.currency_decimals}
@@ -395,6 +385,18 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                 </option>
                             ))}
                         </Select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Input
+                            label="Currency ISO Code"
+                            required
+                            value={form.data.currency_code}
+                            onChange={(e) =>
+                                form.setData('currency_code', e.target.value.toUpperCase())
+                            }
+                            error={form.errors.currency_code}
+                        />
 
                         <Select
                             label="Timezone"
@@ -410,14 +412,29 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                         </Select>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
-                        <Toggle
-                            label="Enforce Two-Factor Authentication (2FA) for All Admins"
-                            checked={form.data.force_two_factor_all_admins}
-                            onChange={(checked) =>
-                                form.setData('force_two_factor_all_admins', checked)
-                            }
-                        />
+                    <div
+                        className={`p-3.5 rounded-xl border transition-all ${
+                            form.data.force_two_factor_all_admins
+                                ? 'bg-white dark:bg-slate-800/90 border-indigo-300 dark:border-indigo-700 shadow-2xs'
+                                : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                    Enforce Two-Factor Authentication (2FA) for All Admins
+                                </span>
+                            </div>
+                            <Toggle
+                                checked={form.data.force_two_factor_all_admins}
+                                onChange={(checked) =>
+                                    form.setData('force_two_factor_all_admins', checked)
+                                }
+                            />
+                        </div>
                     </div>
                 </div>
             ),
@@ -1020,19 +1037,79 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             iconBg: 'bg-violet-50 dark:bg-violet-950/60 border-violet-200 dark:border-violet-800/60',
             iconColor: 'text-violet-600 dark:text-violet-400',
             badges: [
-                { label: `Disk: ${(form.data.storage_default_disk ?? 'public').toUpperCase()}`, variant: 'indigo' },
+                {
+                    label: form.data.storage_default_disk === 's3' ? 'Disk: S3 CLOUD' : 'Disk: LOCAL',
+                    variant: 'indigo',
+                },
             ],
             renderForm: () => (
                 <div className="space-y-4">
-                    <Select
-                        label="Default Upload Disk"
-                        value={form.data.storage_default_disk}
-                        onChange={(e) => form.setData('storage_default_disk', e.target.value)}
-                    >
-                        <option value="public">Local Public (storage/app/public)</option>
-                        <option value="local">Local Private (storage/app/private)</option>
-                        <option value="s3">Amazon S3 / S3-Compatible</option>
-                    </Select>
+                    {/* 2 User-Friendly Storage Option Cards: Local and S3 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Local Storage */}
+                        <div
+                            onClick={() => form.setData('storage_default_disk', 'public')}
+                            className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all ${
+                                form.data.storage_default_disk !== 's3'
+                                    ? 'bg-white dark:bg-slate-800/90 border-violet-300 dark:border-violet-700 shadow-2xs ring-1 ring-violet-500/20'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800/60 shrink-0">
+                                        <HardDrive className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                        Local Storage
+                                    </span>
+                                </div>
+                                <div
+                                    className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                                        form.data.storage_default_disk !== 's3'
+                                            ? 'border-violet-600 bg-violet-600'
+                                            : 'border-slate-300 dark:border-slate-600'
+                                    }`}
+                                >
+                                    {form.data.storage_default_disk !== 's3' && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Amazon S3 Cloud */}
+                        <div
+                            onClick={() => form.setData('storage_default_disk', 's3')}
+                            className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all ${
+                                form.data.storage_default_disk === 's3'
+                                    ? 'bg-white dark:bg-slate-800/90 border-violet-300 dark:border-violet-700 shadow-2xs ring-1 ring-violet-500/20'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800/60 shrink-0">
+                                        <Cloud className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                        Amazon S3 Cloud
+                                    </span>
+                                </div>
+                                <div
+                                    className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                                        form.data.storage_default_disk === 's3'
+                                            ? 'border-violet-600 bg-violet-600'
+                                            : 'border-slate-300 dark:border-slate-600'
+                                    }`}
+                                >
+                                    {form.data.storage_default_disk === 's3' && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* S3 Configuration Section */}
                     {form.data.storage_default_disk === 's3' && (
