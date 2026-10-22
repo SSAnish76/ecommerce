@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('type')->default('product');
             $table->foreignUuid('image_id')->nullable()->constrained('media_files')->nullOnDelete();
             $table->boolean('is_active')->default(true);
-            $table->integer('sort_order')->default(0);
             $table->timestamps();
         });
 

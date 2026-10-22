@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CollectionTest extends TestCase
@@ -52,7 +53,6 @@ class CollectionTest extends TestCase
             'type' => 'product',
             'description' => 'Seasonal clearance inventory',
             'is_active' => true,
-            'sort_order' => 1,
             'product_ids' => $products->pluck('id')->all(),
         ]);
 
@@ -172,5 +172,54 @@ class CollectionTest extends TestCase
 
         $response->assertSessionHas('success');
         $this->assertDatabaseMissing('collections', ['id' => $collection->id]);
+    }
+
+    public function test_collection_slug_is_auto_generated_when_omitted(): void
+    {
+        $response = $this->actingAs($this->adminUser)->post('/admin/collections', [
+            'name' => 'Autumn Warmers',
+            'type' => 'product',
+            'slug' => '',
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('collections', [
+            'name' => 'Autumn Warmers',
+            'slug' => 'autumn-warmers',
+        ]);
+    }
+
+    public function test_collection_slug_collision_is_auto_incremented(): void
+    {
+        Collection::create([
+            'name' => 'Exclusive Deals',
+            'slug' => 'exclusive-deals',
+        ]);
+
+        $response = $this->actingAs($this->adminUser)->post('/admin/collections', [
+            'name' => 'Exclusive Deals',
+            'type' => 'product',
+            'slug' => 'exclusive-deals',
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('collections', [
+            'name' => 'Exclusive Deals',
+            'slug' => 'exclusive-deals-1',
+        ]);
+    }
+
+    public function test_model_auto_generates_slug_generically_on_create(): void
+    {
+        $collection = Collection::create([
+            'name' => 'Winter Clearance Sale',
+        ]);
+
+        $this->assertSame('winter-clearance-sale', $collection->fresh()->slug);
+    }
+
+    public function test_collections_table_does_not_have_sort_order_column(): void
+    {
+        $this->assertFalse(Schema::hasColumn('collections', 'sort_order'));
     }
 }

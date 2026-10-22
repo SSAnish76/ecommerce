@@ -432,7 +432,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                             Coupons & Discounts
                         </h1>
                         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                            Create promotional vouchers, configure percentage or fixed discounts, and apply to products, categories or collections.
+                            Manage discount coupons and promotional offers.
                         </p>
                     </div>
 
@@ -931,12 +931,8 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                 size="2xl"
             >
                 <form onSubmit={handleCreate} className="space-y-6">
-                    {/* Section 1: Code & Basic Details */}
+                    {/* Basic Details */}
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                            1. Coupon Code & Identity
-                        </h4>
-
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -974,7 +970,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     type="text"
                                     value={createForm.data.name}
                                     onChange={(e) => createForm.setData('name', e.target.value)}
-                                    placeholder="e.g. Summer Season Special Discount"
+                                    placeholder="e.g. Summer Special"
                                     className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                     required
                                 />
@@ -986,24 +982,20 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Description / Customer Terms
+                                Description
                             </label>
                             <textarea
                                 value={createForm.data.description}
                                 onChange={(e) => createForm.setData('description', e.target.value)}
-                                placeholder="Add optional details, terms of use, or internal promotional notes..."
+                                placeholder="Optional description..."
                                 rows={2}
                                 className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             />
                         </div>
                     </div>
 
-                    {/* Section 2: Discount Rules */}
+                    {/* Discount Rules */}
                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                            2. Discount Type & Value
-                        </h4>
-
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Select
@@ -1021,7 +1013,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    {createForm.data.type === 'percentage' ? 'Percentage (e.g. 20 for 20%)' : 'Fixed Amount ($)'} <span className="text-rose-500">*</span>
+                                    {createForm.data.type === 'percentage' ? 'Percentage' : 'Fixed Amount ($)'} <span className="text-rose-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <input
@@ -1055,12 +1047,9 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     min="0"
                                     value={createForm.data.min_order_amount}
                                     onChange={(e) => createForm.setData('min_order_amount', e.target.value)}
-                                    placeholder="Leave blank for no minimum"
+                                    placeholder="No minimum"
                                     className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                 />
-                                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                                    Cart subtotal required to unlock coupon.
-                                </span>
                             </div>
 
                             <div>
@@ -1073,47 +1062,28 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     min="0"
                                     value={createForm.data.max_discount_amount}
                                     onChange={(e) => createForm.setData('max_discount_amount', e.target.value)}
-                                    placeholder="Leave blank for no cap"
+                                    placeholder="No cap"
                                     className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                 />
-                                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                                    Caps percentage discount to this amount.
-                                </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Section 3: Scope (Applies To) */}
+                    {/* Scope (Applies To) */}
                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                            3. Application Scope (Applies To)
-                        </h4>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {[
-                                { value: 'all', label: 'All Products', icon: Tag },
-                                { value: 'products', label: 'Specific Products', icon: ShoppingBag },
-                                { value: 'categories', label: 'Categories', icon: FolderTree },
-                                { value: 'collections', label: 'Collections', icon: Sparkles },
-                            ].map((scope) => {
-                                const Icon = scope.icon;
-                                const isSelected = createForm.data.applies_to === scope.value;
-                                return (
-                                    <button
-                                        key={scope.value}
-                                        type="button"
-                                        onClick={() => createForm.setData('applies_to', scope.value as CouponApplyTo)}
-                                        className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                                            isSelected
-                                                ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
-                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <Icon className="w-4 h-4" />
-                                        <span className="text-xs font-bold mt-1">{scope.label}</span>
-                                    </button>
-                                );
-                            })}
+                        <div>
+                            <Select
+                                label="Applies To"
+                                required
+                                value={createForm.data.applies_to}
+                                onChange={(e) => createForm.setData('applies_to', e.target.value as CouponApplyTo)}
+                                options={[
+                                    { value: 'all', label: 'All Products (Entire Store)' },
+                                    { value: 'products', label: 'Specific Products' },
+                                    { value: 'categories', label: 'Specific Categories' },
+                                    { value: 'collections', label: 'Specific Collections' },
+                                ]}
+                            />
                         </div>
 
                         {/* Selected Products Picker */}
@@ -1234,12 +1204,8 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                         )}
                     </div>
 
-                    {/* Section 4: Usage Limits & Dates */}
+                    {/* Usage Limits, Validity Dates & Status */}
                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                            4. Limits, Validity Dates & Status
-                        </h4>
-
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1250,12 +1216,9 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     min="1"
                                     value={createForm.data.usage_limit}
                                     onChange={(e) => createForm.setData('usage_limit', e.target.value)}
-                                    placeholder="Unlimited redemptions"
+                                    placeholder="Unlimited"
                                     className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                 />
-                                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                                    Total times this coupon can be used overall.
-                                </span>
                             </div>
 
                             <div>
@@ -1270,9 +1233,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     placeholder="1"
                                     className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                 />
-                                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                                    Redemptions allowed per email address.
-                                </span>
                             </div>
                         </div>
 
@@ -1284,7 +1244,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     value={createForm.data.starts_at}
                                     onChange={(val) => createForm.setData('starts_at', val)}
                                     presets={couponStartDatePresets}
-                                    helperText="Leave blank to activate coupon immediately."
                                     error={createForm.errors.starts_at}
                                 />
                             </div>
@@ -1297,21 +1256,15 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                     onChange={(val) => createForm.setData('expires_at', val)}
                                     minDate={createForm.data.starts_at || undefined}
                                     presets={couponExpiryDatePresets(createForm.data.starts_at)}
-                                    helperText="Leave blank for unlimited validity period."
                                     error={createForm.errors.expires_at}
                                 />
                             </div>
                         </div>
 
                         <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                            <div>
-                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                    Active Status
-                                </span>
-                                <span className="text-[11px] text-slate-400">
-                                    When disabled, customers cannot apply this coupon.
-                                </span>
-                            </div>
+                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                Active Status
+                            </span>
                             <Toggle
                                 checked={createForm.data.is_active}
                                 onChange={(val) => createForm.setData('is_active', val)}
@@ -1339,12 +1292,8 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                     size="2xl"
                 >
                     <form onSubmit={handleUpdate} className="space-y-6">
-                        {/* Section 1: Code & Basic Details */}
+                        {/* Basic Details */}
                         <div className="space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                1. Coupon Code & Identity
-                            </h4>
-
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1381,23 +1330,20 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Description / Customer Terms
+                                    Description
                                 </label>
                                 <textarea
                                     value={editForm.data.description}
                                     onChange={(e) => editForm.setData('description', e.target.value)}
+                                    placeholder="Optional description..."
                                     rows={2}
                                     className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                 />
                             </div>
                         </div>
 
-                        {/* Section 2: Discount Rules */}
+                        {/* Discount Rules */}
                         <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                2. Discount Type & Value
-                            </h4>
-
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <Select
@@ -1415,7 +1361,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                        {editForm.data.type === 'percentage' ? 'Percentage (e.g. 20 for 20%)' : 'Fixed Amount ($)'} <span className="text-rose-500">*</span>
+                                        {editForm.data.type === 'percentage' ? 'Percentage' : 'Fixed Amount ($)'} <span className="text-rose-500">*</span>
                                     </label>
                                     <div className="relative">
                                         <input
@@ -1449,7 +1395,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                         min="0"
                                         value={editForm.data.min_order_amount}
                                         onChange={(e) => editForm.setData('min_order_amount', e.target.value)}
-                                        placeholder="Leave blank for no minimum"
+                                        placeholder="No minimum"
                                         className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                     />
                                 </div>
@@ -1464,44 +1410,28 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                         min="0"
                                         value={editForm.data.max_discount_amount}
                                         onChange={(e) => editForm.setData('max_discount_amount', e.target.value)}
-                                        placeholder="Leave blank for no cap"
+                                        placeholder="No cap"
                                         className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Section 3: Scope */}
+                        {/* Scope */}
                         <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                3. Application Scope (Applies To)
-                            </h4>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {[
-                                    { value: 'all', label: 'All Products', icon: Tag },
-                                    { value: 'products', label: 'Specific Products', icon: ShoppingBag },
-                                    { value: 'categories', label: 'Categories', icon: FolderTree },
-                                    { value: 'collections', label: 'Collections', icon: Sparkles },
-                                ].map((scope) => {
-                                    const Icon = scope.icon;
-                                    const isSelected = editForm.data.applies_to === scope.value;
-                                    return (
-                                        <button
-                                            key={scope.value}
-                                            type="button"
-                                            onClick={() => editForm.setData('applies_to', scope.value as CouponApplyTo)}
-                                            className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                                                isSelected
-                                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
-                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
-                                            }`}
-                                        >
-                                            <Icon className="w-4 h-4" />
-                                            <span className="text-xs font-bold mt-1">{scope.label}</span>
-                                        </button>
-                                    );
-                                })}
+                            <div>
+                                <Select
+                                    label="Applies To"
+                                    required
+                                    value={editForm.data.applies_to}
+                                    onChange={(e) => editForm.setData('applies_to', e.target.value as CouponApplyTo)}
+                                    options={[
+                                        { value: 'all', label: 'All Products (Entire Store)' },
+                                        { value: 'products', label: 'Specific Products' },
+                                        { value: 'categories', label: 'Specific Categories' },
+                                        { value: 'collections', label: 'Specific Collections' },
+                                    ]}
+                                />
                             </div>
 
                             {editForm.data.applies_to === 'products' && (
@@ -1619,12 +1549,8 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                             )}
                         </div>
 
-                        {/* Section 4: Limits & Status */}
+                        {/* Limits & Status */}
                         <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                4. Limits, Validity Dates & Status
-                            </h4>
-
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1663,7 +1589,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                         value={editForm.data.starts_at}
                                         onChange={(val) => editForm.setData('starts_at', val)}
                                         presets={couponStartDatePresets}
-                                        helperText="Leave blank to activate coupon immediately."
                                         error={editForm.errors.starts_at}
                                     />
                                 </div>
@@ -1676,21 +1601,15 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                                         onChange={(val) => editForm.setData('expires_at', val)}
                                         minDate={editForm.data.starts_at || undefined}
                                         presets={couponExpiryDatePresets(editForm.data.starts_at)}
-                                        helperText="Leave blank for unlimited validity period."
                                         error={editForm.errors.expires_at}
                                     />
                                 </div>
                             </div>
 
                             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                                <div>
-                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                        Active Status
-                                    </span>
-                                    <span className="text-[11px] text-slate-400">
-                                        When disabled, customers cannot apply this coupon.
-                                    </span>
-                                </div>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                    Active Status
+                                </span>
                                 <Toggle
                                     checked={editForm.data.is_active}
                                     onChange={(val) => editForm.setData('is_active', val)}
@@ -1723,8 +1642,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                             <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
                             <p className="text-xs">
                                 Are you sure you want to permanently delete coupon{' '}
-                                <strong className="font-mono">{deletingCoupon.code}</strong>? Past order history using
-                                this coupon code will be preserved.
+                                <strong className="font-mono">{deletingCoupon.code}</strong>?
                             </p>
                         </div>
 

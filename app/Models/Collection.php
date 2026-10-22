@@ -12,11 +12,34 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class Collection extends Model
 {
     /** @use HasFactory<CollectionFactory> */
     use HasFactory, HasUuids;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Collection $collection): void {
+            if (empty($collection->slug) && ! empty($collection->name)) {
+                $baseSlug = Str::slug($collection->name) ?: 'collection-'.Str::random(6);
+                $slug = $baseSlug;
+                $counter = 1;
+                while (static::where('slug', $slug)
+                    ->when($collection->id, fn ($q) => $q->where('id', '!=', $collection->id))
+                    ->exists()
+                ) {
+                    $slug = "{$baseSlug}-{$counter}";
+                    $counter++;
+                }
+                $collection->slug = $slug;
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -30,7 +53,6 @@ class Collection extends Model
         'description',
         'image_id',
         'is_active',
-        'sort_order',
     ];
 
     /**
@@ -76,7 +98,6 @@ class Collection extends Model
         return [
             'type' => CollectionType::class,
             'is_active' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 

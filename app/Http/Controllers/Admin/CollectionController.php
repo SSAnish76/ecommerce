@@ -54,8 +54,7 @@ class CollectionController extends Controller
                     $q->where('is_active', false);
                 }
             })
-            ->orderBy('sort_order')
-            ->orderBy('name')
+            ->latest('created_at')
             ->paginate(15)
             ->withQueryString();
 
@@ -99,12 +98,11 @@ class CollectionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:collections,slug'],
+            'slug' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(CollectionType::values())],
             'description' => ['nullable', 'string', 'max:1000'],
             'image_id' => ['nullable', 'exists:media_files,id'],
             'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
             'product_ids' => ['nullable', 'array'],
             'product_ids.*' => ['string', 'exists:products,id'],
             'brand_ids' => ['nullable', 'array'],
@@ -114,6 +112,9 @@ class CollectionController extends Controller
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
+        if (empty($slug)) {
+            $slug = 'collection-'.Str::random(6);
+        }
 
         $originalSlug = $slug;
         $counter = 1;
@@ -129,7 +130,6 @@ class CollectionController extends Controller
             'description' => $validated['description'] ?? null,
             'image_id' => $validated['image_id'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
-            'sort_order' => $validated['sort_order'] ?? 0,
         ]);
 
         $this->syncCollectionItems($collection, $validated);
@@ -144,12 +144,11 @@ class CollectionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('collections', 'slug')->ignore($collection->id)],
+            'slug' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', Rule::in(CollectionType::values())],
             'description' => ['nullable', 'string', 'max:1000'],
             'image_id' => ['nullable', 'exists:media_files,id'],
             'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
             'product_ids' => ['nullable', 'array'],
             'product_ids.*' => ['string', 'exists:products,id'],
             'brand_ids' => ['nullable', 'array'],
@@ -159,6 +158,16 @@ class CollectionController extends Controller
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
+        if (empty($slug)) {
+            $slug = 'collection-'.Str::random(6);
+        }
+
+        $originalSlug = $slug;
+        $counter = 1;
+        while (Collection::where('slug', $slug)->where('id', '!=', $collection->id)->exists()) {
+            $slug = "{$originalSlug}-{$counter}";
+            $counter++;
+        }
 
         $collection->update([
             'name' => $validated['name'],
@@ -167,7 +176,6 @@ class CollectionController extends Controller
             'description' => $validated['description'] ?? null,
             'image_id' => array_key_exists('image_id', $validated) ? $validated['image_id'] : $collection->image_id,
             'is_active' => $validated['is_active'] ?? $collection->is_active,
-            'sort_order' => $validated['sort_order'] ?? $collection->sort_order,
         ]);
 
         $this->syncCollectionItems($collection, $validated);

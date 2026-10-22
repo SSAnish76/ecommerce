@@ -29,7 +29,6 @@ class CouponSeeder extends Seeder
                 'type' => \App\Enums\Collection\CollectionType::Product,
                 'description' => 'Fast-moving, popular catalog items',
                 'is_active' => true,
-                'sort_order' => 1,
             ]
         );
 
@@ -40,7 +39,6 @@ class CouponSeeder extends Seeder
                 'type' => \App\Enums\Collection\CollectionType::Product,
                 'description' => 'Exclusive seasonal discounted items',
                 'is_active' => true,
-                'sort_order' => 2,
             ]
         );
 
@@ -51,7 +49,6 @@ class CouponSeeder extends Seeder
                 'type' => \App\Enums\Collection\CollectionType::Brand,
                 'description' => 'Handpicked premium brand partners and manufacturers',
                 'is_active' => true,
-                'sort_order' => 3,
             ]
         );
 
@@ -62,7 +59,6 @@ class CouponSeeder extends Seeder
                 'type' => \App\Enums\Collection\CollectionType::Category,
                 'description' => 'Core shopping departments and curated taxonomy',
                 'is_active' => true,
-                'sort_order' => 4,
             ]
         );
 

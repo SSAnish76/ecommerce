@@ -20,6 +20,7 @@ import {
     Card,
     CardContent,
     ImagePicker,
+    SlugInput,
 } from '../../Components/UI';
 import {
     Layers,
@@ -102,7 +103,6 @@ export default function CollectionsPage({
         description: string;
         image_id: string | null;
         image_url: string;
-        sort_order: number | string;
         is_active: boolean;
         product_ids: string[];
         brand_ids: string[];
@@ -114,7 +114,6 @@ export default function CollectionsPage({
         description: '',
         image_id: null,
         image_url: '',
-        sort_order: 0,
         is_active: true,
         product_ids: [],
         brand_ids: [],
@@ -129,7 +128,6 @@ export default function CollectionsPage({
         description: string;
         image_id: string | null;
         image_url: string;
-        sort_order: number | string;
         is_active: boolean;
         product_ids: string[];
         brand_ids: string[];
@@ -141,7 +139,6 @@ export default function CollectionsPage({
         description: '',
         image_id: null,
         image_url: '',
-        sort_order: 0,
         is_active: true,
         product_ids: [],
         brand_ids: [],
@@ -185,7 +182,6 @@ export default function CollectionsPage({
             description: collection.description || '',
             image_id: collection.image_id || null,
             image_url: collection.image_url || '',
-            sort_order: collection.sort_order ?? 0,
             is_active: collection.is_active,
             product_ids: collection.products ? collection.products.map((p) => p.id) : [],
             brand_ids: collection.brands ? collection.brands.map((b) => b.id) : [],
@@ -331,7 +327,7 @@ export default function CollectionsPage({
                             Collections Management
                         </h1>
                         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                            Group catalog entities into curated showcases by Product, Brand, or Category (Trending, Featured Brands, Top Categories).
+                            Manage product, brand, and category collections.
                         </p>
                     </div>
 
@@ -471,7 +467,6 @@ export default function CollectionsPage({
                                     <TableHeaderCell>Type</TableHeaderCell>
                                     <TableHeaderCell>Slug</TableHeaderCell>
                                     <TableHeaderCell>Linked Items</TableHeaderCell>
-                                    <TableHeaderCell>Order</TableHeaderCell>
                                     <TableHeaderCell>Status</TableHeaderCell>
                                     <TableHeaderCell className="text-right">Actions</TableHeaderCell>
                                 </TableRow>
@@ -532,12 +527,6 @@ export default function CollectionsPage({
                                                         {itemsInfo.count} {itemsInfo.label}
                                                     </span>
                                                 </button>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <span className="font-mono text-xs font-semibold text-slate-500">
-                                                    #{collection.sort_order ?? 0}
-                                                </span>
                                             </TableCell>
 
                                             <TableCell>
@@ -762,103 +751,42 @@ export default function CollectionsPage({
                 size="2xl"
             >
                 <form onSubmit={handleCreate} className="space-y-5">
-                    {/* Choose Type */}
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                            1. Select Collection Type <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-3 gap-3">
-                            {[
-                                {
-                                    type: 'product',
-                                    label: 'Product Collection',
-                                    desc: 'Group specific items (Trending, Best Sellers, Clearance)',
-                                    icon: ShoppingBag,
-                                    color: 'indigo',
-                                },
-                                {
-                                    type: 'brand',
-                                    label: 'Brand Showcase',
-                                    desc: 'Group top brands (Featured Brands, Premium Partners)',
-                                    icon: Sparkles,
-                                    color: 'amber',
-                                },
-                                {
-                                    type: 'category',
-                                    label: 'Category Group',
-                                    desc: 'Group categories (Seasonal Categories, Deals Zones)',
-                                    icon: FolderTree,
-                                    color: 'purple',
-                                },
-                            ].map((opt) => {
-                                const Icon = opt.icon;
-                                const isSelected = createForm.data.type === opt.type;
-                                return (
-                                    <button
-                                        key={opt.type}
-                                        type="button"
-                                        onClick={() => {
-                                            createForm.setData('type', opt.type as CollectionType);
-                                            setItemSearch('');
-                                        }}
-                                        className={`p-3.5 rounded-xl border text-left flex flex-col gap-1.5 transition-all ${
-                                            isSelected
-                                                ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-500/20'
-                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Icon
-                                                className={`w-4 h-4 ${
-                                                    isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
-                                                }`}
-                                            />
-                                            <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                                {opt.label}
-                                            </span>
-                                        </div>
-                                        <span className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
-                                            {opt.desc}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        <Select
+                            label="Collection Type"
+                            required
+                            value={createForm.data.type}
+                            onChange={(e) => {
+                                createForm.setData('type', e.target.value as CollectionType);
+                                setItemSearch('');
+                            }}
+                            options={[
+                                { value: 'product', label: 'Product Collection' },
+                                { value: 'brand', label: 'Brand Showcase' },
+                                { value: 'category', label: 'Category Group' },
+                            ]}
+                        />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Collection Name <span className="text-rose-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={createForm.data.name}
-                                onChange={(e) => createForm.setData('name', e.target.value)}
-                                placeholder="e.g. Trending Now, Apple & Sony Brands"
-                                className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                required
-                            />
-                            {createForm.errors.name && (
-                                <p className="text-xs text-rose-500 mt-1">{createForm.errors.name}</p>
-                            )}
-                        </div>
+                        <Input
+                            label="Collection Name"
+                            required
+                            value={createForm.data.name}
+                            onChange={(e) => createForm.setData('name', e.target.value)}
+                            error={createForm.errors.name}
+                            placeholder="e.g. Trending Now, Apple & Sony Brands"
+                        />
 
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                URL Slug (Optional)
-                            </label>
-                            <input
-                                type="text"
-                                value={createForm.data.slug}
-                                onChange={(e) => createForm.setData('slug', e.target.value)}
-                                placeholder="Auto-generated if left blank"
-                                className="w-full px-3 py-2 font-mono text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            />
-                            {createForm.errors.slug && (
-                                <p className="text-xs text-rose-500 mt-1">{createForm.errors.slug}</p>
-                            )}
-                        </div>
+                        <SlugInput
+                            label="URL Slug (Optional)"
+                            value={createForm.data.slug}
+                            onChange={(slug) => createForm.setData('slug', slug)}
+                            sourceValue={createForm.data.name}
+                            autoSync
+                            error={createForm.errors.slug}
+                            placeholder="auto-generated from collection name"
+                        />
                     </div>
 
                     <div>
@@ -868,7 +796,7 @@ export default function CollectionsPage({
                         <textarea
                             value={createForm.data.description}
                             onChange={(e) => createForm.setData('description', e.target.value)}
-                            placeholder="Add brief details about this collection..."
+                            placeholder="Optional description..."
                             rows={2}
                             className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                         />
@@ -889,34 +817,19 @@ export default function CollectionsPage({
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                         <div>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                Sort Order
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={createForm.data.sort_order}
-                                onChange={(e) => createForm.setData('sort_order', parseInt(e.target.value) || 0)}
-                                className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            />
+                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                Active Status
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                                When disabled, this collection will be hidden from the store
+                            </span>
                         </div>
-
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                            <div>
-                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                    Active Status
-                                </span>
-                                <span className="text-[11px] text-slate-400">
-                                    Enable on store
-                                </span>
-                            </div>
-                            <Toggle
-                                checked={createForm.data.is_active}
-                                onChange={(val) => createForm.setData('is_active', val)}
-                            />
-                        </div>
+                        <Toggle
+                            checked={createForm.data.is_active}
+                            onChange={(val) => createForm.setData('is_active', val)}
+                        />
                     </div>
 
                     {/* Dynamic Items Picker according to selected type */}
@@ -1072,97 +985,40 @@ export default function CollectionsPage({
                     size="2xl"
                 >
                     <form onSubmit={handleUpdate} className="space-y-5">
-                        {/* Choose Type */}
-                        <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                                1. Collection Type
-                            </label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {[
-                                    {
-                                        type: 'product',
-                                        label: 'Product Collection',
-                                        desc: 'Group specific items',
-                                        icon: ShoppingBag,
-                                    },
-                                    {
-                                        type: 'brand',
-                                        label: 'Brand Showcase',
-                                        desc: 'Group top brands',
-                                        icon: Sparkles,
-                                    },
-                                    {
-                                        type: 'category',
-                                        label: 'Category Group',
-                                        desc: 'Group categories',
-                                        icon: FolderTree,
-                                    },
-                                ].map((opt) => {
-                                    const Icon = opt.icon;
-                                    const isSelected = editForm.data.type === opt.type;
-                                    return (
-                                        <button
-                                            key={opt.type}
-                                            type="button"
-                                            onClick={() => {
-                                                editForm.setData('type', opt.type as CollectionType);
-                                                setItemSearch('');
-                                            }}
-                                            className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                                                isSelected
-                                                    ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-500/20'
-                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Icon
-                                                    className={`w-4 h-4 ${
-                                                        isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
-                                                    }`}
-                                                />
-                                                <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                                    {opt.label}
-                                                </span>
-                                            </div>
-                                            <span className="text-[11px] text-slate-400 line-clamp-1">{opt.desc}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                    <div>
+                        <Select
+                            label="Collection Type"
+                            required
+                            value={editForm.data.type}
+                            onChange={(e) => {
+                                editForm.setData('type', e.target.value as CollectionType);
+                                setItemSearch('');
+                            }}
+                            options={[
+                                { value: 'product', label: 'Product Collection' },
+                                { value: 'brand', label: 'Brand Showcase' },
+                                { value: 'category', label: 'Category Group' },
+                            ]}
+                        />
+                    </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Collection Name <span className="text-rose-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.data.name}
-                                    onChange={(e) => editForm.setData('name', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                    required
-                                />
-                                {editForm.errors.name && (
-                                    <p className="text-xs text-rose-500 mt-1">{editForm.errors.name}</p>
-                                )}
-                            </div>
+                            <Input
+                                label="Collection Name"
+                                required
+                                value={editForm.data.name}
+                                onChange={(e) => editForm.setData('name', e.target.value)}
+                                error={editForm.errors.name}
+                            />
 
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    URL Slug
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.data.slug}
-                                    onChange={(e) => editForm.setData('slug', e.target.value)}
-                                    className="w-full px-3 py-2 font-mono text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                    required
-                                />
-                                {editForm.errors.slug && (
-                                    <p className="text-xs text-rose-500 mt-1">{editForm.errors.slug}</p>
-                                )}
-                            </div>
+                            <SlugInput
+                                label="URL Slug"
+                                value={editForm.data.slug}
+                                onChange={(slug) => editForm.setData('slug', slug)}
+                                sourceValue={editForm.data.name}
+                                error={editForm.errors.slug}
+                                required
+                            />
                         </div>
 
                         <div>
@@ -1192,34 +1048,19 @@ export default function CollectionsPage({
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Sort Order
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={editForm.data.sort_order}
-                                    onChange={(e) => editForm.setData('sort_order', parseInt(e.target.value) || 0)}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                />
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                    Active Status
+                                </span>
+                                <span className="text-[11px] text-slate-400">
+                                    When disabled, this collection will be hidden from the store
+                                </span>
                             </div>
-
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                                <div>
-                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                                        Active Status
-                                    </span>
-                                    <span className="text-[11px] text-slate-400">
-                                        Enable on storefront
-                                    </span>
-                                </div>
-                                <Toggle
-                                    checked={editForm.data.is_active}
-                                    onChange={(val) => editForm.setData('is_active', val)}
-                                />
-                            </div>
+                            <Toggle
+                                checked={editForm.data.is_active}
+                                onChange={(val) => editForm.setData('is_active', val)}
+                            />
                         </div>
 
                         {/* Dynamic Items Picker according to selected type */}
@@ -1380,8 +1221,7 @@ export default function CollectionsPage({
                             <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
                             <p className="text-xs">
                                 Are you sure you want to delete collection{' '}
-                                <strong className="font-bold">{deletingCollection.name}</strong>? The linked products,
-                                brands, or categories will not be deleted, only unlinked from this collection.
+                                <strong className="font-bold">{deletingCollection.name}</strong>?
                             </p>
                         </div>
 

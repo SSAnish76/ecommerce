@@ -406,7 +406,6 @@ export interface Collection {
     image_id?: string | null;
     image_url?: string | null;
     is_active: boolean;
-    sort_order?: number;
     products_count?: number;
     brands_count?: number;
     categories_count?: number;
