@@ -115,7 +115,9 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
     const [showRazorpaySecret, setShowRazorpaySecret] = useState<boolean>(false);
     const [showRazorpayWebhookSecret, setShowRazorpayWebhookSecret] = useState<boolean>(false);
     const [showS3Secret, setShowS3Secret] = useState<boolean>(false);
-    const [showCarrierSecret, setShowCarrierSecret] = useState<boolean>(false);
+    const [showFedexSecret, setShowFedexSecret] = useState<boolean>(false);
+    const [showUpsSecret, setShowUpsSecret] = useState<boolean>(false);
+    const [showDhlSecret, setShowDhlSecret] = useState<boolean>(false);
 
     const form = useForm({
         currency_code: settings?.currency_code ?? 'USD',
@@ -163,11 +165,72 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         storage_s3_url: (settings as any)?.storage_settings?.s3?.url ?? '',
         storage_s3_endpoint: (settings as any)?.storage_settings?.s3?.endpoint ?? '',
 
-        // Shipping Settings
-        shipping_carrier_provider: (settings as any)?.shipping_settings?.carrier?.provider ?? 'none',
-        shipping_carrier_account_number: (settings as any)?.shipping_settings?.carrier?.account_number ?? '',
-        shipping_carrier_api_key: (settings as any)?.shipping_settings?.carrier?.api_key ?? '',
-        shipping_carrier_api_secret: (settings as any)?.shipping_settings?.carrier?.api_secret ?? '',
+        // Shipping Settings - Multi-Carrier Support
+        shipping_fedex_enabled:
+            (settings as any)?.shipping_settings?.fedex?.enabled ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'),
+        shipping_fedex_account_number:
+            (settings as any)?.shipping_settings?.fedex?.account_number ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'
+                ? (settings as any)?.shipping_settings?.carrier?.account_number
+                : '') ??
+            '',
+        shipping_fedex_api_key:
+            (settings as any)?.shipping_settings?.fedex?.api_key ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'
+                ? (settings as any)?.shipping_settings?.carrier?.api_key
+                : '') ??
+            '',
+        shipping_fedex_api_secret:
+            (settings as any)?.shipping_settings?.fedex?.api_secret ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'fedex'
+                ? (settings as any)?.shipping_settings?.carrier?.api_secret
+                : '') ??
+            '',
+
+        shipping_ups_enabled:
+            (settings as any)?.shipping_settings?.ups?.enabled ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'),
+        shipping_ups_account_number:
+            (settings as any)?.shipping_settings?.ups?.account_number ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'
+                ? (settings as any)?.shipping_settings?.carrier?.account_number
+                : '') ??
+            '',
+        shipping_ups_api_key:
+            (settings as any)?.shipping_settings?.ups?.api_key ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'
+                ? (settings as any)?.shipping_settings?.carrier?.api_key
+                : '') ??
+            '',
+        shipping_ups_api_secret:
+            (settings as any)?.shipping_settings?.ups?.api_secret ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'ups'
+                ? (settings as any)?.shipping_settings?.carrier?.api_secret
+                : '') ??
+            '',
+
+        shipping_dhl_enabled:
+            (settings as any)?.shipping_settings?.dhl?.enabled ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'),
+        shipping_dhl_account_number:
+            (settings as any)?.shipping_settings?.dhl?.account_number ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'
+                ? (settings as any)?.shipping_settings?.carrier?.account_number
+                : '') ??
+            '',
+        shipping_dhl_api_key:
+            (settings as any)?.shipping_settings?.dhl?.api_key ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'
+                ? (settings as any)?.shipping_settings?.carrier?.api_key
+                : '') ??
+            '',
+        shipping_dhl_api_secret:
+            (settings as any)?.shipping_settings?.dhl?.api_secret ??
+            ((settings as any)?.shipping_settings?.carrier?.provider === 'dhl'
+                ? (settings as any)?.shipping_settings?.carrier?.api_secret
+                : '') ??
+            '',
 
         // SMTP Credentials
         mail_host: settings?.mail_host ?? 'smtp.mailtrap.io',
@@ -244,6 +307,12 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         form.data.payment_stripe_enabled,
         form.data.payment_paypal_enabled,
         form.data.payment_cod_enabled,
+    ].filter(Boolean).length;
+
+    const activeShippingCount = [
+        form.data.shipping_fedex_enabled,
+        form.data.shipping_ups_enabled,
+        form.data.shipping_dhl_enabled,
     ].filter(Boolean).length;
 
     interface SettingListItem {
@@ -462,16 +531,16 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             badges: [
                 { label: `${activePaymentCount} Gateways Active`, variant: activePaymentCount > 0 ? 'emerald' : 'amber' },
                 {
-                    label: form.data.shipping_carrier_provider !== 'none'
-                        ? `Shipping: ${form.data.shipping_carrier_provider.toUpperCase()}`
+                    label: activeShippingCount > 0
+                        ? `${activeShippingCount} Carriers Active`
                         : 'Manual Delivery',
-                    variant: form.data.shipping_carrier_provider !== 'none' ? 'indigo' : 'slate',
+                    variant: activeShippingCount > 0 ? 'indigo' : 'slate',
                 },
             ],
             renderForm: () => (
                 <div className="space-y-6">
                     {/* Payment Gateways Section */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
                             <div>
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
@@ -486,263 +555,258 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                            {/* Razorpay */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.payment_razorpay_enabled
-                                        ? 'bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Zap className="w-4 h-4 text-blue-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">Razorpay</span>
+                        {/* Razorpay */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.payment_razorpay_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-blue-300 dark:border-blue-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 shrink-0">
+                                        <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                     </div>
-                                    <Toggle
-                                        checked={form.data.payment_razorpay_enabled}
-                                        onChange={(checked) =>
-                                            form.setData('payment_razorpay_enabled', checked)
-                                        }
-                                    />
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">Razorpay</span>
                                 </div>
+                                <Toggle
+                                    checked={form.data.payment_razorpay_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('payment_razorpay_enabled', checked)
+                                    }
+                                />
                             </div>
 
-                            {/* Stripe */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.payment_stripe_enabled
-                                        ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <CreditCard className="w-4 h-4 text-indigo-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">Stripe</span>
+                            {form.data.payment_razorpay_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1 space-y-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3">
+                                        <Input
+                                            label="Key ID"
+                                            placeholder="rzp_live_... or rzp_test_..."
+                                            value={form.data.payment_razorpay_key_id}
+                                            onChange={(e) => form.setData('payment_razorpay_key_id', e.target.value)}
+                                            leftIcon={<Key className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="Key Secret"
+                                            type={showRazorpaySecret ? 'text' : 'password'}
+                                            placeholder="Razorpay Secret Key..."
+                                            value={form.data.payment_razorpay_key_secret}
+                                            onChange={(e) => form.setData('payment_razorpay_key_secret', e.target.value)}
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            rightIcon={
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
+                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            }
+                                        />
                                     </div>
-                                    <Toggle
-                                        checked={form.data.payment_stripe_enabled}
-                                        onChange={(checked) =>
-                                            form.setData('payment_stripe_enabled', checked)
+                                    <Input
+                                        label="Webhook Secret"
+                                        type={showRazorpayWebhookSecret ? 'text' : 'password'}
+                                        placeholder="Razorpay Webhook Secret..."
+                                        value={form.data.payment_razorpay_webhook_secret}
+                                        onChange={(e) => form.setData('payment_razorpay_webhook_secret', e.target.value)}
+                                        leftIcon={<Lock className="w-4 h-4" />}
+                                        rightIcon={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRazorpayWebhookSecret(!showRazorpayWebhookSecret)}
+                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                tabIndex={-1}
+                                            >
+                                                {showRazorpayWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
                                         }
                                     />
                                 </div>
-                            </div>
-
-                            {/* PayPal */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.payment_paypal_enabled
-                                        ? 'bg-white dark:bg-slate-800 border-sky-300 dark:border-sky-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Wallet className="w-4 h-4 text-sky-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">PayPal</span>
-                                    </div>
-                                    <Toggle
-                                        checked={form.data.payment_paypal_enabled}
-                                        onChange={(checked) =>
-                                            form.setData('payment_paypal_enabled', checked)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            {/* COD */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.payment_cod_enabled
-                                        ? 'bg-white dark:bg-slate-800 border-emerald-300 dark:border-emerald-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">Cash on Delivery</span>
-                                    </div>
-                                    <Toggle
-                                        checked={form.data.payment_cod_enabled}
-                                        onChange={(checked) =>
-                                            form.setData('payment_cod_enabled', checked)
-                                        }
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </div>
 
-                        {/* Razorpay Credentials Section */}
-                        {form.data.payment_razorpay_enabled && (
-                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                    Razorpay Credentials
-                                </span>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <Input
-                                        label="Key ID"
-                                        placeholder="rzp_live_... or rzp_test_..."
-                                        value={form.data.payment_razorpay_key_id}
-                                        onChange={(e) => form.setData('payment_razorpay_key_id', e.target.value)}
-                                        leftIcon={<Key className="w-4 h-4" />}
-                                    />
-                                    <Input
-                                        label="Key Secret"
-                                        type={showRazorpaySecret ? 'text' : 'password'}
-                                        placeholder="Razorpay Secret Key..."
-                                        value={form.data.payment_razorpay_key_secret}
-                                        onChange={(e) => form.setData('payment_razorpay_key_secret', e.target.value)}
-                                        leftIcon={<Lock className="w-4 h-4" />}
-                                        rightIcon={
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
-                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                tabIndex={-1}
-                                            >
-                                                {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        }
-                                    />
+                        {/* Stripe */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.payment_stripe_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-indigo-300 dark:border-indigo-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
+                                        <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">Stripe</span>
                                 </div>
-                                <Input
-                                    label="Webhook Secret"
-                                    type={showRazorpayWebhookSecret ? 'text' : 'password'}
-                                    placeholder="Razorpay Webhook Secret..."
-                                    value={form.data.payment_razorpay_webhook_secret}
-                                    onChange={(e) => form.setData('payment_razorpay_webhook_secret', e.target.value)}
-                                    leftIcon={<Lock className="w-4 h-4" />}
-                                    rightIcon={
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRazorpayWebhookSecret(!showRazorpayWebhookSecret)}
-                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                            tabIndex={-1}
-                                        >
-                                            {showRazorpayWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
+                                <Toggle
+                                    checked={form.data.payment_stripe_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('payment_stripe_enabled', checked)
                                     }
                                 />
                             </div>
-                        )}
 
-                        {/* Stripe Credentials Section */}
-                        {form.data.payment_stripe_enabled && (
-                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                    Stripe Credentials
-                                </span>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {form.data.payment_stripe_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1 space-y-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3">
+                                        <Input
+                                            label="Publishable Key"
+                                            placeholder="pk_live_..."
+                                            value={form.data.payment_stripe_publishable_key}
+                                            onChange={(e) => form.setData('payment_stripe_publishable_key', e.target.value)}
+                                            leftIcon={<Key className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="Secret Key"
+                                            type={showStripeSecret ? 'text' : 'password'}
+                                            placeholder="sk_live_..."
+                                            value={form.data.payment_stripe_secret_key}
+                                            onChange={(e) => form.setData('payment_stripe_secret_key', e.target.value)}
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            rightIcon={
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowStripeSecret(!showStripeSecret)}
+                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showStripeSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            }
+                                        />
+                                    </div>
                                     <Input
-                                        label="Publishable Key"
-                                        placeholder="pk_live_..."
-                                        value={form.data.payment_stripe_publishable_key}
-                                        onChange={(e) => form.setData('payment_stripe_publishable_key', e.target.value)}
-                                        leftIcon={<Key className="w-4 h-4" />}
-                                    />
-                                    <Input
-                                        label="Secret Key"
-                                        type={showStripeSecret ? 'text' : 'password'}
-                                        placeholder="sk_live_..."
-                                        value={form.data.payment_stripe_secret_key}
-                                        onChange={(e) => form.setData('payment_stripe_secret_key', e.target.value)}
+                                        label="Webhook Secret"
+                                        type={showStripeWebhookSecret ? 'text' : 'password'}
+                                        placeholder="whsec_..."
+                                        value={form.data.payment_stripe_webhook_secret}
+                                        onChange={(e) => form.setData('payment_stripe_webhook_secret', e.target.value)}
                                         leftIcon={<Lock className="w-4 h-4" />}
                                         rightIcon={
                                             <button
                                                 type="button"
-                                                onClick={() => setShowStripeSecret(!showStripeSecret)}
+                                                onClick={() => setShowStripeWebhookSecret(!showStripeWebhookSecret)}
                                                 className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
                                                 tabIndex={-1}
                                             >
-                                                {showStripeSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                {showStripeWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                             </button>
                                         }
                                     />
                                 </div>
-                                <Input
-                                    label="Webhook Secret"
-                                    type={showStripeWebhookSecret ? 'text' : 'password'}
-                                    placeholder="whsec_..."
-                                    value={form.data.payment_stripe_webhook_secret}
-                                    onChange={(e) => form.setData('payment_stripe_webhook_secret', e.target.value)}
-                                    leftIcon={<Lock className="w-4 h-4" />}
-                                    rightIcon={
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowStripeWebhookSecret(!showStripeWebhookSecret)}
-                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                            tabIndex={-1}
-                                        >
-                                            {showStripeWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
+                            )}
+                        </div>
+
+                        {/* PayPal */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.payment_paypal_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-sky-300 dark:border-sky-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 shrink-0">
+                                        <Wallet className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">PayPal</span>
+                                </div>
+                                <Toggle
+                                    checked={form.data.payment_paypal_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('payment_paypal_enabled', checked)
                                     }
                                 />
                             </div>
-                        )}
 
-                        {/* PayPal Credentials Section */}
-                        {form.data.payment_paypal_enabled && (
-                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                    PayPal Credentials
-                                </span>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <Select
-                                        label="Environment"
-                                        value={form.data.payment_paypal_mode}
-                                        onChange={(e) => form.setData('payment_paypal_mode', e.target.value)}
-                                    >
-                                        <option value="sandbox">Sandbox</option>
-                                        <option value="live">Live</option>
-                                    </Select>
-                                    <Input
-                                        label="Client ID"
-                                        placeholder="Client ID..."
-                                        value={form.data.payment_paypal_client_id}
-                                        onChange={(e) => form.setData('payment_paypal_client_id', e.target.value)}
-                                        leftIcon={<Key className="w-4 h-4" />}
-                                    />
-                                    <Input
-                                        label="Client Secret"
-                                        type={showPaypalSecret ? 'text' : 'password'}
-                                        placeholder="Secret Key..."
-                                        value={form.data.payment_paypal_client_secret}
-                                        onChange={(e) => form.setData('payment_paypal_client_secret', e.target.value)}
-                                        leftIcon={<Lock className="w-4 h-4" />}
-                                        rightIcon={
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPaypalSecret(!showPaypalSecret)}
-                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                tabIndex={-1}
-                                            >
-                                                {showPaypalSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        }
-                                    />
+                            {form.data.payment_paypal_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+                                        <Select
+                                            label="Environment"
+                                            value={form.data.payment_paypal_mode}
+                                            onChange={(e) => form.setData('payment_paypal_mode', e.target.value)}
+                                        >
+                                            <option value="sandbox">Sandbox</option>
+                                            <option value="live">Live</option>
+                                        </Select>
+                                        <Input
+                                            label="Client ID"
+                                            placeholder="Client ID..."
+                                            value={form.data.payment_paypal_client_id}
+                                            onChange={(e) => form.setData('payment_paypal_client_id', e.target.value)}
+                                            leftIcon={<Key className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="Client Secret"
+                                            type={showPaypalSecret ? 'text' : 'password'}
+                                            placeholder="Secret Key..."
+                                            value={form.data.payment_paypal_client_secret}
+                                            onChange={(e) => form.setData('payment_paypal_client_secret', e.target.value)}
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            rightIcon={
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPaypalSecret(!showPaypalSecret)}
+                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showPaypalSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            }
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
-                        {/* COD Instructions */}
-                        {form.data.payment_cod_enabled && (
-                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                                <Input
-                                    label="COD Instructions"
-                                    placeholder="Instructions for customer at checkout..."
-                                    value={form.data.payment_cod_instructions}
-                                    onChange={(e) => form.setData('payment_cod_instructions', e.target.value)}
+                        {/* Cash on Delivery */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.payment_cod_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-emerald-300 dark:border-emerald-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 shrink-0">
+                                        <Banknote className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">Cash on Delivery</span>
+                                </div>
+                                <Toggle
+                                    checked={form.data.payment_cod_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('payment_cod_enabled', checked)
+                                    }
                                 />
                             </div>
-                        )}
+
+                            {form.data.payment_cod_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="pt-3">
+                                        <Input
+                                            label="COD Instructions"
+                                            placeholder="Instructions for customer at checkout..."
+                                            value={form.data.payment_cod_instructions}
+                                            onChange={(e) => form.setData('payment_cod_instructions', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Shipping & Delivery Logistics Section - Designed identically to Payment cards! */}
-                    <div className="space-y-4 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+                    {/* Shipping & Delivery Logistics Section */}
+                    <div className="space-y-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">
                         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
                             <div>
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
@@ -753,127 +817,195 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                 </span>
                             </div>
                             <span className="text-2xs font-medium text-slate-400">
-                                {form.data.shipping_carrier_provider !== 'none'
-                                    ? `${form.data.shipping_carrier_provider.toUpperCase()} Active`
-                                    : 'Manual Rates'}
+                                {activeShippingCount} of 3 Active
                             </span>
                         </div>
 
-                        {/* 3 Carrier Cards in Grid matching Payment style */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {/* FedEx */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.shipping_carrier_provider === 'fedex'
-                                        ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Truck className="w-4 h-4 text-indigo-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">FedEx Express</span>
+                        {/* FedEx */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.shipping_fedex_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-indigo-300 dark:border-indigo-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
+                                        <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                     </div>
-                                    <Toggle
-                                        checked={form.data.shipping_carrier_provider === 'fedex'}
-                                        onChange={(checked) =>
-                                            form.setData('shipping_carrier_provider', checked ? 'fedex' : 'none')
-                                        }
-                                    />
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">FedEx Express</span>
                                 </div>
+                                <Toggle
+                                    checked={form.data.shipping_fedex_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('shipping_fedex_enabled', checked)
+                                    }
+                                />
                             </div>
 
-                            {/* UPS */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.shipping_carrier_provider === 'ups'
-                                        ? 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Truck className="w-4 h-4 text-amber-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">UPS Logistics</span>
+                            {form.data.shipping_fedex_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+                                        <Input
+                                            label="Account Number"
+                                            placeholder="Account number..."
+                                            value={form.data.shipping_fedex_account_number}
+                                            onChange={(e) => form.setData('shipping_fedex_account_number', e.target.value)}
+                                        />
+                                        <Input
+                                            label="API Key"
+                                            placeholder="API key..."
+                                            value={form.data.shipping_fedex_api_key}
+                                            onChange={(e) => form.setData('shipping_fedex_api_key', e.target.value)}
+                                            leftIcon={<Key className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="API Secret"
+                                            type={showFedexSecret ? 'text' : 'password'}
+                                            placeholder="Secret..."
+                                            value={form.data.shipping_fedex_api_secret}
+                                            onChange={(e) => form.setData('shipping_fedex_api_secret', e.target.value)}
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            rightIcon={
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowFedexSecret(!showFedexSecret)}
+                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showFedexSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            }
+                                        />
                                     </div>
-                                    <Toggle
-                                        checked={form.data.shipping_carrier_provider === 'ups'}
-                                        onChange={(checked) =>
-                                            form.setData('shipping_carrier_provider', checked ? 'ups' : 'none')
-                                        }
-                                    />
                                 </div>
-                            </div>
-
-                            {/* DHL */}
-                            <div
-                                className={`p-3.5 rounded-xl border transition-all ${
-                                    form.data.shipping_carrier_provider === 'dhl'
-                                        ? 'bg-white dark:bg-slate-800 border-rose-300 dark:border-rose-700 shadow-2xs'
-                                        : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Truck className="w-4 h-4 text-rose-600 shrink-0" />
-                                        <span className="text-xs font-bold truncate">DHL Express</span>
-                                    </div>
-                                    <Toggle
-                                        checked={form.data.shipping_carrier_provider === 'dhl'}
-                                        onChange={(checked) =>
-                                            form.setData('shipping_carrier_provider', checked ? 'dhl' : 'none')
-                                        }
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </div>
 
-                        {/* Carrier API Credentials Section */}
-                        {form.data.shipping_carrier_provider !== 'none' && (
-                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                        {form.data.shipping_carrier_provider.toUpperCase()} API Credentials
-                                    </span>
-                                    <span className="text-2xs text-slate-400">
-                                        Automated rates & tracking tokens
-                                    </span>
+                        {/* UPS */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.shipping_ups_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-amber-300 dark:border-amber-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 shrink-0">
+                                        <Truck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">UPS Logistics</span>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <Input
-                                        label="Account Number"
-                                        placeholder="Account number..."
-                                        value={form.data.shipping_carrier_account_number}
-                                        onChange={(e) => form.setData('shipping_carrier_account_number', e.target.value)}
-                                    />
-                                    <Input
-                                        label="API Key"
-                                        placeholder="API key..."
-                                        value={form.data.shipping_carrier_api_key}
-                                        onChange={(e) => form.setData('shipping_carrier_api_key', e.target.value)}
-                                        leftIcon={<Key className="w-4 h-4" />}
-                                    />
-                                    <Input
-                                        label="API Secret"
-                                        type={showCarrierSecret ? 'text' : 'password'}
-                                        placeholder="Secret..."
-                                        value={form.data.shipping_carrier_api_secret}
-                                        onChange={(e) => form.setData('shipping_carrier_api_secret', e.target.value)}
-                                        leftIcon={<Lock className="w-4 h-4" />}
-                                        rightIcon={
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowCarrierSecret(!showCarrierSecret)}
-                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                                tabIndex={-1}
-                                            >
-                                                {showCarrierSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        }
-                                    />
-                                </div>
+                                <Toggle
+                                    checked={form.data.shipping_ups_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('shipping_ups_enabled', checked)
+                                    }
+                                />
                             </div>
-                        )}
+
+                            {form.data.shipping_ups_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+                                        <Input
+                                            label="Account Number"
+                                            placeholder="Account number..."
+                                            value={form.data.shipping_ups_account_number}
+                                            onChange={(e) => form.setData('shipping_ups_account_number', e.target.value)}
+                                        />
+                                        <Input
+                                            label="API Key"
+                                            placeholder="API key..."
+                                            value={form.data.shipping_ups_api_key}
+                                            onChange={(e) => form.setData('shipping_ups_api_key', e.target.value)}
+                                            leftIcon={<Key className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="API Secret"
+                                            type={showUpsSecret ? 'text' : 'password'}
+                                            placeholder="Secret..."
+                                            value={form.data.shipping_ups_api_secret}
+                                            onChange={(e) => form.setData('shipping_ups_api_secret', e.target.value)}
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            rightIcon={
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowUpsSecret(!showUpsSecret)}
+                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showUpsSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* DHL */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.shipping_dhl_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-rose-300 dark:border-rose-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 shrink-0">
+                                        <Truck className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">DHL Express</span>
+                                </div>
+                                <Toggle
+                                    checked={form.data.shipping_dhl_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('shipping_dhl_enabled', checked)
+                                    }
+                                />
+                            </div>
+
+                            {form.data.shipping_dhl_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+                                        <Input
+                                            label="Account Number"
+                                            placeholder="Account number..."
+                                            value={form.data.shipping_dhl_account_number}
+                                            onChange={(e) => form.setData('shipping_dhl_account_number', e.target.value)}
+                                        />
+                                        <Input
+                                            label="API Key"
+                                            placeholder="API key..."
+                                            value={form.data.shipping_dhl_api_key}
+                                            onChange={(e) => form.setData('shipping_dhl_api_key', e.target.value)}
+                                            leftIcon={<Key className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="API Secret"
+                                            type={showDhlSecret ? 'text' : 'password'}
+                                            placeholder="Secret..."
+                                            value={form.data.shipping_dhl_api_secret}
+                                            onChange={(e) => form.setData('shipping_dhl_api_secret', e.target.value)}
+                                            leftIcon={<Lock className="w-4 h-4" />}
+                                            rightIcon={
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDhlSecret(!showDhlSecret)}
+                                                    className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showDhlSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             ),
@@ -1368,13 +1500,13 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                     key={item.id}
                                     className={`rounded-2xl border transition-all duration-200 bg-white dark:bg-slate-900 ${
                                         isOpen
-                                            ? 'border-indigo-300 dark:border-indigo-800/80 shadow-md ring-1 ring-indigo-500/10'
+                                            ? 'border-indigo-300 dark:border-indigo-800 shadow-sm ring-1 ring-indigo-500/10'
                                             : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'
                                     }`}
                                 >
                                     {/* List Row Header */}
                                     <div
-                                        className="p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer select-none"
+                                        className="p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer select-none group"
                                         onClick={() => toggleSection(item.id)}
                                         role="button"
                                         tabIndex={0}
@@ -1385,17 +1517,17 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                             }
                                         }}
                                     >
-                                        {/* Left Side: Icon, Title, and Badges */}
+                                        {/* Left Side: Icon, Title, and Category Label */}
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div
-                                                className={`p-2 rounded-xl border shrink-0 ${item.iconBg} ${item.iconColor}`}
+                                                className={`p-2 rounded-xl border shrink-0 transition-transform duration-200 group-hover:scale-105 ${item.iconBg} ${item.iconColor}`}
                                             >
                                                 <Icon className="w-4 h-4" />
                                             </div>
 
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <h3 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                                                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight">
                                                         {item.title}
                                                     </h3>
                                                     <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
@@ -1409,9 +1541,9 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                             </div>
                                         </div>
 
-                                        {/* Right Side: Badges + Toggle Switch */}
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            {/* Summary Badges (Hidden on very small mobile) */}
+                                        {/* Right Side: Badges + Chevron Toggle Button */}
+                                        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                                            {/* Summary Badges */}
                                             <div className="hidden md:flex items-center gap-1.5">
                                                 {item.badges.map((badge, idx) => (
                                                     <span
@@ -1431,43 +1563,26 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                                 ))}
                                             </div>
 
-                                            {/* Visual Switch Toggle */}
+                                            {/* Clear, elegant Chevron Toggle Indicator */}
                                             <div
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleSection(item.id);
-                                                }}
-                                                className="flex items-center gap-2 cursor-pointer"
-                                                title={isOpen ? 'Collapse' : 'Expand'}
-                                            >
-                                                <div
-                                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                                                        isOpen
-                                                            ? 'bg-indigo-600'
-                                                            : 'bg-slate-200 dark:bg-slate-700'
-                                                    }`}
-                                                >
-                                                    <span
-                                                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs transition-transform duration-200 ${
-                                                            isOpen ? 'translate-x-4.5' : 'translate-x-0.5'
-                                                        }`}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div
-                                                className={`text-slate-400 transition-transform duration-200 ${
-                                                    isOpen ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : ''
+                                                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                                                    isOpen
+                                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
+                                                        : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 group-hover:bg-slate-200/70 dark:group-hover:bg-slate-700/70 group-hover:text-slate-600 dark:group-hover:text-slate-200'
                                                 }`}
                                             >
-                                                <ChevronDown className="w-4 h-4" />
+                                                <ChevronDown
+                                                    className={`w-4 h-4 transition-transform duration-200 ${
+                                                        isOpen ? 'rotate-180' : ''
+                                                    }`}
+                                                />
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Expanded Clean Form */}
                                     {isOpen && (
-                                        <div className="border-t border-slate-200 dark:border-slate-800/80 px-4 pt-4 pb-4 bg-slate-50/30 dark:bg-slate-900/40 animate-fade-in">
+                                        <div className="border-t border-slate-200 dark:border-slate-800/80 px-4 pt-4 pb-4 sm:px-5 sm:pt-5 sm:pb-5 bg-slate-50/30 dark:bg-slate-900/40 animate-fade-in">
                                             <form
                                                 onSubmit={(e) => {
                                                     e.preventDefault();
@@ -1477,10 +1592,10 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                                 {item.renderForm()}
 
                                                 {/* Clean Action Footer */}
-                                                <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2.5">
+                                                <div className="mt-5 pt-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2.5">
                                                     {isSaved && (
                                                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-lg">
-                                                            <Check className="w-3 h-3" /> Saved!
+                                                            <Check className="w-3.5 h-3.5" /> Saved successfully
                                                         </span>
                                                     )}
 
@@ -1501,7 +1616,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                                         disabled={form.processing}
                                                         leftIcon={<Save className="w-3.5 h-3.5" />}
                                                     >
-                                                        {isSaving ? 'Saving...' : `Save ${item.title}`}
+                                                        {isSaving ? 'Saving...' : 'Save Changes'}
                                                     </Button>
                                                 </div>
                                             </form>

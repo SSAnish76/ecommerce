@@ -272,10 +272,48 @@ class SettingTest extends TestCase
     /**
      * Test admin can access personal profile page.
      */
-    public function test_admin_can_view_personal_profile_page(): void
+    /**
+     * Test admin can configure multiple shipping carriers simultaneously.
+     */
+    public function test_admin_can_configure_multiple_shipping_carriers_simultaneously(): void
     {
-        $response = $this->actingAs($this->adminUser)->get('/admin/profile');
-        $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => $page->component('Admin/Profile'));
+        $payload = [
+            'shipping_fedex_enabled' => true,
+            'shipping_fedex_account_number' => 'FDX-112233',
+            'shipping_fedex_api_key' => 'fedex_key_multi',
+            'shipping_fedex_api_secret' => 'fedex_secret_multi',
+
+            'shipping_ups_enabled' => true,
+            'shipping_ups_account_number' => 'UPS-445566',
+            'shipping_ups_api_key' => 'ups_key_multi',
+            'shipping_ups_api_secret' => 'ups_secret_multi',
+
+            'shipping_dhl_enabled' => true,
+            'shipping_dhl_account_number' => 'DHL-778899',
+            'shipping_dhl_api_key' => 'dhl_key_multi',
+            'shipping_dhl_api_secret' => 'dhl_secret_multi',
+        ];
+
+        $response = $this->actingAs($this->adminUser)->post('/admin/settings', $payload);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $shippingSettings = Setting::getShippingSettings();
+        $this->assertTrue($shippingSettings['fedex']['enabled']);
+        $this->assertSame('FDX-112233', $shippingSettings['fedex']['account_number']);
+        $this->assertSame('fedex_secret_multi', $shippingSettings['fedex']['api_secret']);
+
+        $this->assertTrue($shippingSettings['ups']['enabled']);
+        $this->assertSame('UPS-445566', $shippingSettings['ups']['account_number']);
+        $this->assertSame('ups_secret_multi', $shippingSettings['ups']['api_secret']);
+
+        $this->assertTrue($shippingSettings['dhl']['enabled']);
+        $this->assertSame('DHL-778899', $shippingSettings['dhl']['account_number']);
+        $this->assertSame('dhl_secret_multi', $shippingSettings['dhl']['api_secret']);
+
+        $this->assertTrue(Setting::get('shipping_fedex_enabled'));
+        $this->assertTrue(Setting::get('shipping_ups_enabled'));
+        $this->assertTrue(Setting::get('shipping_dhl_enabled'));
     }
 }

@@ -76,6 +76,21 @@ class SettingController extends Controller
             'storage_s3_url' => ['sometimes', 'nullable', 'string', 'max:255'],
             'storage_s3_endpoint' => ['sometimes', 'nullable', 'string', 'max:255'],
 
+            'shipping_fedex_enabled' => ['sometimes', 'boolean'],
+            'shipping_fedex_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'shipping_fedex_api_key' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'shipping_fedex_api_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
+
+            'shipping_ups_enabled' => ['sometimes', 'boolean'],
+            'shipping_ups_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'shipping_ups_api_key' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'shipping_ups_api_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
+
+            'shipping_dhl_enabled' => ['sometimes', 'boolean'],
+            'shipping_dhl_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'shipping_dhl_api_key' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'shipping_dhl_api_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
+
             'shipping_carrier_provider' => ['sometimes', 'nullable', 'string', 'max:50'],
             'shipping_carrier_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
             'shipping_carrier_api_key' => ['sometimes', 'nullable', 'string', 'max:150'],
@@ -158,16 +173,100 @@ class SettingController extends Controller
 
         // 3. Bundle Shipping Settings
         $shippingKeys = [
+            'shipping_fedex_enabled', 'shipping_fedex_account_number', 'shipping_fedex_api_key', 'shipping_fedex_api_secret',
+            'shipping_ups_enabled', 'shipping_ups_account_number', 'shipping_ups_api_key', 'shipping_ups_api_secret',
+            'shipping_dhl_enabled', 'shipping_dhl_account_number', 'shipping_dhl_api_key', 'shipping_dhl_api_secret',
             'shipping_carrier_provider', 'shipping_carrier_account_number', 'shipping_carrier_api_key', 'shipping_carrier_api_secret',
         ];
 
         $existingShipping = Setting::getShippingSettings();
+
+        $fedexEnabled = isset($input['shipping_fedex_enabled'])
+            ? (bool) $input['shipping_fedex_enabled']
+            : (isset($input['shipping_carrier_provider']) ? $input['shipping_carrier_provider'] === 'fedex' : ($existingShipping['fedex']['enabled'] ?? false));
+
+        $upsEnabled = isset($input['shipping_ups_enabled'])
+            ? (bool) $input['shipping_ups_enabled']
+            : (isset($input['shipping_carrier_provider']) ? $input['shipping_carrier_provider'] === 'ups' : ($existingShipping['ups']['enabled'] ?? false));
+
+        $dhlEnabled = isset($input['shipping_dhl_enabled'])
+            ? (bool) $input['shipping_dhl_enabled']
+            : (isset($input['shipping_carrier_provider']) ? $input['shipping_carrier_provider'] === 'dhl' : ($existingShipping['dhl']['enabled'] ?? false));
+
+        $fedexAccount = $input['shipping_fedex_account_number']
+            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'fedex' ? ($input['shipping_carrier_account_number'] ?? '') : ($existingShipping['fedex']['account_number'] ?? ''));
+
+        $fedexKey = $input['shipping_fedex_api_key']
+            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'fedex' ? ($input['shipping_carrier_api_key'] ?? '') : ($existingShipping['fedex']['api_key'] ?? ''));
+
+        $fedexSecret = ! empty($input['shipping_fedex_api_secret'])
+            ? $input['shipping_fedex_api_secret']
+            : (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'fedex' && ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : ($existingShipping['fedex']['api_secret'] ?? ''));
+
+        $upsAccount = $input['shipping_ups_account_number']
+            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'ups' ? ($input['shipping_carrier_account_number'] ?? '') : ($existingShipping['ups']['account_number'] ?? ''));
+
+        $upsKey = $input['shipping_ups_api_key']
+            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'ups' ? ($input['shipping_carrier_api_key'] ?? '') : ($existingShipping['ups']['api_key'] ?? ''));
+
+        $upsSecret = ! empty($input['shipping_ups_api_secret'])
+            ? $input['shipping_ups_api_secret']
+            : (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'ups' && ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : ($existingShipping['ups']['api_secret'] ?? ''));
+
+        $dhlAccount = $input['shipping_dhl_account_number']
+            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'dhl' ? ($input['shipping_carrier_account_number'] ?? '') : ($existingShipping['dhl']['account_number'] ?? ''));
+
+        $dhlKey = $input['shipping_dhl_api_key']
+            ?? (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'dhl' ? ($input['shipping_carrier_api_key'] ?? '') : ($existingShipping['dhl']['api_key'] ?? ''));
+
+        $dhlSecret = ! empty($input['shipping_dhl_api_secret'])
+            ? $input['shipping_dhl_api_secret']
+            : (isset($input['shipping_carrier_provider']) && $input['shipping_carrier_provider'] === 'dhl' && ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : ($existingShipping['dhl']['api_secret'] ?? ''));
+
+        $primaryProvider = $fedexEnabled ? 'fedex' : ($upsEnabled ? 'ups' : ($dhlEnabled ? 'dhl' : ($input['shipping_carrier_provider'] ?? 'none')));
+        $primaryAccount = match ($primaryProvider) {
+            'fedex' => $fedexAccount,
+            'ups' => $upsAccount,
+            'dhl' => $dhlAccount,
+            default => '',
+        };
+        $primaryKey = match ($primaryProvider) {
+            'fedex' => $fedexKey,
+            'ups' => $upsKey,
+            'dhl' => $dhlKey,
+            default => '',
+        };
+        $primarySecret = match ($primaryProvider) {
+            'fedex' => $fedexSecret,
+            'ups' => $upsSecret,
+            'dhl' => $dhlSecret,
+            default => '',
+        };
+
         $shippingSettings = [
             'carrier' => [
-                'provider' => $input['shipping_carrier_provider'] ?? $existingShipping['carrier']['provider'],
-                'account_number' => $input['shipping_carrier_account_number'] ?? $existingShipping['carrier']['account_number'],
-                'api_key' => $input['shipping_carrier_api_key'] ?? $existingShipping['carrier']['api_key'],
-                'api_secret' => ! empty($input['shipping_carrier_api_secret']) ? $input['shipping_carrier_api_secret'] : $existingShipping['carrier']['api_secret'],
+                'provider' => $primaryProvider,
+                'account_number' => $primaryAccount,
+                'api_key' => $primaryKey,
+                'api_secret' => $primarySecret,
+            ],
+            'fedex' => [
+                'enabled' => $fedexEnabled,
+                'account_number' => $fedexAccount,
+                'api_key' => $fedexKey,
+                'api_secret' => $fedexSecret,
+            ],
+            'ups' => [
+                'enabled' => $upsEnabled,
+                'account_number' => $upsAccount,
+                'api_key' => $upsKey,
+                'api_secret' => $upsSecret,
+            ],
+            'dhl' => [
+                'enabled' => $dhlEnabled,
+                'account_number' => $dhlAccount,
+                'api_key' => $dhlKey,
+                'api_secret' => $dhlSecret,
             ],
         ];
 

@@ -221,6 +221,17 @@ class Setting extends Model
             return data_get($all['payment_settings'], $paymentMap[$key], $default);
         }
 
+        // Backward compatibility mappings for shipping_* carrier keys
+        $shippingMap = [
+            'shipping_fedex_enabled' => 'fedex.enabled',
+            'shipping_ups_enabled' => 'ups.enabled',
+            'shipping_dhl_enabled' => 'dhl.enabled',
+        ];
+
+        if (isset($shippingMap[$key]) && isset($all['shipping_settings']) && is_array($all['shipping_settings'])) {
+            return data_get($all['shipping_settings'], $shippingMap[$key], $default);
+        }
+
         return $default;
     }
 
@@ -340,7 +351,10 @@ class Setting extends Model
      * Get typed e-commerce shipping configuration settings.
      *
      * @return array{
-     *     carrier: array{provider: string, account_number: string, api_key: string, api_secret: string}
+     *     carrier: array{provider: string, account_number: string, api_key: string, api_secret: string},
+     *     fedex: array{enabled: bool, account_number: string, api_key: string, api_secret: string},
+     *     ups: array{enabled: bool, account_number: string, api_key: string, api_secret: string},
+     *     dhl: array{enabled: bool, account_number: string, api_key: string, api_secret: string}
      * }
      */
     public static function getShippingSettings(): array
@@ -352,6 +366,24 @@ class Setting extends Model
                 'api_key' => '',
                 'api_secret' => '',
             ],
+            'fedex' => [
+                'enabled' => false,
+                'account_number' => '',
+                'api_key' => '',
+                'api_secret' => '',
+            ],
+            'ups' => [
+                'enabled' => false,
+                'account_number' => '',
+                'api_key' => '',
+                'api_secret' => '',
+            ],
+            'dhl' => [
+                'enabled' => false,
+                'account_number' => '',
+                'api_key' => '',
+                'api_secret' => '',
+            ],
         ];
 
         /** @var array<string, mixed> $all */
@@ -359,8 +391,51 @@ class Setting extends Model
 
         $configured = $all['shipping_settings'] ?? null;
         if (is_array($configured)) {
+            $legacyCarrier = $configured['carrier'] ?? $default['carrier'];
+            $legacyProvider = $legacyCarrier['provider'] ?? 'none';
+
+            $fedex = array_merge($default['fedex'], $configured['fedex'] ?? []);
+            if (! isset($configured['fedex']) && $legacyProvider === 'fedex') {
+                $fedex['enabled'] = true;
+                $fedex['account_number'] = $legacyCarrier['account_number'] ?? '';
+                $fedex['api_key'] = $legacyCarrier['api_key'] ?? '';
+                $fedex['api_secret'] = $legacyCarrier['api_secret'] ?? '';
+            }
+
+            $ups = array_merge($default['ups'], $configured['ups'] ?? []);
+            if (! isset($configured['ups']) && $legacyProvider === 'ups') {
+                $ups['enabled'] = true;
+                $ups['account_number'] = $legacyCarrier['account_number'] ?? '';
+                $ups['api_key'] = $legacyCarrier['api_key'] ?? '';
+                $ups['api_secret'] = $legacyCarrier['api_secret'] ?? '';
+            }
+
+            $dhl = array_merge($default['dhl'], $configured['dhl'] ?? []);
+            if (! isset($configured['dhl']) && $legacyProvider === 'dhl') {
+                $dhl['enabled'] = true;
+                $dhl['account_number'] = $legacyCarrier['account_number'] ?? '';
+                $dhl['api_key'] = $legacyCarrier['api_key'] ?? '';
+                $dhl['api_secret'] = $legacyCarrier['api_secret'] ?? '';
+            }
+
+            $activeProvider = $fedex['enabled'] ? 'fedex' : ($ups['enabled'] ? 'ups' : ($dhl['enabled'] ? 'dhl' : $legacyProvider));
+            $activeCarrierData = match ($activeProvider) {
+                'fedex' => $fedex,
+                'ups' => $ups,
+                'dhl' => $dhl,
+                default => $legacyCarrier,
+            };
+
             return [
-                'carrier' => array_merge($default['carrier'], $configured['carrier'] ?? []),
+                'carrier' => [
+                    'provider' => $activeProvider,
+                    'account_number' => $activeCarrierData['account_number'] ?? '',
+                    'api_key' => $activeCarrierData['api_key'] ?? '',
+                    'api_secret' => $activeCarrierData['api_secret'] ?? '',
+                ],
+                'fedex' => $fedex,
+                'ups' => $ups,
+                'dhl' => $dhl,
             ];
         }
 
