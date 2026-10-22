@@ -26,6 +26,7 @@ class RoleController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->string('search')->trim()->value();
+        $status = $request->string('status')->trim()->value();
 
         $roles = Role::query()
             ->withCount('users')
@@ -35,6 +36,9 @@ class RoleController extends Controller
             ])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where('name', 'like', "%{$search}%");
+            })
+            ->when($status !== '', function (Builder $query) use ($status): void {
+                $query->where('status', $status);
             })
             ->orderBy('id')
             ->get();
@@ -49,6 +53,7 @@ class RoleController extends Controller
             'available_menus' => $availableMenus,
             'filters' => [
                 'search' => $search,
+                'status' => $status,
             ],
         ]);
     }
