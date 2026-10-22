@@ -15,7 +15,7 @@ class SettingSeeder extends Seeder
     public function run(): void
     {
         $defaultSettings = [
-            // ================= 1. Localization, Currency & Timestamps =================
+            // ================= 1. Storefront & Localization =================
             [
                 'key' => 'currency_code',
                 'value' => 'USD',
@@ -33,14 +33,6 @@ class SettingSeeder extends Seeder
                 'description' => 'Visual currency symbol displayed in product prices',
             ],
             [
-                'key' => 'currency_position',
-                'value' => 'prefix',
-                'group' => 'localization',
-                'type' => 'string',
-                'label' => 'Currency Symbol Position',
-                'description' => 'Prefix ($100) or Suffix (100 €)',
-            ],
-            [
                 'key' => 'currency_decimals',
                 'value' => '2',
                 'group' => 'localization',
@@ -56,8 +48,6 @@ class SettingSeeder extends Seeder
                 'label' => 'System Timezone',
                 'description' => 'Timezone used for order timestamps, audit logs, and reports',
             ],
-
-            // ================= 3. Platform Security & Two-Factor Authentication =================
             [
                 'key' => 'force_two_factor_all_admins',
                 'value' => '1',
@@ -66,40 +56,8 @@ class SettingSeeder extends Seeder
                 'label' => 'Require 2FA For Admin Access',
                 'description' => 'Block admin dashboard access until TOTP 2FA is verified',
             ],
-            [
-                'key' => 'session_lifetime_minutes',
-                'value' => '120',
-                'group' => 'security',
-                'type' => 'integer',
-                'label' => 'Admin Session Lifetime',
-                'description' => 'Duration in minutes before inactive admin session expires',
-            ],
-            [
-                'key' => 'max_login_attempts',
-                'value' => '5',
-                'group' => 'security',
-                'type' => 'integer',
-                'label' => 'Max Login Failures',
-                'description' => 'Number of failed attempts before temporary IP/account lockout',
-            ],
-            [
-                'key' => 'lockout_duration_minutes',
-                'value' => '15',
-                'group' => 'security',
-                'type' => 'integer',
-                'label' => 'Lockout Duration',
-                'description' => 'Temporary lockout duration in minutes after failed attempts',
-            ],
-            [
-                'key' => 'require_strong_passwords',
-                'value' => '1',
-                'group' => 'security',
-                'type' => 'boolean',
-                'label' => 'Enforce Complex Passwords',
-                'description' => 'Require min 8 characters with letters, numbers, and symbols',
-            ],
 
-            // ================= 4. Orders & Checkout =================
+            // ================= 2. Orders & Checkout =================
             [
                 'key' => 'order_prefix',
                 'value' => 'ORD-',
@@ -117,14 +75,6 @@ class SettingSeeder extends Seeder
                 'description' => 'Next sequential order starting integer',
             ],
             [
-                'key' => 'min_order_amount',
-                'value' => '10.00',
-                'group' => 'orders',
-                'type' => 'float',
-                'label' => 'Minimum Order Value',
-                'description' => 'Minimum cart subtotal required to proceed to checkout',
-            ],
-            [
                 'key' => 'allow_customer_cancellation',
                 'value' => '1',
                 'group' => 'orders',
@@ -133,7 +83,7 @@ class SettingSeeder extends Seeder
                 'description' => 'Allow customers to cancel orders before processing begins',
             ],
 
-            // ================= 5. Products & Inventory =================
+            // ================= 3. Products & Inventory =================
             [
                 'key' => 'low_stock_threshold',
                 'value' => '5',
@@ -167,7 +117,7 @@ class SettingSeeder extends Seeder
                 'description' => 'Automatically publish reviews without manual admin moderation',
             ],
 
-            // ================= 6. Payment Gateways & Methods =================
+            // ================= 4. Payment Gateways & Methods =================
             [
                 'key' => 'payment_settings',
                 'value' => json_encode([
@@ -187,15 +137,6 @@ class SettingSeeder extends Seeder
                         'enabled' => true,
                         'instructions' => 'Pay cash to delivery courier on parcel arrival.',
                     ],
-                    'bank_transfer' => [
-                        'enabled' => false,
-                        'bank_name' => 'First National Commercial Bank',
-                        'account_name' => 'Store Retail Operations LLC',
-                        'account_number' => '1234567890',
-                        'routing_number' => '021000021',
-                        'swift_code' => 'FNALUS33',
-                        'instructions' => 'Please include your Order ID as the wire transfer reference.',
-                    ],
                 ], JSON_THROW_ON_ERROR),
                 'group' => 'payment',
                 'type' => 'json',
@@ -203,7 +144,7 @@ class SettingSeeder extends Seeder
                 'description' => 'Configured payment providers, credentials, webhooks, and manual checkout methods',
             ],
 
-            // ================= 7. Storage & Cloud Assets =================
+            // ================= 5. Storage & Cloud Assets =================
             [
                 'key' => 'storage_settings',
                 'value' => json_encode([
@@ -223,18 +164,10 @@ class SettingSeeder extends Seeder
                 'description' => 'Default asset filesystem disk and Amazon S3 or S3-compatible cloud credentials',
             ],
 
-            // ================= 8. Shipping & Delivery =================
+            // ================= 6. Shipping & Delivery =================
             [
                 'key' => 'shipping_settings',
                 'value' => json_encode([
-                    'default_method' => 'flat_rate',
-                    'flat_rate' => [
-                        'cost' => 10.00,
-                    ],
-                    'free_shipping' => [
-                        'enabled' => true,
-                        'min_order_amount' => 100.00,
-                    ],
                     'carrier' => [
                         'provider' => 'none',
                         'account_number' => '',
@@ -245,14 +178,13 @@ class SettingSeeder extends Seeder
                 'group' => 'shipping',
                 'type' => 'json',
                 'label' => 'Shipping & Delivery Rates',
-                'description' => 'Standard shipping rates, free delivery thresholds, and live courier carrier API settings',
+                'description' => 'Live courier carrier API settings and credentials',
             ],
 
-            // ================= 9. Notifications & Communication =================
+            // ================= 7. Notifications & Communication =================
             [
                 'key' => 'mail_settings',
                 'value' => json_encode([
-                    'mailer' => 'smtp',
                     'host' => 'smtp.mailtrap.io',
                     'port' => 587,
                     'username' => 'store_smtp_user',
@@ -264,7 +196,7 @@ class SettingSeeder extends Seeder
                 'group' => 'notifications',
                 'type' => 'json',
                 'label' => 'Email Notification & SMTP Configuration',
-                'description' => 'Configured mail driver, SMTP credentials, encryption, and outbound sender headers',
+                'description' => 'SMTP credentials, encryption, and outbound sender headers',
             ],
             [
                 'key' => 'sms_settings',
@@ -278,30 +210,6 @@ class SettingSeeder extends Seeder
                 'type' => 'json',
                 'label' => 'SMS Gateway Provider & API Credentials',
                 'description' => 'Provider credentials, API keys, secrets, and approved sender ID for customer SMS',
-            ],
-            [
-                'key' => 'admin_alert_email',
-                'value' => 'admin@example.com',
-                'group' => 'notifications',
-                'type' => 'string',
-                'label' => 'Admin Alert Recipient Email',
-                'description' => 'Primary administrative email inbox where store alerts and orders are routed',
-            ],
-            [
-                'key' => 'enable_email_notifications',
-                'value' => '1',
-                'group' => 'notifications',
-                'type' => 'boolean',
-                'label' => 'Enable Automated Email Notifications',
-                'description' => 'Master switch for sending system transactional and alert emails',
-            ],
-            [
-                'key' => 'enable_in_app_notifications',
-                'value' => '1',
-                'group' => 'notifications',
-                'type' => 'boolean',
-                'label' => 'Enable In-App Admin Notifications',
-                'description' => 'Show notification bell and popup alert toasts inside admin dashboard',
             ],
             [
                 'key' => 'enable_order_sms_notifications',
@@ -367,32 +275,6 @@ class SettingSeeder extends Seeder
                 'label' => 'Email Admin: New Product Review Submitted',
                 'description' => 'Send notification to admin when customer writes a product review',
             ],
-
-            // ================= 8. Operations & Maintenance =================
-            [
-                'key' => 'maintenance_mode',
-                'value' => '0',
-                'group' => 'maintenance',
-                'type' => 'boolean',
-                'label' => 'Store Maintenance Mode',
-                'description' => 'Put customer-facing storefront offline for updates',
-            ],
-            [
-                'key' => 'maintenance_notice',
-                'value' => 'We are currently performing scheduled maintenance to improve your shopping experience. Please check back shortly!',
-                'group' => 'maintenance',
-                'type' => 'string',
-                'label' => 'Maintenance Notice Message',
-                'description' => 'Message displayed to visitors when storefront is in maintenance',
-            ],
-            [
-                'key' => 'allow_admin_bypass_maintenance',
-                'value' => '1',
-                'group' => 'maintenance',
-                'type' => 'boolean',
-                'label' => 'Allow Admin Bypass',
-                'description' => 'Logged-in administrators can browse store even in maintenance mode',
-            ],
         ];
 
         foreach ($defaultSettings as $setting) {
@@ -402,7 +284,31 @@ class SettingSeeder extends Seeder
             );
         }
 
+        // Purge any obsolete keys that may exist
         Setting::whereIn('key', [
+            'currency_position',
+            'session_lifetime_minutes',
+            'max_login_attempts',
+            'lockout_duration_minutes',
+            'require_strong_passwords',
+            'min_order_amount',
+            'admin_alert_email',
+            'enable_email_notifications',
+            'enable_in_app_notifications',
+            'maintenance_mode',
+            'maintenance_notice',
+            'allow_admin_bypass_maintenance',
+            'shipping_default_method',
+            'shipping_flat_rate_cost',
+            'shipping_free_shipping_enabled',
+            'shipping_free_shipping_min_order',
+            'payment_bank_transfer_enabled',
+            'payment_bank_name',
+            'payment_bank_account_name',
+            'payment_bank_account_number',
+            'payment_bank_routing_number',
+            'payment_bank_swift_code',
+            'payment_bank_instructions',
             'mail_mailer',
             'mail_host',
             'mail_port',
@@ -418,7 +324,6 @@ class SettingSeeder extends Seeder
             'payment_cod_enabled',
             'payment_stripe_enabled',
             'payment_paypal_enabled',
-            'payment_bank_transfer_enabled',
         ])->delete();
 
         Setting::clearCache();

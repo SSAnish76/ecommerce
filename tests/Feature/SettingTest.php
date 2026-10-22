@@ -61,19 +61,13 @@ class SettingTest extends TestCase
         $payload = [
             'currency_code' => 'EUR',
             'currency_symbol' => '€',
-            'currency_position' => 'suffix',
             'currency_decimals' => 2,
             'timezone' => 'Europe/Paris',
 
             'force_two_factor_all_admins' => true,
-            'session_lifetime_minutes' => 60,
-            'max_login_attempts' => 5,
-            'lockout_duration_minutes' => 30,
-            'require_strong_passwords' => true,
 
             'order_prefix' => 'MM-',
             'order_number_start' => 5000,
-            'min_order_amount' => 15.00,
             'allow_customer_cancellation' => false,
 
             'low_stock_threshold' => 10,
@@ -82,6 +76,7 @@ class SettingTest extends TestCase
             'auto_approve_reviews' => true,
 
             'payment_cod_enabled' => false,
+            'payment_cod_instructions' => 'Payment upon delivery.',
             'payment_stripe_enabled' => true,
             'payment_stripe_publishable_key' => 'pk_live_custom123',
             'payment_stripe_secret_key' => 'sk_live_custom456',
@@ -90,24 +85,20 @@ class SettingTest extends TestCase
             'payment_paypal_mode' => 'live',
             'payment_paypal_client_id' => 'paypal_client_abc',
             'payment_paypal_client_secret' => 'paypal_secret_xyz',
-            'payment_bank_transfer_enabled' => true,
-            'payment_bank_name' => 'First National Commercial Bank',
 
             'storage_default_disk' => 's3',
             'storage_s3_key' => 'AKIA_CUSTOM',
             'storage_s3_secret' => 'SECRET_CUSTOM_KEY',
             'storage_s3_region' => 'eu-west-1',
             'storage_s3_bucket' => 'custom-store-bucket',
+            'storage_s3_url' => '',
+            'storage_s3_endpoint' => '',
 
-            'shipping_default_method' => 'flat_rate',
-            'shipping_flat_rate_cost' => 12.50,
-            'shipping_free_shipping_enabled' => true,
-            'shipping_free_shipping_min_order' => 75.00,
             'shipping_carrier_provider' => 'fedex',
+            'shipping_carrier_account_number' => '12345678',
             'shipping_carrier_api_key' => 'fedex_key_123',
             'shipping_carrier_api_secret' => 'fedex_secret_999',
 
-            'mail_mailer' => 'smtp',
             'mail_host' => 'smtp.postmarkapp.com',
             'mail_port' => 587,
             'mail_username' => 'postmark_key_123',
@@ -121,9 +112,6 @@ class SettingTest extends TestCase
 
             'mail_from_name' => 'Premium Store Dispatch',
             'mail_from_address' => 'store@example.com',
-            'admin_alert_email' => 'alerts@example.com',
-            'enable_email_notifications' => true,
-            'enable_in_app_notifications' => true,
             'enable_order_sms_notifications' => true,
             'notify_order_placed_customer' => true,
             'notify_order_placed_admin' => true,
@@ -132,10 +120,6 @@ class SettingTest extends TestCase
             'notify_low_stock_admin' => true,
             'notify_new_customer_welcome' => true,
             'notify_new_review_admin' => true,
-
-            'maintenance_mode' => false,
-            'maintenance_notice' => 'Upgrading our warehouse systems.',
-            'allow_admin_bypass_maintenance' => true,
         ];
 
         $response = $this->actingAs($this->adminUser)->post('/admin/settings', $payload);
@@ -146,10 +130,8 @@ class SettingTest extends TestCase
         // Verify values were persisted in database
         $this->assertSame('EUR', Setting::get('currency_code'));
         $this->assertSame('€', Setting::get('currency_symbol'));
-        $this->assertSame('suffix', Setting::get('currency_position'));
         $this->assertSame('Europe/Paris', Setting::get('timezone'));
         $this->assertTrue(Setting::get('force_two_factor_all_admins'));
-        $this->assertSame(60, Setting::get('session_lifetime_minutes'));
         $this->assertSame('MM-', Setting::get('order_prefix'));
         $this->assertSame('smtp.postmarkapp.com', Setting::get('mail_host'));
         $this->assertSame(587, Setting::get('mail_port'));
@@ -158,7 +140,6 @@ class SettingTest extends TestCase
         $this->assertSame('AC_real_account_sid', Setting::get('sms_username'));
         $this->assertSame('Premium Store Dispatch', Setting::get('mail_from_name'));
         $this->assertSame('store@example.com', Setting::get('mail_from_address'));
-        $this->assertSame('alerts@example.com', Setting::get('admin_alert_email'));
         $this->assertTrue(Setting::get('notify_order_placed_customer'));
         $this->assertTrue(Setting::get('notify_low_stock_admin'));
 
@@ -176,6 +157,9 @@ class SettingTest extends TestCase
         $this->assertDatabaseMissing('settings', ['key' => 'mail_username']);
         $this->assertDatabaseMissing('settings', ['key' => 'sms_username']);
         $this->assertDatabaseMissing('settings', ['key' => 'sms_password']);
+        $this->assertDatabaseMissing('settings', ['key' => 'currency_position']);
+        $this->assertDatabaseMissing('settings', ['key' => 'min_order_amount']);
+        $this->assertDatabaseMissing('settings', ['key' => 'maintenance_mode']);
 
         // Verify secrets are encrypted at rest in raw DB storage
         $rawPaymentRow = \Illuminate\Support\Facades\DB::table('settings')->where('key', 'payment_settings')->value('value');
@@ -210,7 +194,6 @@ class SettingTest extends TestCase
         $this->assertSame('custom-store-bucket', $storageSettings['s3']['bucket']);
 
         $shippingSettings = Setting::getShippingSettings();
-        $this->assertSame(12.50, (float) $shippingSettings['flat_rate']['cost']);
         $this->assertSame('fedex_secret_999', $shippingSettings['carrier']['api_secret']);
 
         $mailSettings = Setting::getMailSettings();

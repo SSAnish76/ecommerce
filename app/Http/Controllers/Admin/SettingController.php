@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\Product\StockVisibility;
-use App\Enums\Setting\CurrencyPosition;
-use App\Enums\Setting\MailDriver;
 use App\Enums\Setting\MailEncryption;
 use App\Enums\Setting\SmsProvider;
 use App\Http\Controllers\Controller;
@@ -41,19 +39,13 @@ class SettingController extends Controller
         $input = $request->validate([
             'currency_code' => ['sometimes', 'required', 'string', 'max:10'],
             'currency_symbol' => ['sometimes', 'required', 'string', 'max:10'],
-            'currency_position' => ['sometimes', 'required', Rule::enum(CurrencyPosition::class)],
             'currency_decimals' => ['sometimes', 'required', 'integer', 'min:0', 'max:4'],
             'timezone' => ['sometimes', 'required', 'string', 'max:80'],
 
             'force_two_factor_all_admins' => ['sometimes', 'required', 'boolean'],
-            'session_lifetime_minutes' => ['sometimes', 'required', 'integer', 'min:15', 'max:1440'],
-            'max_login_attempts' => ['sometimes', 'required', 'integer', 'min:3', 'max:20'],
-            'lockout_duration_minutes' => ['sometimes', 'required', 'integer', 'min:1', 'max:180'],
-            'require_strong_passwords' => ['sometimes', 'required', 'boolean'],
 
             'order_prefix' => ['sometimes', 'required', 'string', 'max:20'],
             'order_number_start' => ['sometimes', 'required', 'integer', 'min:1'],
-            'min_order_amount' => ['sometimes', 'required', 'numeric', 'min:0'],
             'allow_customer_cancellation' => ['sometimes', 'required', 'boolean'],
 
             'low_stock_threshold' => ['sometimes', 'required', 'integer', 'min:0'],
@@ -62,6 +54,7 @@ class SettingController extends Controller
             'auto_approve_reviews' => ['sometimes', 'required', 'boolean'],
 
             'payment_cod_enabled' => ['sometimes', 'boolean'],
+            'payment_cod_instructions' => ['sometimes', 'nullable', 'string', 'max:500'],
             'payment_stripe_enabled' => ['sometimes', 'boolean'],
             'payment_stripe_publishable_key' => ['sometimes', 'nullable', 'string', 'max:255'],
             'payment_stripe_secret_key' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -70,13 +63,6 @@ class SettingController extends Controller
             'payment_paypal_mode' => ['sometimes', 'nullable', 'string', 'in:sandbox,live'],
             'payment_paypal_client_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'payment_paypal_client_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'payment_bank_transfer_enabled' => ['sometimes', 'boolean'],
-            'payment_bank_name' => ['sometimes', 'nullable', 'string', 'max:150'],
-            'payment_bank_account_name' => ['sometimes', 'nullable', 'string', 'max:150'],
-            'payment_bank_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'payment_bank_routing_number' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'payment_bank_swift_code' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'payment_bank_instructions' => ['sometimes', 'nullable', 'string', 'max:500'],
 
             'storage_default_disk' => ['sometimes', 'nullable', 'string', 'in:local,public,s3'],
             'storage_s3_key' => ['sometimes', 'nullable', 'string', 'max:150'],
@@ -86,32 +72,24 @@ class SettingController extends Controller
             'storage_s3_url' => ['sometimes', 'nullable', 'string', 'max:255'],
             'storage_s3_endpoint' => ['sometimes', 'nullable', 'string', 'max:255'],
 
-            'shipping_default_method' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'shipping_flat_rate_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'shipping_free_shipping_enabled' => ['sometimes', 'boolean'],
-            'shipping_free_shipping_min_order' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'shipping_carrier_provider' => ['sometimes', 'nullable', 'string', 'max:50'],
             'shipping_carrier_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
             'shipping_carrier_api_key' => ['sometimes', 'nullable', 'string', 'max:150'],
             'shipping_carrier_api_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
 
-            'mail_mailer' => ['sometimes', 'nullable', 'string', Rule::enum(MailDriver::class)],
             'mail_host' => ['sometimes', 'nullable', 'string', 'max:150'],
             'mail_port' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:65535'],
             'mail_username' => ['sometimes', 'nullable', 'string', 'max:150'],
             'mail_password' => ['sometimes', 'nullable', 'string', 'max:255'],
             'mail_encryption' => ['sometimes', 'nullable', 'string', Rule::enum(MailEncryption::class)],
+            'mail_from_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'mail_from_address' => ['sometimes', 'nullable', 'email', 'max:120'],
 
             'sms_provider' => ['sometimes', 'nullable', 'string', Rule::enum(SmsProvider::class)],
             'sms_username' => ['sometimes', 'nullable', 'string', 'max:150'],
             'sms_password' => ['sometimes', 'nullable', 'string', 'max:255'],
             'sms_from_number' => ['sometimes', 'nullable', 'string', 'max:50'],
 
-            'mail_from_name' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'mail_from_address' => ['sometimes', 'nullable', 'email', 'max:120'],
-            'admin_alert_email' => ['sometimes', 'nullable', 'email', 'max:120'],
-            'enable_email_notifications' => ['sometimes', 'boolean'],
-            'enable_in_app_notifications' => ['sometimes', 'boolean'],
             'enable_order_sms_notifications' => ['sometimes', 'boolean'],
             'notify_order_placed_customer' => ['sometimes', 'boolean'],
             'notify_order_placed_admin' => ['sometimes', 'boolean'],
@@ -120,17 +98,12 @@ class SettingController extends Controller
             'notify_low_stock_admin' => ['sometimes', 'boolean'],
             'notify_new_customer_welcome' => ['sometimes', 'boolean'],
             'notify_new_review_admin' => ['sometimes', 'boolean'],
-
-            'maintenance_mode' => ['sometimes', 'required', 'boolean'],
-            'maintenance_notice' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'allow_admin_bypass_maintenance' => ['sometimes', 'required', 'boolean'],
         ]);
 
         // 1. Bundle Payment Gateways & Methods
         $paymentKeys = [
-            'payment_cod_enabled', 'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
+            'payment_cod_enabled', 'payment_cod_instructions', 'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
             'payment_paypal_enabled', 'payment_paypal_mode', 'payment_paypal_client_id', 'payment_paypal_client_secret',
-            'payment_bank_transfer_enabled', 'payment_bank_name', 'payment_bank_account_name', 'payment_bank_account_number', 'payment_bank_routing_number', 'payment_bank_swift_code', 'payment_bank_instructions',
         ];
 
         $existingPayment = Setting::getPaymentSettings();
@@ -150,15 +123,6 @@ class SettingController extends Controller
             'cod' => [
                 'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : $existingPayment['cod']['enabled'],
                 'instructions' => $input['payment_cod_instructions'] ?? $existingPayment['cod']['instructions'],
-            ],
-            'bank_transfer' => [
-                'enabled' => isset($input['payment_bank_transfer_enabled']) ? (bool) $input['payment_bank_transfer_enabled'] : $existingPayment['bank_transfer']['enabled'],
-                'bank_name' => $input['payment_bank_name'] ?? $existingPayment['bank_transfer']['bank_name'],
-                'account_name' => $input['payment_bank_account_name'] ?? $existingPayment['bank_transfer']['account_name'],
-                'account_number' => $input['payment_bank_account_number'] ?? $existingPayment['bank_transfer']['account_number'],
-                'routing_number' => $input['payment_bank_routing_number'] ?? $existingPayment['bank_transfer']['routing_number'],
-                'swift_code' => $input['payment_bank_swift_code'] ?? $existingPayment['bank_transfer']['swift_code'],
-                'instructions' => $input['payment_bank_instructions'] ?? $existingPayment['bank_transfer']['instructions'],
             ],
         ];
 
@@ -182,20 +146,11 @@ class SettingController extends Controller
 
         // 3. Bundle Shipping Settings
         $shippingKeys = [
-            'shipping_default_method', 'shipping_flat_rate_cost', 'shipping_free_shipping_enabled', 'shipping_free_shipping_min_order',
             'shipping_carrier_provider', 'shipping_carrier_account_number', 'shipping_carrier_api_key', 'shipping_carrier_api_secret',
         ];
 
         $existingShipping = Setting::getShippingSettings();
         $shippingSettings = [
-            'default_method' => $input['shipping_default_method'] ?? $existingShipping['default_method'],
-            'flat_rate' => [
-                'cost' => isset($input['shipping_flat_rate_cost']) ? (float) $input['shipping_flat_rate_cost'] : $existingShipping['flat_rate']['cost'],
-            ],
-            'free_shipping' => [
-                'enabled' => isset($input['shipping_free_shipping_enabled']) ? (bool) $input['shipping_free_shipping_enabled'] : $existingShipping['free_shipping']['enabled'],
-                'min_order_amount' => isset($input['shipping_free_shipping_min_order']) ? (float) $input['shipping_free_shipping_min_order'] : $existingShipping['free_shipping']['min_order_amount'],
-            ],
             'carrier' => [
                 'provider' => $input['shipping_carrier_provider'] ?? $existingShipping['carrier']['provider'],
                 'account_number' => $input['shipping_carrier_account_number'] ?? $existingShipping['carrier']['account_number'],
@@ -205,12 +160,11 @@ class SettingController extends Controller
         ];
 
         // 4. Bundle Notifications (Mail & SMS)
-        $mailKeys = ['mail_mailer', 'mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_name', 'mail_from_address'];
+        $mailKeys = ['mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_name', 'mail_from_address'];
         $smsKeys = ['sms_provider', 'sms_username', 'sms_password', 'sms_from_number'];
 
         $existingMail = Setting::getMailSettings();
         $mailSettings = [
-            'mailer' => $input['mail_mailer'] ?? $existingMail['mailer'],
             'host' => $input['mail_host'] ?? $existingMail['host'],
             'port' => isset($input['mail_port']) ? (int) $input['mail_port'] : $existingMail['port'],
             'username' => $input['mail_username'] ?? $existingMail['username'],
@@ -229,7 +183,39 @@ class SettingController extends Controller
         ];
 
         // Remove legacy individual keys from input so they are not saved as individual rows
-        $legacyKeys = array_merge($paymentKeys, $storageKeys, $shippingKeys, $mailKeys, $smsKeys);
+        $legacyKeys = array_merge(
+            $paymentKeys,
+            $storageKeys,
+            $shippingKeys,
+            $mailKeys,
+            $smsKeys,
+            [
+                'currency_position',
+                'session_lifetime_minutes',
+                'max_login_attempts',
+                'lockout_duration_minutes',
+                'require_strong_passwords',
+                'min_order_amount',
+                'payment_bank_transfer_enabled',
+                'payment_bank_name',
+                'payment_bank_account_name',
+                'payment_bank_account_number',
+                'payment_bank_routing_number',
+                'payment_bank_swift_code',
+                'payment_bank_instructions',
+                'shipping_default_method',
+                'shipping_flat_rate_cost',
+                'shipping_free_shipping_enabled',
+                'shipping_free_shipping_min_order',
+                'mail_mailer',
+                'admin_alert_email',
+                'enable_email_notifications',
+                'enable_in_app_notifications',
+                'maintenance_mode',
+                'maintenance_notice',
+                'allow_admin_bypass_maintenance',
+            ]
+        );
         foreach ($legacyKeys as $key) {
             unset($input[$key]);
         }

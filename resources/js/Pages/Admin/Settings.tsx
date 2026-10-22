@@ -3,9 +3,7 @@ import { Head, useForm } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import {
     PageProps,
-    CurrencyPosition,
     StockVisibility,
-    MailDriver,
     MailEncryption,
     SmsProvider,
     CURRENCY_DECIMAL_OPTIONS,
@@ -21,25 +19,19 @@ import {
 } from '../../Components/UI';
 import {
     DollarSign,
-    ShieldCheck,
     ShoppingCart,
-    Package,
     CreditCard,
     Save,
     Lock,
     Bell,
-    Smartphone,
     Wallet,
-    Building2,
     Banknote,
     Eye,
     EyeOff,
-    Server,
     Mail,
     Key,
     Truck,
     HardDrive,
-    Cloud,
     ChevronDown,
     Search,
     SlidersHorizontal,
@@ -51,19 +43,13 @@ interface SettingsProps extends PageProps {
     settings: {
         currency_code: string;
         currency_symbol: string;
-        currency_position: CurrencyPosition;
         currency_decimals: number;
         timezone: string;
 
         force_two_factor_all_admins: boolean;
-        session_lifetime_minutes: number;
-        max_login_attempts: number;
-        lockout_duration_minutes: number;
-        require_strong_passwords: boolean;
 
         order_prefix: string;
         order_number_start: number;
-        min_order_amount: number;
         allow_customer_cancellation: boolean;
 
         low_stock_threshold: number;
@@ -74,9 +60,7 @@ interface SettingsProps extends PageProps {
         payment_cod_enabled: boolean;
         payment_stripe_enabled: boolean;
         payment_paypal_enabled: boolean;
-        payment_bank_transfer_enabled: boolean;
 
-        mail_mailer?: MailDriver;
         mail_host?: string;
         mail_port?: number;
         mail_username?: string;
@@ -90,9 +74,6 @@ interface SettingsProps extends PageProps {
 
         mail_from_name?: string;
         mail_from_address?: string;
-        admin_alert_email?: string;
-        enable_email_notifications?: boolean;
-        enable_in_app_notifications?: boolean;
         enable_order_sms_notifications?: boolean;
         notify_order_placed_customer?: boolean;
         notify_order_placed_admin?: boolean;
@@ -101,10 +82,6 @@ interface SettingsProps extends PageProps {
         notify_low_stock_admin?: boolean;
         notify_new_customer_welcome?: boolean;
         notify_new_review_admin?: boolean;
-
-        maintenance_mode: boolean;
-        maintenance_notice?: string;
-        allow_admin_bypass_maintenance: boolean;
     };
     timezones: Record<string, string>;
     currencies: Array<{ code: string; symbol: string; name: string }>;
@@ -113,7 +90,6 @@ interface SettingsProps extends PageProps {
 export default function Settings({ settings, timezones, currencies }: SettingsProps) {
     const { getOptions, constants, toOptions } = useEssentials();
 
-    const currencyPositionOptions = getOptions<CurrencyPosition>('currency_position');
     const stockVisibilityOptions = getOptions<StockVisibility>('stock_visibility');
     const mailEncryptionOptions = getOptions<MailEncryption>('mail_encryption');
     const smsProviderOptions = getOptions<SmsProvider>('sms_provider');
@@ -140,19 +116,13 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
     const form = useForm({
         currency_code: settings?.currency_code ?? 'USD',
         currency_symbol: settings?.currency_symbol ?? '$',
-        currency_position: settings?.currency_position ?? 'prefix',
         currency_decimals: settings?.currency_decimals ?? 2,
         timezone: settings?.timezone ?? 'UTC',
 
         force_two_factor_all_admins: settings?.force_two_factor_all_admins ?? true,
-        session_lifetime_minutes: settings?.session_lifetime_minutes ?? 120,
-        max_login_attempts: settings?.max_login_attempts ?? 5,
-        lockout_duration_minutes: settings?.lockout_duration_minutes ?? 15,
-        require_strong_passwords: settings?.require_strong_passwords ?? true,
 
         order_prefix: settings?.order_prefix ?? 'ORD-',
         order_number_start: settings?.order_number_start ?? 1001,
-        min_order_amount: settings?.min_order_amount ?? 10.0,
         allow_customer_cancellation: settings?.allow_customer_cancellation ?? true,
 
         low_stock_threshold: settings?.low_stock_threshold ?? 5,
@@ -163,7 +133,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         payment_cod_enabled: settings?.payment_cod_enabled ?? true,
         payment_stripe_enabled: settings?.payment_stripe_enabled ?? true,
         payment_paypal_enabled: settings?.payment_paypal_enabled ?? true,
-        payment_bank_transfer_enabled: settings?.payment_bank_transfer_enabled ?? false,
 
         // Payment Gateway Credentials
         payment_stripe_publishable_key: (settings as any)?.payment_settings?.stripe?.publishable_key ?? '',
@@ -172,12 +141,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         payment_paypal_mode: (settings as any)?.payment_settings?.paypal?.mode ?? 'sandbox',
         payment_paypal_client_id: (settings as any)?.payment_settings?.paypal?.client_id ?? '',
         payment_paypal_client_secret: (settings as any)?.payment_settings?.paypal?.client_secret ?? '',
-        payment_bank_name: (settings as any)?.payment_settings?.bank_transfer?.bank_name ?? '',
-        payment_bank_account_name: (settings as any)?.payment_settings?.bank_transfer?.account_name ?? '',
-        payment_bank_account_number: (settings as any)?.payment_settings?.bank_transfer?.account_number ?? '',
-        payment_bank_routing_number: (settings as any)?.payment_settings?.bank_transfer?.routing_number ?? '',
-        payment_bank_swift_code: (settings as any)?.payment_settings?.bank_transfer?.swift_code ?? '',
-        payment_bank_instructions: (settings as any)?.payment_settings?.bank_transfer?.instructions ?? '',
         payment_cod_instructions: (settings as any)?.payment_settings?.cod?.instructions ?? '',
 
         // Storage Settings
@@ -190,17 +153,12 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         storage_s3_endpoint: (settings as any)?.storage_settings?.s3?.endpoint ?? '',
 
         // Shipping Settings
-        shipping_default_method: (settings as any)?.shipping_settings?.default_method ?? 'flat_rate',
-        shipping_flat_rate_cost: (settings as any)?.shipping_settings?.flat_rate?.cost ?? 10.0,
-        shipping_free_shipping_enabled: (settings as any)?.shipping_settings?.free_shipping?.enabled ?? true,
-        shipping_free_shipping_min_order: (settings as any)?.shipping_settings?.free_shipping?.min_order_amount ?? 100.0,
         shipping_carrier_provider: (settings as any)?.shipping_settings?.carrier?.provider ?? 'none',
         shipping_carrier_account_number: (settings as any)?.shipping_settings?.carrier?.account_number ?? '',
         shipping_carrier_api_key: (settings as any)?.shipping_settings?.carrier?.api_key ?? '',
         shipping_carrier_api_secret: (settings as any)?.shipping_settings?.carrier?.api_secret ?? '',
 
         // SMTP Credentials
-        mail_mailer: settings?.mail_mailer ?? 'smtp',
         mail_host: settings?.mail_host ?? 'smtp.mailtrap.io',
         mail_port: settings?.mail_port ?? 587,
         mail_username: settings?.mail_username ?? '',
@@ -216,9 +174,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         // Senders & Notifications
         mail_from_name: settings?.mail_from_name ?? 'E-Commerce Store',
         mail_from_address: settings?.mail_from_address ?? 'notifications@example.com',
-        admin_alert_email: settings?.admin_alert_email ?? 'admin@example.com',
-        enable_email_notifications: settings?.enable_email_notifications ?? true,
-        enable_in_app_notifications: settings?.enable_in_app_notifications ?? true,
         enable_order_sms_notifications: settings?.enable_order_sms_notifications ?? false,
         notify_order_placed_customer: settings?.notify_order_placed_customer ?? true,
         notify_order_placed_admin: settings?.notify_order_placed_admin ?? true,
@@ -227,12 +182,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         notify_low_stock_admin: settings?.notify_low_stock_admin ?? true,
         notify_new_customer_welcome: settings?.notify_new_customer_welcome ?? true,
         notify_new_review_admin: settings?.notify_new_review_admin ?? true,
-
-        maintenance_mode: settings?.maintenance_mode ?? false,
-        maintenance_notice:
-            settings?.maintenance_notice ??
-            'We are currently performing scheduled maintenance. Please check back shortly!',
-        allow_admin_bypass_maintenance: settings?.allow_admin_bypass_maintenance ?? true,
     });
 
     const handleCurrencySelect = (code: string) => {
@@ -283,12 +232,11 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         form.data.payment_stripe_enabled,
         form.data.payment_paypal_enabled,
         form.data.payment_cod_enabled,
-        form.data.payment_bank_transfer_enabled,
     ].filter(Boolean).length;
 
     interface SettingListItem {
         id: string;
-        category: 'store' | 'security' | 'orders' | 'inventory' | 'payments' | 'shipping' | 'storage' | 'notifications';
+        category: 'store' | 'orders' | 'inventory' | 'payments' | 'shipping' | 'storage' | 'notifications';
         categoryLabel: string;
         title: string;
         description: string;
@@ -304,14 +252,18 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             id: 'localization',
             category: 'store',
             categoryLabel: 'Storefront',
-            title: 'Store Localization & Currency',
-            description: 'Currency, decimals, timezone, and date formatting.',
+            title: 'Store Localization & Security',
+            description: 'Currency, decimals, timezone, and two-factor authentication.',
             icon: DollarSign,
             iconBg: 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800/60',
             iconColor: 'text-indigo-600 dark:text-indigo-400',
             badges: [
                 { label: `${form.data.currency_code} (${form.data.currency_symbol})`, variant: 'indigo' },
                 { label: form.data.timezone, variant: 'slate' },
+                {
+                    label: form.data.force_two_factor_all_admins ? '2FA Active' : '2FA Off',
+                    variant: form.data.force_two_factor_all_admins ? 'emerald' : 'slate',
+                },
             ],
             renderForm: () => (
                 <div className="space-y-4">
@@ -350,23 +302,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Select
-                            label="Symbol Placement"
-                            value={form.data.currency_position}
-                            onChange={(e) =>
-                                form.setData(
-                                    'currency_position',
-                                    e.target.value as CurrencyPosition
-                                )
-                            }
-                        >
-                            {currencyPositionOptions.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </Select>
-
-                        <Select
                             label="Decimal Places"
                             value={form.data.currency_decimals}
                             onChange={(e) =>
@@ -379,9 +314,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                 </option>
                             ))}
                         </Select>
-                    </div>
 
-                    <div className="pt-2">
                         <Select
                             label="Timezone"
                             value={form.data.timezone}
@@ -395,83 +328,13 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                             ))}
                         </Select>
                     </div>
-                </div>
-            ),
-        },
-        {
-            id: 'security',
-            category: 'security',
-            categoryLabel: 'Security',
-            title: 'Security, 2FA & Access Control',
-            description: 'Two-factor authentication, session lifetime, and login lockouts.',
-            icon: ShieldCheck,
-            iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800/60',
-            iconColor: 'text-emerald-600 dark:text-emerald-400',
-            badges: [
-                {
-                    label: form.data.force_two_factor_all_admins ? '2FA Enforced' : '2FA Optional',
-                    variant: form.data.force_two_factor_all_admins ? 'emerald' : 'slate',
-                },
-                { label: `${form.data.session_lifetime_minutes}m Timeout`, variant: 'slate' },
-            ],
-            renderForm: () => (
-                <div className="space-y-4">
+
                     <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
                         <Toggle
                             label="Enforce Two-Factor Authentication (2FA) for All Admins"
                             checked={form.data.force_two_factor_all_admins}
                             onChange={(checked) =>
                                 form.setData('force_two_factor_all_admins', checked)
-                            }
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <Input
-                            label="Session Inactivity (Minutes)"
-                            type="number"
-                            suffixText="min"
-                            required
-                            value={form.data.session_lifetime_minutes}
-                            onChange={(e) =>
-                                form.setData('session_lifetime_minutes', parseInt(e.target.value, 10))
-                            }
-                            error={form.errors.session_lifetime_minutes}
-                        />
-
-                        <Input
-                            label="Max Failed Attempts"
-                            type="number"
-                            required
-                            value={form.data.max_login_attempts}
-                            onChange={(e) =>
-                                form.setData('max_login_attempts', parseInt(e.target.value, 10))
-                            }
-                            error={form.errors.max_login_attempts}
-                        />
-
-                        <Input
-                            label="Lockout Duration (Minutes)"
-                            type="number"
-                            suffixText="min"
-                            required
-                            value={form.data.lockout_duration_minutes}
-                            onChange={(e) =>
-                                form.setData(
-                                    'lockout_duration_minutes',
-                                    parseInt(e.target.value, 10)
-                                )
-                            }
-                            error={form.errors.lockout_duration_minutes}
-                        />
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
-                        <Toggle
-                            label="Require Strong Password Complexity"
-                            checked={form.data.require_strong_passwords}
-                            onChange={(checked) =>
-                                form.setData('require_strong_passwords', checked)
                             }
                         />
                     </div>
@@ -489,12 +352,11 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             iconColor: 'text-purple-600 dark:text-purple-400',
             badges: [
                 { label: `Prefix: ${form.data.order_prefix}${form.data.order_number_start}`, variant: 'indigo' },
-                { label: `Min: ${form.data.currency_symbol}${form.data.min_order_amount}`, variant: 'slate' },
                 { label: `Low stock: ${form.data.low_stock_threshold}`, variant: 'amber' },
             ],
             renderForm: () => (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
                             label="Order Prefix"
                             placeholder="ORD-"
@@ -512,16 +374,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                 form.setData('order_number_start', parseInt(e.target.value, 10))
                             }
                             error={form.errors.order_number_start}
-                        />
-                        <Input
-                            label="Minimum Order Subtotal"
-                            type="number"
-                            step="0.01"
-                            prefixText={form.data.currency_symbol}
-                            value={form.data.min_order_amount}
-                            onChange={(e) =>
-                                form.setData('min_order_amount', parseFloat(e.target.value) || 0)
-                            }
                         />
                     </div>
 
@@ -600,7 +452,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             ],
             renderForm: () => (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* Stripe */}
                         <div
                             className={`p-3.5 rounded-xl border transition-all ${
@@ -662,28 +514,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                     checked={form.data.payment_cod_enabled}
                                     onChange={(checked) =>
                                         form.setData('payment_cod_enabled', checked)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        {/* Bank Wire */}
-                        <div
-                            className={`p-3.5 rounded-xl border transition-all ${
-                                form.data.payment_bank_transfer_enabled
-                                    ? 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700 shadow-2xs'
-                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
-                                    <span className="text-xs font-bold truncate">Bank Transfer</span>
-                                </div>
-                                <Toggle
-                                    checked={form.data.payment_bank_transfer_enabled}
-                                    onChange={(checked) =>
-                                        form.setData('payment_bank_transfer_enabled', checked)
                                     }
                                 />
                             </div>
@@ -799,47 +629,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                             />
                         </div>
                     )}
-
-                    {/* Bank Wire Details */}
-                    {form.data.payment_bank_transfer_enabled && (
-                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                                Bank Wire Details
-                            </span>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <Input
-                                    label="Bank Name"
-                                    placeholder="Bank Name..."
-                                    value={form.data.payment_bank_name}
-                                    onChange={(e) => form.setData('payment_bank_name', e.target.value)}
-                                />
-                                <Input
-                                    label="Account Name"
-                                    placeholder="Account Name..."
-                                    value={form.data.payment_bank_account_name}
-                                    onChange={(e) => form.setData('payment_bank_account_name', e.target.value)}
-                                />
-                                <Input
-                                    label="Account Number"
-                                    placeholder="Account Number..."
-                                    value={form.data.payment_bank_account_number}
-                                    onChange={(e) => form.setData('payment_bank_account_number', e.target.value)}
-                                />
-                                <Input
-                                    label="Routing / SWIFT Code"
-                                    placeholder="SWIFT..."
-                                    value={form.data.payment_bank_swift_code}
-                                    onChange={(e) => form.setData('payment_bank_swift_code', e.target.value)}
-                                />
-                            </div>
-                            <Input
-                                label="Wire Instructions"
-                                placeholder="Payment instructions..."
-                                value={form.data.payment_bank_instructions}
-                                onChange={(e) => form.setData('payment_bank_instructions', e.target.value)}
-                            />
-                        </div>
-                    )}
                 </div>
             ),
         },
@@ -847,114 +636,71 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             id: 'shipping',
             category: 'shipping',
             categoryLabel: 'Logistics',
-            title: 'Shipping & Delivery Logistics',
-            description: 'Flat rates, free delivery thresholds, and carrier APIs.',
+            title: 'Shipping & Carrier Logistics',
+            description: 'Automated carrier calculation and shipping API integration.',
             icon: Truck,
             iconBg: 'bg-cyan-50 dark:bg-cyan-950/60 border-cyan-200 dark:border-cyan-800/60',
             iconColor: 'text-cyan-600 dark:text-cyan-400',
             badges: [
                 {
-                    label: form.data.shipping_default_method === 'flat_rate'
-                        ? `$${form.data.shipping_flat_rate_cost} Flat Rate`
-                        : form.data.shipping_default_method,
-                    variant: 'indigo',
-                },
-                {
-                    label: form.data.shipping_free_shipping_enabled ? 'Free Delivery On' : 'Free Delivery Off',
-                    variant: form.data.shipping_free_shipping_enabled ? 'emerald' : 'slate',
+                    label: form.data.shipping_carrier_provider !== 'none'
+                        ? `Carrier: ${form.data.shipping_carrier_provider.toUpperCase()}`
+                        : 'Manual Shipping',
+                    variant: form.data.shipping_carrier_provider !== 'none' ? 'indigo' : 'slate',
                 },
             ],
             renderForm: () => (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Select
-                            label="Shipping Calculation Method"
-                            value={form.data.shipping_default_method}
-                            onChange={(e) => form.setData('shipping_default_method', e.target.value)}
-                        >
-                            <option value="flat_rate">Flat Rate Per Order</option>
-                            <option value="free_shipping">Free Shipping on All Orders</option>
-                            <option value="carrier_api">Real-time Carrier Calculation</option>
-                        </Select>
-
-                        <Input
-                            label="Standard Flat Rate Cost ($)"
-                            type="number"
-                            step="0.01"
-                            value={form.data.shipping_flat_rate_cost}
-                            onChange={(e) => form.setData('shipping_flat_rate_cost', parseFloat(e.target.value) || 0)}
-                        />
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
-                        <Toggle
-                            label="Enable Free Shipping on Order Minimums"
-                            checked={form.data.shipping_free_shipping_enabled}
-                            onChange={(checked) => form.setData('shipping_free_shipping_enabled', checked)}
-                        />
-
-                        {form.data.shipping_free_shipping_enabled && (
-                            <Input
-                                label="Free Shipping Minimum Order Amount ($)"
-                                type="number"
-                                step="0.01"
-                                value={form.data.shipping_free_shipping_min_order}
-                                onChange={(e) => form.setData('shipping_free_shipping_min_order', parseFloat(e.target.value) || 0)}
-                            />
-                        )}
-                    </div>
-
                     {/* Carrier API Configuration */}
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                            Carrier API
-                        </span>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Select
-                                label="Carrier Provider"
-                                value={form.data.shipping_carrier_provider}
-                                onChange={(e) => form.setData('shipping_carrier_provider', e.target.value)}
-                            >
-                                <option value="none">None (Manual Rates)</option>
-                                <option value="fedex">FedEx</option>
-                                <option value="ups">UPS</option>
-                                <option value="dhl">DHL</option>
-                            </Select>
+                        <Select
+                            label="Carrier Provider"
+                            value={form.data.shipping_carrier_provider}
+                            onChange={(e) => form.setData('shipping_carrier_provider', e.target.value)}
+                        >
+                            <option value="none">None (Manual Rates)</option>
+                            <option value="fedex">FedEx</option>
+                            <option value="ups">UPS</option>
+                            <option value="dhl">DHL</option>
+                        </Select>
 
-                            <Input
-                                label="Account Number"
-                                placeholder="Account number..."
-                                value={form.data.shipping_carrier_account_number}
-                                onChange={(e) => form.setData('shipping_carrier_account_number', e.target.value)}
-                            />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input
-                                label="API Key"
-                                placeholder="API key..."
-                                value={form.data.shipping_carrier_api_key}
-                                onChange={(e) => form.setData('shipping_carrier_api_key', e.target.value)}
-                                leftIcon={<Key className="w-4 h-4" />}
-                            />
-                            <Input
-                                label="API Secret"
-                                type={showCarrierSecret ? 'text' : 'password'}
-                                placeholder="Secret..."
-                                value={form.data.shipping_carrier_api_secret}
-                                onChange={(e) => form.setData('shipping_carrier_api_secret', e.target.value)}
-                                leftIcon={<Lock className="w-4 h-4" />}
-                                rightIcon={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCarrierSecret(!showCarrierSecret)}
-                                        className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                        tabIndex={-1}
-                                    >
-                                        {showCarrierSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                }
-                            />
-                        </div>
+                        {form.data.shipping_carrier_provider !== 'none' && (
+                            <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700/80">
+                                <Input
+                                    label="Account Number"
+                                    placeholder="Account number..."
+                                    value={form.data.shipping_carrier_account_number}
+                                    onChange={(e) => form.setData('shipping_carrier_account_number', e.target.value)}
+                                />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input
+                                        label="API Key"
+                                        placeholder="API key..."
+                                        value={form.data.shipping_carrier_api_key}
+                                        onChange={(e) => form.setData('shipping_carrier_api_key', e.target.value)}
+                                        leftIcon={<Key className="w-4 h-4" />}
+                                    />
+                                    <Input
+                                        label="API Secret"
+                                        type={showCarrierSecret ? 'text' : 'password'}
+                                        placeholder="Secret..."
+                                        value={form.data.shipping_carrier_api_secret}
+                                        onChange={(e) => form.setData('shipping_carrier_api_secret', e.target.value)}
+                                        leftIcon={<Lock className="w-4 h-4" />}
+                                        rightIcon={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCarrierSecret(!showCarrierSecret)}
+                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                tabIndex={-1}
+                                            >
+                                                {showCarrierSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             ),
@@ -984,69 +730,71 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                     </Select>
 
                     {/* S3 Configuration Section */}
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                            S3 / Cloud Storage Credentials
-                        </span>
+                    {form.data.storage_default_disk === 's3' && (
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                S3 / Cloud Storage Credentials
+                            </span>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input
-                                label="AWS Access Key"
-                                placeholder="Key..."
-                                value={form.data.storage_s3_key}
-                                onChange={(e) => form.setData('storage_s3_key', e.target.value)}
-                                leftIcon={<Key className="w-4 h-4" />}
-                            />
-                            <Input
-                                label="AWS Secret Key"
-                                type={showS3Secret ? 'text' : 'password'}
-                                placeholder="Secret..."
-                                value={form.data.storage_s3_secret}
-                                onChange={(e) => form.setData('storage_s3_secret', e.target.value)}
-                                leftIcon={<Lock className="w-4 h-4" />}
-                                rightIcon={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowS3Secret(!showS3Secret)}
-                                        className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                        tabIndex={-1}
-                                    >
-                                        {showS3Secret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                }
-                            />
-                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Input
+                                    label="AWS Access Key"
+                                    placeholder="Key..."
+                                    value={form.data.storage_s3_key}
+                                    onChange={(e) => form.setData('storage_s3_key', e.target.value)}
+                                    leftIcon={<Key className="w-4 h-4" />}
+                                />
+                                <Input
+                                    label="AWS Secret Key"
+                                    type={showS3Secret ? 'text' : 'password'}
+                                    placeholder="Secret..."
+                                    value={form.data.storage_s3_secret}
+                                    onChange={(e) => form.setData('storage_s3_secret', e.target.value)}
+                                    leftIcon={<Lock className="w-4 h-4" />}
+                                    rightIcon={
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowS3Secret(!showS3Secret)}
+                                            className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                            tabIndex={-1}
+                                        >
+                                            {showS3Secret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    }
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input
-                                label="Bucket Name"
-                                placeholder="Bucket..."
-                                value={form.data.storage_s3_bucket}
-                                onChange={(e) => form.setData('storage_s3_bucket', e.target.value)}
-                            />
-                            <Input
-                                label="Region"
-                                placeholder="us-east-1"
-                                value={form.data.storage_s3_region}
-                                onChange={(e) => form.setData('storage_s3_region', e.target.value)}
-                            />
-                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Input
+                                    label="Bucket Name"
+                                    placeholder="Bucket..."
+                                    value={form.data.storage_s3_bucket}
+                                    onChange={(e) => form.setData('storage_s3_bucket', e.target.value)}
+                                />
+                                <Input
+                                    label="Region"
+                                    placeholder="us-east-1"
+                                    value={form.data.storage_s3_region}
+                                    onChange={(e) => form.setData('storage_s3_region', e.target.value)}
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input
-                                label="Custom CDN URL (Optional)"
-                                placeholder="https://cdn.yourstore.com"
-                                value={form.data.storage_s3_url}
-                                onChange={(e) => form.setData('storage_s3_url', e.target.value)}
-                            />
-                            <Input
-                                label="Custom S3 Endpoint (Optional for R2/MinIO)"
-                                placeholder="https://..."
-                                value={form.data.storage_s3_endpoint}
-                                onChange={(e) => form.setData('storage_s3_endpoint', e.target.value)}
-                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Input
+                                    label="Custom CDN URL (Optional)"
+                                    placeholder="https://cdn.yourstore.com"
+                                    value={form.data.storage_s3_url}
+                                    onChange={(e) => form.setData('storage_s3_url', e.target.value)}
+                                />
+                                <Input
+                                    label="Custom S3 Endpoint (Optional for R2/MinIO)"
+                                    placeholder="https://..."
+                                    value={form.data.storage_s3_endpoint}
+                                    onChange={(e) => form.setData('storage_s3_endpoint', e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             ),
         },
@@ -1061,7 +809,12 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
             iconColor: 'text-indigo-600 dark:text-indigo-400',
             badges: [
                 { label: `Mail: ${form.data.mail_host ? 'Configured' : 'SMTP'}`, variant: 'indigo' },
-                { label: `SMS: ${form.data.sms_provider.toUpperCase()}`, variant: 'emerald' },
+                {
+                    label: form.data.enable_order_sms_notifications
+                        ? `SMS: ${form.data.sms_provider.toUpperCase()}`
+                        : 'SMS Disabled',
+                    variant: form.data.enable_order_sms_notifications ? 'emerald' : 'slate',
+                },
             ],
             renderForm: () => (
                 <div className="space-y-4">
@@ -1152,62 +905,76 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
 
                     {/* SMS Gateway Section */}
                     <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                            SMS Gateway
-                        </span>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Select
-                                label="SMS Provider"
-                                value={form.data.sms_provider}
-                                onChange={(e) => form.setData('sms_provider', e.target.value as SmsProvider)}
-                            >
-                                {smsProviderOptions.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </Select>
-
-                            <Input
-                                label="Sender Number / ID"
-                                placeholder="+1..."
-                                value={form.data.sms_from_number}
-                                onChange={(e) => form.setData('sms_from_number', e.target.value)}
-                                error={form.errors.sms_from_number}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Input
-                                label="Account SID / API Key"
-                                placeholder="SID or Key..."
-                                value={form.data.sms_username}
-                                onChange={(e) => form.setData('sms_username', e.target.value)}
-                                error={form.errors.sms_username}
-                                leftIcon={<Key className="w-4 h-4" />}
-                            />
-
-                            <Input
-                                label="Auth Token / Secret"
-                                type={showSmsPassword ? 'text' : 'password'}
-                                placeholder="••••••••"
-                                value={form.data.sms_password}
-                                onChange={(e) => form.setData('sms_password', e.target.value)}
-                                error={form.errors.sms_password}
-                                leftIcon={<Lock className="w-4 h-4" />}
-                                rightIcon={
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSmsPassword(!showSmsPassword)}
-                                        className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                        tabIndex={-1}
-                                    >
-                                        {showSmsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
+                            <Toggle
+                                label="Enable SMS Gateway"
+                                checked={form.data.enable_order_sms_notifications}
+                                onChange={(checked) =>
+                                    form.setData('enable_order_sms_notifications', checked)
                                 }
                             />
                         </div>
+
+                        {form.data.enable_order_sms_notifications && (
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                    SMS Provider Credentials
+                                </span>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Select
+                                        label="SMS Provider"
+                                        value={form.data.sms_provider}
+                                        onChange={(e) => form.setData('sms_provider', e.target.value as SmsProvider)}
+                                    >
+                                        {smsProviderOptions.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </option>
+                                        ))}
+                                    </Select>
+
+                                    <Input
+                                        label="Sender Number / ID"
+                                        placeholder="+1..."
+                                        value={form.data.sms_from_number}
+                                        onChange={(e) => form.setData('sms_from_number', e.target.value)}
+                                        error={form.errors.sms_from_number}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input
+                                        label="Account SID / API Key"
+                                        placeholder="SID or Key..."
+                                        value={form.data.sms_username}
+                                        onChange={(e) => form.setData('sms_username', e.target.value)}
+                                        error={form.errors.sms_username}
+                                        leftIcon={<Key className="w-4 h-4" />}
+                                    />
+
+                                    <Input
+                                        label="Auth Token / Secret"
+                                        type={showSmsPassword ? 'text' : 'password'}
+                                        placeholder="••••••••"
+                                        value={form.data.sms_password}
+                                        onChange={(e) => form.setData('sms_password', e.target.value)}
+                                        error={form.errors.sms_password}
+                                        leftIcon={<Lock className="w-4 h-4" />}
+                                        rightIcon={
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSmsPassword(!showSmsPassword)}
+                                                className="hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                                                tabIndex={-1}
+                                            >
+                                                {showSmsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             ),
@@ -1318,7 +1085,6 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
     const categories = [
         { id: 'all', label: 'All', count: settingsList.length },
         { id: 'store', label: 'Storefront', count: settingsList.filter((s) => s.category === 'store').length },
-        { id: 'security', label: 'Security', count: settingsList.filter((s) => s.category === 'security').length },
         { id: 'orders', label: 'Orders & Catalog', count: settingsList.filter((s) => s.category === 'orders').length },
         { id: 'payments', label: 'Payments', count: settingsList.filter((s) => s.category === 'payments').length },
         { id: 'shipping', label: 'Shipping', count: settingsList.filter((s) => s.category === 'shipping').length },

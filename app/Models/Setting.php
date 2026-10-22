@@ -184,7 +184,6 @@ class Setting extends Model
 
         // Backward compatibility mappings for legacy individual mail_* keys
         $mailMap = [
-            'mail_mailer' => 'mailer',
             'mail_host' => 'host',
             'mail_port' => 'port',
             'mail_username' => 'username',
@@ -215,7 +214,6 @@ class Setting extends Model
             'payment_stripe_enabled' => 'stripe.enabled',
             'payment_paypal_enabled' => 'paypal.enabled',
             'payment_cod_enabled' => 'cod.enabled',
-            'payment_bank_transfer_enabled' => 'bank_transfer.enabled',
         ];
 
         if (isset($paymentMap[$key]) && isset($all['payment_settings']) && is_array($all['payment_settings'])) {
@@ -231,8 +229,7 @@ class Setting extends Model
      * @return array{
      *     stripe: array{enabled: bool, publishable_key: string, secret_key: string, webhook_secret: string},
      *     paypal: array{enabled: bool, mode: string, client_id: string, client_secret: string},
-     *     cod: array{enabled: bool, instructions: string},
-     *     bank_transfer: array{enabled: bool, bank_name: string, account_name: string, account_number: string, routing_number: string, swift_code: string, instructions: string}
+     *     cod: array{enabled: bool, instructions: string}
      * }
      */
     public static function getPaymentSettings(): array
@@ -254,15 +251,6 @@ class Setting extends Model
                 'enabled' => true,
                 'instructions' => 'Pay cash to delivery courier on arrival.',
             ],
-            'bank_transfer' => [
-                'enabled' => false,
-                'bank_name' => 'First National Commercial Bank',
-                'account_name' => 'Store Retail Operations LLC',
-                'account_number' => '1234567890',
-                'routing_number' => '021000021',
-                'swift_code' => 'FNALUS33',
-                'instructions' => 'Please include your Order ID as the wire transfer reference.',
-            ],
         ];
 
         /** @var array<string, mixed> $all */
@@ -274,7 +262,6 @@ class Setting extends Model
                 'stripe' => array_merge($default['stripe'], $configured['stripe'] ?? []),
                 'paypal' => array_merge($default['paypal'], $configured['paypal'] ?? []),
                 'cod' => array_merge($default['cod'], $configured['cod'] ?? []),
-                'bank_transfer' => array_merge($default['bank_transfer'], $configured['bank_transfer'] ?? []),
             ];
         }
 
@@ -294,15 +281,6 @@ class Setting extends Model
             'cod' => [
                 'enabled' => (bool) ($all['payment_cod_enabled'] ?? $default['cod']['enabled']),
                 'instructions' => (string) ($all['payment_cod_instructions'] ?? $default['cod']['instructions']),
-            ],
-            'bank_transfer' => [
-                'enabled' => (bool) ($all['payment_bank_transfer_enabled'] ?? $default['bank_transfer']['enabled']),
-                'bank_name' => (string) ($all['payment_bank_name'] ?? $default['bank_transfer']['bank_name']),
-                'account_name' => (string) ($all['payment_bank_account_name'] ?? $default['bank_transfer']['account_name']),
-                'account_number' => (string) ($all['payment_bank_account_number'] ?? $default['bank_transfer']['account_number']),
-                'routing_number' => (string) ($all['payment_bank_routing_number'] ?? $default['bank_transfer']['routing_number']),
-                'swift_code' => (string) ($all['payment_bank_swift_code'] ?? $default['bank_transfer']['swift_code']),
-                'instructions' => (string) ($all['payment_bank_instructions'] ?? $default['bank_transfer']['instructions']),
             ],
         ];
     }
@@ -347,23 +325,12 @@ class Setting extends Model
      * Get typed e-commerce shipping configuration settings.
      *
      * @return array{
-     *     default_method: string,
-     *     flat_rate: array{cost: float},
-     *     free_shipping: array{enabled: bool, min_order_amount: float},
      *     carrier: array{provider: string, account_number: string, api_key: string, api_secret: string}
      * }
      */
     public static function getShippingSettings(): array
     {
         $default = [
-            'default_method' => 'flat_rate',
-            'flat_rate' => [
-                'cost' => 10.00,
-            ],
-            'free_shipping' => [
-                'enabled' => true,
-                'min_order_amount' => 100.00,
-            ],
             'carrier' => [
                 'provider' => 'none',
                 'account_number' => '',
@@ -378,9 +345,6 @@ class Setting extends Model
         $configured = $all['shipping_settings'] ?? null;
         if (is_array($configured)) {
             return [
-                'default_method' => (string) ($configured['default_method'] ?? $default['default_method']),
-                'flat_rate' => array_merge($default['flat_rate'], $configured['flat_rate'] ?? []),
-                'free_shipping' => array_merge($default['free_shipping'], $configured['free_shipping'] ?? []),
                 'carrier' => array_merge($default['carrier'], $configured['carrier'] ?? []),
             ];
         }
@@ -392,7 +356,6 @@ class Setting extends Model
      * Get typed mail configuration settings.
      *
      * @return array{
-     *     mailer: string,
      *     host: string,
      *     port: int,
      *     username: string,
@@ -405,7 +368,6 @@ class Setting extends Model
     public static function getMailSettings(): array
     {
         $default = [
-            'mailer' => 'smtp',
             'host' => 'smtp.mailtrap.io',
             'port' => 587,
             'username' => '',
@@ -424,7 +386,6 @@ class Setting extends Model
         }
 
         return [
-            'mailer' => (string) ($all['mail_mailer'] ?? $default['mailer']),
             'host' => (string) ($all['mail_host'] ?? $default['host']),
             'port' => isset($all['mail_port']) ? (int) $all['mail_port'] : $default['port'],
             'username' => (string) ($all['mail_username'] ?? $default['username']),
