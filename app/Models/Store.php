@@ -31,8 +31,6 @@ class Store extends Model
         'country',
         'logo_id',
         'favicon_id',
-        'currency',
-        'timezone',
         'tax_number',
         'description',
         'website_url',

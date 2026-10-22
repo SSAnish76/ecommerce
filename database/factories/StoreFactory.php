@@ -30,8 +30,6 @@ class StoreFactory extends Factory
             'state' => fake()->state(),
             'postal_code' => fake()->postcode(),
             'country' => 'United States',
-            'currency' => 'USD',
-            'timezone' => 'UTC',
             'status' => StoreStatus::Active,
         ];
     }

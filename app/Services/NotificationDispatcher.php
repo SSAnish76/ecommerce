@@ -175,7 +175,7 @@ class NotificationDispatcher
             'email' => $store->email ?: 'support@store.com',
             'phone' => $store->phone ?: '',
             'address' => implode(', ', $addressParts),
-            'currency' => $store->currency ?: (string) Setting::get('currency_symbol', '$'),
+            'currency' => (string) Setting::get('currency_symbol', '$'),
             'website_url' => $store->website_url ?: url('/'),
             'logo_url' => $store->logo_url,
         ];

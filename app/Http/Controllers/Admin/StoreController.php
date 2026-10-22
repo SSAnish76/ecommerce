@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\Store\StoreStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
-use App\Support\Constants;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,8 +27,6 @@ class StoreController extends Controller
                 'status' => $store->status?->value ?? StoreStatus::Active->value,
                 'is_active' => $store->isActive(),
             ]),
-            'timezones' => Constants::timezones(),
-            'currencies' => Constants::currenciesMap(),
         ]);
     }
 
@@ -53,8 +50,6 @@ class StoreController extends Controller
             'country' => ['nullable', 'string', 'max:100'],
             'logo_id' => ['nullable'],
             'favicon_id' => ['nullable'],
-            'currency' => ['required', 'string', 'max:10'],
-            'timezone' => ['required', 'string', 'max:80'],
             'tax_number' => ['nullable', 'string', 'max:60'],
             'description' => ['nullable', 'string', 'max:1000'],
             'website_url' => ['nullable', 'string', 'max:255'],

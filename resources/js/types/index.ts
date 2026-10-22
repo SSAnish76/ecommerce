@@ -222,8 +222,8 @@ export interface Store {
     favicon_id?: string | null;
     logo_url?: string | null;
     favicon_url?: string | null;
-    currency: string;
-    timezone: string;
+    currency?: string;
+    timezone?: string;
     tax_number?: string | null;
     description?: string | null;
     website_url?: string | null;

@@ -28,8 +28,6 @@ class StoreSeeder extends Seeder
                 'state' => 'NY',
                 'postal_code' => '10001',
                 'country' => 'United States',
-                'currency' => 'USD',
-                'timezone' => 'UTC',
                 'tax_number' => 'US-EIN-987654321',
                 'description' => 'Flagship modern e-commerce storefront providing seamless shopping experiences.',
                 'website_url' => 'https://store.example.com',

@@ -238,8 +238,6 @@ class SettingTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/Store')
             ->has('store')
-            ->has('timezones')
-            ->has('currencies')
         );
     }
 
@@ -261,8 +259,6 @@ class SettingTest extends TestCase
             'country' => 'United States',
             'logo_url' => 'https://example.com/logo.png',
             'favicon_url' => 'https://example.com/favicon.ico',
-            'currency' => 'USD',
-            'timezone' => 'America/Chicago',
             'tax_number' => 'US-EIN-123456789',
             'description' => 'Official flagship store description.',
             'website_url' => 'https://megamart.com',
