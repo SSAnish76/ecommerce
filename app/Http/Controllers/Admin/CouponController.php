@@ -10,11 +10,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Collection;
 use App\Models\Coupon;
-use App\Models\CouponUsage;
 use App\Models\Product;
 use App\Services\CouponService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -85,12 +83,6 @@ class CouponController extends Controller
 
         $coupons = $query->latest()->paginate(15)->withQueryString();
 
-        // Calculate KPI Metrics
-        $totalCoupons = Coupon::count();
-        $activeCoupons = Coupon::currentlyValid()->count();
-        $totalRedemptions = CouponUsage::count();
-        $totalSavings = (float) CouponUsage::sum('discount_amount');
-
         // Form selection options
         $productOptions = Product::query()
             ->active()
@@ -114,12 +106,6 @@ class CouponController extends Controller
                 'status' => $status,
                 'type' => $type,
                 'applies_to' => $appliesTo,
-            ],
-            'metrics' => [
-                'total_coupons' => $totalCoupons,
-                'active_coupons' => $activeCoupons,
-                'total_redemptions' => $totalRedemptions,
-                'total_savings' => $totalSavings,
             ],
             'options' => [
                 'products' => $productOptions,
@@ -275,27 +261,6 @@ class CouponController extends Controller
         return redirect()->back()->with('success', "Coupon '{$coupon->code}' has been {$statusStr}.");
     }
 
-    /**
-     * Test a coupon against a simulated subtotal / items.
-     */
-    public function test(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'code' => ['required', 'string'],
-            'subtotal' => ['required', 'numeric', 'min:0'],
-            'items' => ['nullable', 'array'],
-            'customer_email' => ['nullable', 'email'],
-        ]);
-
-        $result = $this->couponService->validate(
-            $validated['code'],
-            (float) $validated['subtotal'],
-            $validated['items'] ?? [],
-            $validated['customer_email'] ?? null
-        );
-
-        return response()->json($result);
-    }
 
     /**
      * Helper to sync relationships based on applies_to setting.

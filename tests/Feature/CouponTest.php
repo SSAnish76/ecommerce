@@ -48,7 +48,6 @@ class CouponTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/Coupons')
             ->has('coupons.data', 1)
-            ->has('metrics')
         );
     }
 

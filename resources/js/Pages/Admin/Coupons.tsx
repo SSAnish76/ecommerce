@@ -19,7 +19,18 @@ import {
     Toggle,
     Card,
     CardContent,
+    DateTimePicker,
 } from '../../Components/UI';
+import {
+    format,
+    isValid,
+    addDays,
+    addHours,
+    endOfDay,
+    endOfMonth,
+    setHours,
+    setMinutes,
+} from 'date-fns';
 import {
     TicketPercent,
     Plus,
@@ -39,7 +50,6 @@ import {
     Table as TableIcon,
     LayoutGrid,
     Sparkles,
-    Calculator,
     ShoppingBag,
     FolderTree,
     Tag,
@@ -65,12 +75,6 @@ interface CouponsPageProps {
         type?: string;
         applies_to?: string;
     };
-    metrics?: {
-        total_coupons: number;
-        active_coupons: number;
-        total_redemptions: number;
-        total_savings: number;
-    };
     options: {
         products: (Product & { category_id?: string })[];
         categories: Category[];
@@ -79,6 +83,52 @@ interface CouponsPageProps {
         applies_to: { value: string; label: string }[];
     };
 }
+
+const couponStartDatePresets = [
+    {
+        label: 'Right Now',
+        getValue: () => new Date(),
+    },
+    {
+        label: 'Tomorrow 9 AM',
+        getValue: () => setHours(setMinutes(addDays(new Date(), 1), 0), 9),
+    },
+    {
+        label: 'Next Week',
+        getValue: () => setHours(setMinutes(addDays(new Date(), 7), 0), 9),
+    },
+    {
+        label: 'In 30 Days',
+        getValue: () => setHours(setMinutes(addDays(new Date(), 30), 0), 9),
+    },
+];
+
+const couponExpiryDatePresets = (baseStartDate?: string) => {
+    const base = baseStartDate ? new Date(baseStartDate) : new Date();
+    const validBase = isValid(base) ? base : new Date();
+    return [
+        {
+            label: '24 Hours',
+            getValue: () => addHours(validBase, 24),
+        },
+        {
+            label: '3 Days',
+            getValue: () => endOfDay(addDays(validBase, 3)),
+        },
+        {
+            label: '7 Days',
+            getValue: () => endOfDay(addDays(validBase, 7)),
+        },
+        {
+            label: '30 Days',
+            getValue: () => endOfDay(addDays(validBase, 30)),
+        },
+        {
+            label: 'End of Month',
+            getValue: () => endOfDay(endOfMonth(validBase)),
+        },
+    ];
+};
 
 export default function CouponsPage({ coupons, filters, options }: CouponsPageProps) {
     const { auth } = usePage<PageProps>().props;
@@ -98,18 +148,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
     const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
     const [deletingCoupon, setDeletingCoupon] = useState<Coupon | null>(null);
     const [inspectingCoupon, setInspectingCoupon] = useState<Coupon | null>(null);
-    const [isTestOpen, setIsTestOpen] = useState(false);
-
-    // Test playground state
-    const [testCode, setTestCode] = useState('');
-    const [testSubtotal, setTestSubtotal] = useState('250.00');
-    const [testResult, setTestResult] = useState<{
-        tested: boolean;
-        valid?: boolean;
-        discount?: number;
-        message?: string;
-    } | null>(null);
-    const [isTesting, setIsTesting] = useState(false);
 
     // Form setup for Create
     const createForm = useForm<{
@@ -229,7 +267,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
             if (!iso) return '';
             try {
                 const date = new Date(iso);
-                return date.toISOString().slice(0, 16);
+                return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm") : '';
             } catch {
                 return '';
             }
@@ -292,47 +330,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
             {},
             { preserveScroll: true }
         );
-    };
-
-    // Run test simulator
-    const runCouponTest = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!testCode.trim()) return;
-
-        setIsTesting(true);
-        setTestResult(null);
-
-        try {
-            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-            const res = await fetch('/admin/coupons/test', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                },
-                body: JSON.stringify({
-                    code: testCode,
-                    subtotal: parseFloat(testSubtotal) || 0,
-                }),
-            });
-
-            const data = await res.json();
-            setTestResult({
-                tested: true,
-                valid: data.valid,
-                discount: data.discount,
-                message: data.message,
-            });
-        } catch (err: unknown) {
-            setTestResult({
-                tested: true,
-                valid: false,
-                message: err instanceof Error ? err.message : 'Network test error',
-            });
-        } finally {
-            setIsTesting(false);
-        }
     };
 
     // Helper for Status Badge styling
@@ -440,19 +437,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                     </div>
 
                     <div className="flex items-center gap-2.5 shrink-0">
-                        <Button
-                            variant="secondary"
-                            onClick={() => {
-                                setTestCode('');
-                                setTestResult(null);
-                                setIsTestOpen(true);
-                            }}
-                            className="gap-2"
-                        >
-                            <Calculator className="w-4 h-4 text-slate-500" />
-                            <span>Test Simulator</span>
-                        </Button>
-
                         {canCreate && (
                             <Button
                                 variant="primary"
@@ -474,60 +458,58 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                         {/* Search input */}
-                        <div className="lg:col-span-2 relative">
-                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                                type="text"
+                        <div className="lg:col-span-2">
+                            <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
                                 placeholder="Search coupon code, campaign name or description..."
-                                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                leftIcon={<Search className="w-4 h-4" />}
                             />
                         </div>
 
                         {/* Status filter */}
                         <div>
-                            <select
+                            <Select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full py-2 px-3 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                            >
-                                <option value="">All Statuses</option>
-                                <option value="active">Active & Live</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="scheduled">Scheduled (Future)</option>
-                                <option value="expired">Expired</option>
-                                <option value="exhausted">Limit Reached</option>
-                            </select>
+                                options={[
+                                    { value: '', label: 'All Statuses' },
+                                    { value: 'active', label: 'Active & Live' },
+                                    { value: 'inactive', label: 'Inactive' },
+                                    { value: 'scheduled', label: 'Scheduled (Future)' },
+                                    { value: 'expired', label: 'Expired' },
+                                    { value: 'exhausted', label: 'Limit Reached' },
+                                ]}
+                            />
                         </div>
 
                         {/* Type filter */}
                         <div>
-                            <select
+                            <Select
                                 value={typeFilter}
                                 onChange={(e) => setTypeFilter(e.target.value)}
-                                className="w-full py-2 px-3 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                            >
-                                <option value="">All Types</option>
-                                <option value="percentage">Percentage (%)</option>
-                                <option value="fixed">Fixed Amount ($)</option>
-                            </select>
+                                options={[
+                                    { value: '', label: 'All Types' },
+                                    { value: 'percentage', label: 'Percentage (%)' },
+                                    { value: 'fixed', label: 'Fixed Amount ($)' },
+                                ]}
+                            />
                         </div>
 
                         {/* Applies To filter */}
                         <div>
-                            <select
+                            <Select
                                 value={appliesToFilter}
                                 onChange={(e) => setAppliesToFilter(e.target.value)}
-                                className="w-full py-2 px-3 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                            >
-                                <option value="">All Scopes</option>
-                                <option value="all">Entire Store</option>
-                                <option value="products">Specific Products</option>
-                                <option value="categories">Specific Categories</option>
-                                <option value="collections">Specific Collections</option>
-                            </select>
+                                options={[
+                                    { value: '', label: 'All Scopes' },
+                                    { value: 'all', label: 'Entire Store' },
+                                    { value: 'products', label: 'Specific Products' },
+                                    { value: 'categories', label: 'Specific Categories' },
+                                    { value: 'collections', label: 'Specific Collections' },
+                                ]}
+                            />
                         </div>
                     </div>
 
@@ -1024,17 +1006,17 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Discount Calculation Type <span className="text-rose-500">*</span>
-                                </label>
-                                <select
+                                <Select
+                                    label="Discount Calculation Type"
+                                    required
                                     value={createForm.data.type}
                                     onChange={(e) => createForm.setData('type', e.target.value as CouponType)}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                >
-                                    <option value="percentage">Percentage Discount (%)</option>
-                                    <option value="fixed">Fixed Amount Discount ($)</option>
-                                </select>
+                                    error={createForm.errors.type}
+                                    options={[
+                                        { value: 'percentage', label: 'Percentage Discount (%)' },
+                                        { value: 'fixed', label: 'Fixed Amount Discount ($)' },
+                                    ]}
+                                />
                             </div>
 
                             <div>
@@ -1296,33 +1278,28 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Start Date & Time
-                                </label>
-                                <input
-                                    type="datetime-local"
+                                <DateTimePicker
+                                    label="Start Date & Time"
+                                    placeholder="Immediately (or pick date)"
                                     value={createForm.data.starts_at}
-                                    onChange={(e) => createForm.setData('starts_at', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                    onChange={(val) => createForm.setData('starts_at', val)}
+                                    presets={couponStartDatePresets}
+                                    helperText="Leave blank to activate coupon immediately."
+                                    error={createForm.errors.starts_at}
                                 />
-                                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                                    Leave blank to activate immediately.
-                                </span>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Expiration Date & Time
-                                </label>
-                                <input
-                                    type="datetime-local"
+                                <DateTimePicker
+                                    label="Expiration Date & Time"
+                                    placeholder="Never expires (or pick date)"
                                     value={createForm.data.expires_at}
-                                    onChange={(e) => createForm.setData('expires_at', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                    onChange={(val) => createForm.setData('expires_at', val)}
+                                    minDate={createForm.data.starts_at || undefined}
+                                    presets={couponExpiryDatePresets(createForm.data.starts_at)}
+                                    helperText="Leave blank for unlimited validity period."
+                                    error={createForm.errors.expires_at}
                                 />
-                                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                                    Leave blank for no expiration date.
-                                </span>
                             </div>
                         </div>
 
@@ -1423,17 +1400,17 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                        Discount Calculation Type <span className="text-rose-500">*</span>
-                                    </label>
-                                    <select
+                                    <Select
+                                        label="Discount Calculation Type"
+                                        required
                                         value={editForm.data.type}
                                         onChange={(e) => editForm.setData('type', e.target.value as CouponType)}
-                                        className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                    >
-                                        <option value="percentage">Percentage Discount (%)</option>
-                                        <option value="fixed">Fixed Amount Discount ($)</option>
-                                    </select>
+                                        error={editForm.errors.type}
+                                        options={[
+                                            { value: 'percentage', label: 'Percentage Discount (%)' },
+                                            { value: 'fixed', label: 'Fixed Amount Discount ($)' },
+                                        ]}
+                                    />
                                 </div>
 
                                 <div>
@@ -1680,26 +1657,27 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                        Start Date & Time
-                                    </label>
-                                    <input
-                                        type="datetime-local"
+                                    <DateTimePicker
+                                        label="Start Date & Time"
+                                        placeholder="Immediately (or pick date)"
                                         value={editForm.data.starts_at}
-                                        onChange={(e) => editForm.setData('starts_at', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                        onChange={(val) => editForm.setData('starts_at', val)}
+                                        presets={couponStartDatePresets}
+                                        helperText="Leave blank to activate coupon immediately."
+                                        error={editForm.errors.starts_at}
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                        Expiration Date & Time
-                                    </label>
-                                    <input
-                                        type="datetime-local"
+                                    <DateTimePicker
+                                        label="Expiration Date & Time"
+                                        placeholder="Never expires (or pick date)"
                                         value={editForm.data.expires_at}
-                                        onChange={(e) => editForm.setData('expires_at', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                        onChange={(val) => editForm.setData('expires_at', val)}
+                                        minDate={editForm.data.starts_at || undefined}
+                                        presets={couponExpiryDatePresets(editForm.data.starts_at)}
+                                        helperText="Leave blank for unlimited validity period."
+                                        error={editForm.errors.expires_at}
                                     />
                                 </div>
                             </div>
@@ -1925,22 +1903,7 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => {
-                                    setTestCode(inspectingCoupon.code);
-                                    setTestResult(null);
-                                    setInspectingCoupon(null);
-                                    setIsTestOpen(true);
-                                }}
-                                className="gap-1.5"
-                            >
-                                <Calculator className="w-3.5 h-3.5" />
-                                <span>Test in Simulator</span>
-                            </Button>
-
+                        <div className="flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
                             <Button variant="secondary" size="sm" onClick={() => setInspectingCoupon(null)}>
                                 Close
                             </Button>
@@ -1948,91 +1911,6 @@ export default function CouponsPage({ coupons, filters, options }: CouponsPagePr
                     </div>
                 </Modal>
             )}
-
-            {/* TEST SIMULATOR PLAYGROUND MODAL */}
-            <Modal
-                isOpen={isTestOpen}
-                onClose={() => setIsTestOpen(false)}
-                title="Live Coupon Calculation Simulator"
-                size="md"
-            >
-                <form onSubmit={runCouponTest} className="space-y-4">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Test and verify how any coupon code behaves against custom order amounts before publishing to customers.
-                    </p>
-
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Coupon Code to Test
-                        </label>
-                        <input
-                            type="text"
-                            value={testCode}
-                            onChange={(e) => setTestCode(e.target.value.toUpperCase())}
-                            placeholder="e.g. WELCOME10 or SAVE50"
-                            className="w-full px-3 py-2 uppercase font-mono font-bold text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Simulated Cart Subtotal ($)
-                        </label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={testSubtotal}
-                            onChange={(e) => setTestSubtotal(e.target.value)}
-                            placeholder="250.00"
-                            className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            required
-                        />
-                    </div>
-
-                    <Button type="submit" variant="primary" className="w-full gap-2" disabled={isTesting}>
-                        <Calculator className="w-4 h-4" />
-                        <span>{isTesting ? 'Calculating...' : 'Run Real-time Simulation'}</span>
-                    </Button>
-
-                    {/* Result Card */}
-                    {testResult && testResult.tested && (
-                        <div
-                            className={`p-4 rounded-xl border text-xs space-y-2 animate-in fade-in duration-200 ${
-                                testResult.valid
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200'
-                                    : 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200'
-                            }`}
-                        >
-                            <div className="flex items-center gap-2 font-bold text-sm">
-                                {testResult.valid ? (
-                                    <>
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                        <span>Coupon Valid & Applicable!</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                                        <span>Coupon Ineligible</span>
-                                    </>
-                                )}
-                            </div>
-
-                            <p className="text-xs">{testResult.message}</p>
-
-                            {testResult.valid && testResult.discount !== undefined && (
-                                <div className="pt-2 border-t border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-between text-xs font-semibold">
-                                    <span>Discounted Savings:</span>
-                                    <span className="text-sm font-black text-emerald-700 dark:text-emerald-300">
-                                        -${testResult.discount.toFixed(2)}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </form>
-            </Modal>
         </AdminLayout>
     );
 }

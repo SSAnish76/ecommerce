@@ -4,6 +4,8 @@ import AdminLayout from '../../Layouts/AdminLayout';
 import { Collection, CollectionType, PageProps, Product, Brand, Category } from '../../types';
 import {
     Button,
+    Input,
+    Select,
     Badge,
     Modal,
     TableContainer,
@@ -57,13 +59,6 @@ interface CollectionsPageProps {
         search?: string;
         status?: string;
         type?: string;
-    };
-    metrics?: {
-        total_collections: number;
-        active_collections: number;
-        product_collections: number;
-        brand_collections: number;
-        category_collections: number;
     };
     options: {
         products: Product[];
@@ -361,48 +356,50 @@ export default function CollectionsPage({
                 {/* Search & Filter Toolbar */}
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div className="flex flex-1 flex-wrap items-center gap-3 w-full sm:w-auto">
-                        <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                                type="text"
+                        <div className="w-full sm:w-64 shrink-0">
+                            <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
                                 placeholder="Search collection name or slug..."
-                                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                leftIcon={<Search className="w-4 h-4" />}
                             />
                         </div>
 
                         {/* Type Filter */}
-                        <select
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value)}
-                            className="py-2 px-3 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shrink-0"
-                        >
-                            <option value="">All Types</option>
-                            <option value="product">Product Collections</option>
-                            <option value="brand">Brand Showcases</option>
-                            <option value="category">Category Groups</option>
-                        </select>
+                        <div className="w-full sm:w-48 shrink-0">
+                            <Select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                options={[
+                                    { value: '', label: 'All Types' },
+                                    { value: 'product', label: 'Product Collections' },
+                                    { value: 'brand', label: 'Brand Showcases' },
+                                    { value: 'category', label: 'Category Groups' },
+                                ]}
+                            />
+                        </div>
 
                         {/* Status Filter */}
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="py-2 px-3 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shrink-0"
-                        >
-                            <option value="">All Statuses</option>
-                            <option value="active">Active Only</option>
-                            <option value="inactive">Inactive Only</option>
-                        </select>
+                        <div className="w-full sm:w-44 shrink-0">
+                            <Select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                options={[
+                                    { value: '', label: 'All Statuses' },
+                                    { value: 'active', label: 'Active Only' },
+                                    { value: 'inactive', label: 'Inactive Only' },
+                                ]}
+                            />
+                        </div>
 
-                        <Button size="sm" variant="primary" onClick={applyFilters} className="gap-1.5 shrink-0">
+                        <Button size="md" variant="primary" onClick={applyFilters} className="gap-1.5 shrink-0">
                             <Filter className="w-3.5 h-3.5" />
                             <span>Filter</span>
                         </Button>
 
                         {(search || statusFilter || typeFilter) && (
-                            <Button size="sm" variant="secondary" onClick={resetFilters} className="gap-1.5 shrink-0">
+                            <Button size="md" variant="secondary" onClick={resetFilters} className="gap-1.5 shrink-0">
                                 <RotateCcw className="w-3.5 h-3.5" />
                                 <span>Reset</span>
                             </Button>

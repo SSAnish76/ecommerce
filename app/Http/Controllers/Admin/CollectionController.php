@@ -59,13 +59,6 @@ class CollectionController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Calculate KPI Metrics
-        $totalCollections = Collection::count();
-        $activeCollections = Collection::where('is_active', true)->count();
-        $productCollectionsCount = Collection::where('type', CollectionType::Product)->count();
-        $brandCollectionsCount = Collection::where('type', CollectionType::Brand)->count();
-        $categoryCollectionsCount = Collection::where('type', CollectionType::Category)->count();
-
         // Options for assignment pickers
         $productOptions = Product::query()
             ->active()
@@ -89,13 +82,6 @@ class CollectionController extends Controller
                 'search' => $search,
                 'status' => $status,
                 'type' => $type,
-            ],
-            'metrics' => [
-                'total_collections' => $totalCollections,
-                'active_collections' => $activeCollections,
-                'product_collections' => $productCollectionsCount,
-                'brand_collections' => $brandCollectionsCount,
-                'category_collections' => $categoryCollectionsCount,
             ],
             'options' => [
                 'products' => $productOptions,

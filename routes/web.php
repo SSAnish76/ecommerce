@@ -222,9 +222,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/coupons/{coupon}/toggle-status', [CouponController::class, 'toggleStatus'])
             ->middleware('permission:coupons.edit')
             ->name('coupons.toggle-status');
-        Route::post('/coupons/test', [CouponController::class, 'test'])
-            ->middleware('permission:coupons.view')
-            ->name('coupons.test');
 
         // Analytics
         Route::get('/analytics', function () {
