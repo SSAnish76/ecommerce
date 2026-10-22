@@ -47,7 +47,7 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user();
         if ($user) {
-            $user->loadMissing(['roles' => fn ($q) => $q->where('status', RoleStatus::Active)->with(['rolePermissions', 'menus'])]);
+            $user->loadMissing(['role' => fn ($q) => $q->where('status', RoleStatus::Active)->with('rolePermissions')]);
         }
 
         return [
@@ -66,7 +66,8 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'role' => $user->primaryRoleLabel(),
                     'role_name' => $user->primaryRoleName(),
-                    'roles' => $user->roles->pluck('name')->all(),
+                    'role_id' => $user->role_id,
+                    'roles' => $user->role ? [$user->role->name] : [],
                     'permissions' => $user->allPermissions()->all(),
                     'is_super_admin' => $user->isSuperAdmin(),
                     'is_2fa' => $user->hasTwoFactorEnabled(),

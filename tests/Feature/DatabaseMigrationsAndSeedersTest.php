@@ -30,8 +30,9 @@ class DatabaseMigrationsAndSeedersTest extends TestCase
         $this->assertTrue(Schema::hasTable('personal_access_tokens'));
         $this->assertTrue(Schema::hasTable('menus'));
         $this->assertTrue(Schema::hasTable('roles'));
-        $this->assertTrue(Schema::hasTable('role_user'));
-        $this->assertTrue(Schema::hasTable('menu_role'));
+        $this->assertTrue(Schema::hasColumn('users', 'role_id'));
+        $this->assertFalse(Schema::hasTable('role_user'));
+        $this->assertFalse(Schema::hasTable('menu_role'));
         $this->assertTrue(Schema::hasTable('role_permissions'));
         $this->assertTrue(Schema::hasTable('stores'));
         $this->assertTrue(Schema::hasTable('settings'));

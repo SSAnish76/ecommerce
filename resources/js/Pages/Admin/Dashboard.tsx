@@ -148,10 +148,14 @@ export default function Dashboard({
 
                         <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
                             {recentUsers.slice(0, 5).map((user) => {
-                                const roleLabel =
-                                    user.role ||
-                                    (Array.isArray(user.roles) && user.roles[0] && typeof user.roles[0] === 'object'
-                                        ? user.roles[0].name?.replace(/[-_]/g, ' ')?.replace(/\b\w/g, (c) => c.toUpperCase())
+                                const roleObjOrName = user.role;
+                                const roleRawName = typeof roleObjOrName === 'object' && roleObjOrName
+                                    ? (roleObjOrName as any).name
+                                    : (typeof roleObjOrName === 'string' ? roleObjOrName : null);
+                                const roleLabel = roleRawName
+                                    ? roleRawName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                                    : (Array.isArray(user.roles) && user.roles[0] && typeof user.roles[0] === 'object'
+                                        ? (user.roles[0] as any).name?.replace(/[-_]/g, ' ')?.replace(/\b\w/g, (c: string) => c.toUpperCase())
                                         : 'Member');
 
                                 return (

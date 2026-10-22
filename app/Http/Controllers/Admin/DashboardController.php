@@ -24,10 +24,10 @@ class DashboardController extends Controller
         $lowStockCount = Product::query()->lowStock()->count();
 
         $recentUsers = User::query()
-            ->with(['roles:id,name,is_system,status'])
+            ->with(['role:id,name,is_system,status'])
             ->latest('id')
             ->limit(5)
-            ->get(['id', 'name', 'email', 'is_2fa', 'created_at']);
+            ->get(['id', 'name', 'email', 'role_id', 'is_2fa', 'created_at']);
 
         $metrics = [
             [

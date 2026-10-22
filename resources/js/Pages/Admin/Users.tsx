@@ -53,7 +53,10 @@ interface UsersProps {
 }
 
 const getPrimaryRole = (user: User): string => {
-    if (user.role) return user.role;
+    if (user.role) {
+        const roleName = typeof user.role === 'object' ? (user.role as any).name : user.role;
+        if (roleName) return roleName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+    }
     const firstRole = Array.isArray(user.roles) ? user.roles[0] : null;
     const roleName = typeof firstRole === 'object' && firstRole ? firstRole.name : (typeof firstRole === 'string' ? firstRole : null);
     if (!roleName) return 'Member';
@@ -62,12 +65,14 @@ const getPrimaryRole = (user: User): string => {
 
 const getRoleId = (user: User): string => {
     if (user.role_id) return String(user.role_id);
+    if (user.role && typeof user.role === 'object' && (user.role as any).id) return String((user.role as any).id);
     const firstRole = Array.isArray(user.roles) ? user.roles[0] : null;
     return typeof firstRole === 'object' && firstRole?.id ? String(firstRole.id) : '';
 };
 
 const hasSystemRole = (user: User): boolean => {
     if (typeof user.has_system_role === 'boolean') return user.has_system_role;
+    if (user.role && typeof user.role === 'object') return Boolean((user.role as any).is_system);
     if (!Array.isArray(user.roles)) return false;
     return user.roles.some((r: any) => typeof r === 'object' && Boolean(r?.is_system));
 };

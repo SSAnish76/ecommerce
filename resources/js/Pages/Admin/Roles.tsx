@@ -54,14 +54,13 @@ const menuIconMap: Record<string, React.ComponentType<{ className?: string }>> =
     profile: ShieldCheck,
 };
 
-type PermissionActionKey = 'can_view' | 'can_add' | 'can_update' | 'can_delete' | 'can_approve' | 'can_import' | 'can_export';
+type PermissionActionKey = 'can_view' | 'can_add' | 'can_update' | 'can_delete' | 'can_import' | 'can_export';
 
 interface MenuPermissionState {
     can_view: boolean;
     can_add: boolean;
     can_update: boolean;
     can_delete: boolean;
-    can_approve: boolean;
     can_import: boolean;
     can_export: boolean;
 }
@@ -128,7 +127,6 @@ export default function RolesPage({
                 can_add: false,
                 can_update: false,
                 can_delete: false,
-                can_approve: false,
                 can_import: false,
                 can_export: false,
             },
@@ -164,7 +162,6 @@ export default function RolesPage({
                 can_add: Boolean(m.is_crud),
                 can_update: Boolean(m.is_crud),
                 can_delete: Boolean(m.is_crud),
-                can_approve: Boolean(m.is_crud),
                 can_import: Boolean(m.is_import_export),
                 can_export: Boolean(m.is_import_export),
             };
@@ -204,7 +201,6 @@ export default function RolesPage({
                     can_add: Boolean(existing.can_add),
                     can_update: Boolean(existing.can_update),
                     can_delete: Boolean(existing.can_delete),
-                    can_approve: Boolean(existing.can_approve),
                     can_import: Boolean(existing.can_import),
                     can_export: Boolean(existing.can_export),
                 };
@@ -214,7 +210,6 @@ export default function RolesPage({
                     can_add: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
                     can_update: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
                     can_delete: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
-                    can_approve: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
                     can_import: assignedSlugs.includes(m.slug) && Boolean(m.is_import_export),
                     can_export: assignedSlugs.includes(m.slug) && Boolean(m.is_import_export),
                 };
@@ -278,7 +273,6 @@ export default function RolesPage({
                         can_add: Boolean(menuObj?.is_crud),
                         can_update: Boolean(menuObj?.is_crud),
                         can_delete: Boolean(menuObj?.is_crud),
-                        can_approve: Boolean(menuObj?.is_crud),
                         can_import: Boolean(menuObj?.is_import_export),
                         can_export: Boolean(menuObj?.is_import_export),
                     },
@@ -298,7 +292,6 @@ export default function RolesPage({
             can_add: false,
             can_update: false,
             can_delete: false,
-            can_approve: false,
             can_import: false,
             can_export: false,
         };

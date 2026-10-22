@@ -39,21 +39,22 @@ class Role extends Model
     /**
      * Get the users assigned to this role.
      *
-     * @return BelongsToMany<User, $this>
+     * @return HasMany<User, $this>
      */
-    public function users(): BelongsToMany
+    public function users(): HasMany
     {
-        return $this->belongsToMany(User::class);
+        return $this->hasMany(User::class);
     }
 
     /**
-     * Get the menus assigned to this role.
+     * Get the menus assigned to this role through role permissions.
      *
      * @return BelongsToMany<Menu, $this>
      */
     public function menus(): BelongsToMany
     {
-        return $this->belongsToMany(Menu::class, 'menu_role', 'role_id', 'menu_slug', 'id', 'slug')
+        return $this->belongsToMany(Menu::class, 'role_permissions', 'role_id', 'menu_slug', 'id', 'slug')
+            ->withPivot(['can_view', 'can_add', 'can_update', 'can_delete', 'can_import', 'can_export'])
             ->withTimestamps();
     }
 

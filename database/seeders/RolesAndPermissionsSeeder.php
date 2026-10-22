@@ -48,7 +48,6 @@ class RolesAndPermissionsSeeder extends Seeder
                         'can_add' => false,
                         'can_update' => false,
                         'can_delete' => false,
-                        'can_approve' => false,
                         'can_import' => false,
                         'can_export' => false,
                     ]);
@@ -60,7 +59,6 @@ class RolesAndPermissionsSeeder extends Seeder
                         'can_add' => (bool) $menu->is_crud,
                         'can_update' => (bool) $menu->is_crud,
                         'can_delete' => $isFullAccess ? (bool) $menu->is_crud : ($menu->slug !== 'roles' && (bool) $menu->is_crud),
-                        'can_approve' => (bool) $menu->is_crud,
                         'can_import' => (bool) $menu->is_import_export,
                         'can_export' => (bool) $menu->is_import_export,
                     ]);
@@ -69,11 +67,9 @@ class RolesAndPermissionsSeeder extends Seeder
         };
 
         // Super Admin - Full Universal Access
-        $superAdmin->menus()->sync($menus->pluck('slug'));
         $syncRolePermissions($superAdmin, [], true);
 
         // Admin - Operational modules
-        $admin->menus()->sync($menus->pluck('slug'));
         $syncRolePermissions($admin, $menus->pluck('slug')->all(), false);
 
         // Manager - Daily operations
@@ -83,12 +79,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'sales', 'orders', 'customers', 'coupons',
             'platform', 'store', 'settings', 'profile',
         ];
-        $manager->menus()->sync($managerMenuSlugs);
         $syncRolePermissions($manager, $managerMenuSlugs, false);
 
         // Editor - View access on dashboard and users
         $editorMenuSlugs = ['dashboard', 'users'];
-        $editor->menus()->sync($editorMenuSlugs);
         $syncRolePermissions($editor, $editorMenuSlugs, false, true);
 
         // 4. Ensure default admin user exists with Super Admin role
@@ -98,11 +92,12 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name' => 'Admin User',
                 'password' => Hash::make('password'),
                 'status' => UserStatus::Active,
+                'role_id' => $superAdmin->id,
             ]
         );
 
-        if (! $adminUser->roles()->where('roles.id', $superAdmin->id)->exists()) {
-            $adminUser->roles()->attach($superAdmin->id);
+        if ($adminUser->role_id !== $superAdmin->id) {
+            $adminUser->update(['role_id' => $superAdmin->id]);
         }
     }
 }

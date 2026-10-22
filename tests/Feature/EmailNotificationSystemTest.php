@@ -431,7 +431,7 @@ class EmailNotificationSystemTest extends TestCase
 
         $superAdminRole = Role::where('name', 'Super Admin')->firstOrFail();
         $admin = User::factory()->create(['email' => 'admin.test@example.com']);
-        $admin->roles()->attach($superAdminRole);
+        $admin->assignRole($superAdminRole);
 
         $response = $this->post(route('admin.password.email'), [
             'email' => 'admin.test@example.com',
@@ -454,7 +454,7 @@ class EmailNotificationSystemTest extends TestCase
 
         $superAdminRole = Role::where('name', 'Super Admin')->firstOrFail();
         $actingAdmin = User::factory()->create();
-        $actingAdmin->roles()->attach($superAdminRole);
+        $actingAdmin->assignRole($superAdminRole);
 
         $response = $this->actingAs($actingAdmin)
             ->post(route('admin.users.store'), [

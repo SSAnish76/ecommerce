@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
     'name',
     'email',
     'password',
+    'role_id',
     '2fa_secret',
     '2fa_recovery_codes',
     '2fa_confirmed_at',
@@ -68,13 +69,23 @@ class User extends Authenticatable
     }
 
     /**
-     * The roles that belong to the user.
+     * The role that belongs to the user.
      *
-     * @return BelongsToMany<Role, $this>
+     * @return BelongsTo<Role, $this>
      */
-    public function roles(): BelongsToMany
+    public function role(): BelongsTo
     {
-        return $this->belongsToMany(Role::class);
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Get user's role wrapped in a collection for backwards compatibility.
+     *
+     * @return Collection<int, Role>
+     */
+    public function getRolesAttribute(): Collection
+    {
+        return $this->role ? collect([$this->role]) : collect();
     }
 
     /**
@@ -84,11 +95,15 @@ class User extends Authenticatable
      */
     public function hasRole(string|array $roles): bool
     {
-        if (is_array($roles)) {
-            return $this->roles->pluck('name')->intersect($roles)->isNotEmpty();
+        if (! $this->role) {
+            return false;
         }
 
-        return $this->roles->contains('name', $roles);
+        if (is_array($roles)) {
+            return in_array($this->role->name, $roles, true);
+        }
+
+        return $this->role->name === $roles;
     }
 
     /**
@@ -118,9 +133,7 @@ class User extends Authenticatable
      */
     public function hasSystemRole(): bool
     {
-        return $this->roles
-            ->filter(fn(Role $role) => $role->isActive())
-            ->contains('is_system', true);
+        return (bool) ($this->role?->isActive() && $this->role->is_system);
     }
 
     /**
@@ -132,9 +145,7 @@ class User extends Authenticatable
             return true;
         }
 
-        return $this->roles
-            ->filter(fn(Role $role) => $role->isActive())
-            ->isNotEmpty();
+        return (bool) $this->role?->isActive();
     }
 
     /**
@@ -159,7 +170,6 @@ class User extends Authenticatable
                 'create', 'add', 'store' => 'can_add',
                 'edit', 'update', 'roles', 'manage' => 'can_update',
                 'delete', 'destroy' => 'can_delete',
-                'approve' => 'can_approve',
                 'import' => 'can_import',
                 'export' => 'can_export',
                 default => null,
@@ -182,11 +192,13 @@ class User extends Authenticatable
             return true;
         }
 
-        $this->loadMissing(['roles.rolePermissions']);
+        $this->loadMissing(['role.rolePermissions']);
 
-        return $this->roles
-            ->filter(fn(Role $role) => $role->isActive())
-            ->flatMap(fn(Role $role) => $role->rolePermissions)
+        if (! $this->role || ! $this->role->isActive()) {
+            return false;
+        }
+
+        return $this->role->rolePermissions
             ->where('menu_slug', $menuSlug)
             ->contains($actionCol, true);
     }
@@ -208,7 +220,7 @@ class User extends Authenticatable
             foreach ($menus as $m) {
                 $perms->push("{$m->slug}.view");
                 if ($m->is_crud) {
-                    $perms->push("{$m->slug}.create", "{$m->slug}.add", "{$m->slug}.edit", "{$m->slug}.update", "{$m->slug}.delete", "{$m->slug}.approve");
+                    $perms->push("{$m->slug}.create", "{$m->slug}.add", "{$m->slug}.edit", "{$m->slug}.update", "{$m->slug}.delete");
                 }
                 if ($m->is_import_export) {
                     $perms->push("{$m->slug}.import", "{$m->slug}.export");
@@ -219,11 +231,15 @@ class User extends Authenticatable
             return $this->cachedPermissions = $perms->unique()->values();
         }
 
-        $this->loadMissing(['roles.rolePermissions']);
+        $this->loadMissing(['role.rolePermissions']);
+
+        if (! $this->role || ! $this->role->isActive()) {
+            return $this->cachedPermissions = collect();
+        }
 
         $perms = collect();
         /** @var RolePermission $rp */
-        foreach ($this->roles->filter(fn(Role $r) => $r->isActive())->flatMap(fn(Role $r) => $r->rolePermissions) as $rp) {
+        foreach ($this->role->rolePermissions as $rp) {
             if ($rp->can_view) {
                 $perms->push("{$rp->menu_slug}.view");
             }
@@ -241,9 +257,6 @@ class User extends Authenticatable
             }
             if ($rp->can_delete) {
                 $perms->push("{$rp->menu_slug}.delete");
-            }
-            if ($rp->can_approve) {
-                $perms->push("{$rp->menu_slug}.approve");
             }
             if ($rp->can_import) {
                 $perms->push("{$rp->menu_slug}.import");
@@ -271,15 +284,21 @@ class User extends Authenticatable
             return $this->cachedMenus = Menu::query()->where('status', MenuStatus::Active)->orderBy('sort_order')->get();
         }
 
-        $this->loadMissing(['roles.menus']);
+        $this->loadMissing(['role.rolePermissions']);
 
-        return $this->cachedMenus = $this->roles
-            ->filter(fn(Role $role) => $role->isActive())
-            ->flatMap(fn(Role $role) => $role->menus)
-            ->filter(fn(Menu $menu) => $menu->isActive())
-            ->unique('slug')
-            ->sortBy('sort_order')
-            ->values();
+        if (! $this->role || ! $this->role->isActive()) {
+            return $this->cachedMenus = collect();
+        }
+
+        $allowedSlugs = $this->role->rolePermissions
+            ->filter(fn (RolePermission $rp) => (bool) $rp->can_view)
+            ->pluck('menu_slug');
+
+        return $this->cachedMenus = Menu::query()
+            ->where('status', MenuStatus::Active)
+            ->whereIn('slug', $allowedSlugs)
+            ->orderBy('sort_order')
+            ->get();
     }
 
     /**
@@ -312,11 +331,6 @@ class User extends Authenticatable
     public function canDelete(string $menuSlug): bool
     {
         return $this->hasPermission("{$menuSlug}.delete");
-    }
-
-    public function canApprove(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.approve");
     }
 
     public function canImport(string $menuSlug): bool
@@ -357,9 +371,9 @@ class User extends Authenticatable
     {
         $roleModel = is_string($role) ? Role::where('name', $role)->firstOrFail() : $role;
 
-        if (!$this->roles()->where('roles.id', $roleModel->id)->exists()) {
-            $this->roles()->attach($roleModel->id);
-        }
+        $this->forceFill(['role_id' => $roleModel->id])->save();
+        $this->setRelation('role', $roleModel);
+        $this->flushPermissionsCache();
     }
 
     /**
@@ -423,13 +437,11 @@ class User extends Authenticatable
      */
     public function primaryRoleLabel(): string
     {
-        $firstRole = $this->roles->first();
-
-        if (!$firstRole) {
+        if (! $this->role) {
             return 'Member';
         }
 
-        return ucwords(str_replace(['_', '-'], ' ', $firstRole->name));
+        return ucwords(str_replace(['_', '-'], ' ', $this->role->name));
     }
 
     /**
@@ -437,9 +449,7 @@ class User extends Authenticatable
      */
     public function primaryRoleName(): string
     {
-        $firstRole = $this->roles->first();
-
-        return $firstRole?->name ?? 'member';
+        return $this->role?->name ?? 'member';
     }
 
     /**

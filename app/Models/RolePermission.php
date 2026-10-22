@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'can_add',
     'can_update',
     'can_delete',
-    'can_approve',
     'can_import',
     'can_export',
 ])]
@@ -35,7 +34,6 @@ class RolePermission extends Model
             'can_add' => 'boolean',
             'can_update' => 'boolean',
             'can_delete' => 'boolean',
-            'can_approve' => 'boolean',
             'can_import' => 'boolean',
             'can_export' => 'boolean',
         ];

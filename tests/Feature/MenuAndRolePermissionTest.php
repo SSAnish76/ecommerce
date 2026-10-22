@@ -105,7 +105,7 @@ class MenuAndRolePermissionTest extends TestCase
         $this->assertNotNull($editorRole);
 
         $editorUser = User::factory()->create();
-        $editorUser->roles()->attach($editorRole->id);
+        $editorUser->assignRole($editorRole);
 
         // Editor has can_view on users and dashboard, but not can_add or can_delete
         $this->assertTrue($editorUser->hasPermission('users.view'));
@@ -149,7 +149,6 @@ class MenuAndRolePermissionTest extends TestCase
                     'can_add' => true,
                     'can_update' => true,
                     'can_delete' => false,
-                    'can_approve' => false,
                     'can_import' => true,
                     'can_export' => true,
                 ],
@@ -190,7 +189,6 @@ class MenuAndRolePermissionTest extends TestCase
                     'can_add' => false,
                     'can_update' => true,
                     'can_delete' => false,
-                    'can_approve' => false,
                     'can_import' => true,
                     'can_export' => true,
                 ],

@@ -112,8 +112,8 @@ class EssentialsTest extends TestCase
         );
 
         $superAdmin = Role::firstOrCreate(['name' => 'Super Admin'], ['is_system' => true]);
-        if (! $admin->roles()->where('roles.id', $superAdmin->id)->exists()) {
-            $admin->roles()->attach($superAdmin->id);
+        if ($admin->role_id !== $superAdmin->id) {
+            $admin->assignRole($superAdmin);
         }
 
         $response = $this->actingAs($admin)->getJson('/admin/essentials');

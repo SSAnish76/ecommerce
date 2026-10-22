@@ -282,7 +282,7 @@ class AdminAuthTest extends TestCase
             'password' => Hash::make('password'),
         ]);
         $editorRole = Role::where('name', 'Editor')->first();
-        $editor->roles()->attach($editorRole->id);
+        $editor->assignRole($editorRole);
 
         // Editor can access dashboard and view users
         $this->actingAs($editor)->get('/admin')->assertStatus(200);

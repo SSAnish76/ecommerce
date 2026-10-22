@@ -85,7 +85,6 @@ class RoleController extends Controller
         if ($isSystem) {
             $menuSlugs = Menu::query()->where('status', MenuStatus::Active)->pluck('slug')->all();
         }
-        $role->menus()->sync($menuSlugs);
 
         $customPermissions = $validated['role_permissions'] ?? [];
         $this->syncRolePermissionsMatrix($role, $menuSlugs, $customPermissions, $isSystem);
@@ -135,8 +134,6 @@ class RoleController extends Controller
             $menuSlugs = Menu::query()->where('status', MenuStatus::Active)->pluck('slug')->all();
         }
 
-        $role->menus()->sync($menuSlugs);
-
         $customPermissions = $validated['role_permissions'] ?? [];
         $this->syncRolePermissionsMatrix($role, $menuSlugs, $customPermissions, (bool) $role->is_system);
 
@@ -159,7 +156,6 @@ class RoleController extends Controller
         }
 
         $role->rolePermissions()->delete();
-        $role->menus()->detach();
         $role->delete();
 
         return redirect()->back()->with('success', 'Role deleted successfully.');
@@ -186,7 +182,6 @@ class RoleController extends Controller
                 $canAdd = (bool) $menu->is_crud;
                 $canUpdate = (bool) $menu->is_crud;
                 $canDelete = (bool) $menu->is_crud;
-                $canApprove = (bool) $menu->is_crud;
                 $canImport = (bool) $menu->is_import_export;
                 $canExport = (bool) $menu->is_import_export;
             } elseif ($override !== null) {
@@ -194,7 +189,6 @@ class RoleController extends Controller
                 $canAdd = $menu->is_crud && (bool) ($override['can_add'] ?? false);
                 $canUpdate = $menu->is_crud && (bool) ($override['can_update'] ?? false);
                 $canDelete = $menu->is_crud && (bool) ($override['can_delete'] ?? false);
-                $canApprove = $menu->is_crud && (bool) ($override['can_approve'] ?? false);
                 $canImport = $menu->is_import_export && (bool) ($override['can_import'] ?? false);
                 $canExport = $menu->is_import_export && (bool) ($override['can_export'] ?? false);
             } else {
@@ -202,7 +196,6 @@ class RoleController extends Controller
                 $canAdd = (bool) $menu->is_crud;
                 $canUpdate = (bool) $menu->is_crud;
                 $canDelete = $menu->slug !== 'roles' && (bool) $menu->is_crud;
-                $canApprove = (bool) $menu->is_crud;
                 $canImport = (bool) $menu->is_import_export;
                 $canExport = (bool) $menu->is_import_export;
             }
@@ -214,7 +207,6 @@ class RoleController extends Controller
                     'can_add' => $canAdd,
                     'can_update' => $canUpdate,
                     'can_delete' => $canDelete,
-                    'can_approve' => $canApprove,
                     'can_import' => $canImport,
                     'can_export' => $canExport,
                 ]

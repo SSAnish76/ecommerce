@@ -24,11 +24,12 @@ class UserSeeder extends Seeder
                 'name' => 'Admin User',
                 'password' => Hash::make('password'),
                 'status' => UserStatus::Active,
+                'role_id' => $superAdminRole?->id,
             ]
         );
 
-        if ($superAdminRole && ! $adminUser->roles()->where('roles.id', $superAdminRole->id)->exists()) {
-            $adminUser->roles()->attach($superAdminRole->id);
+        if ($superAdminRole && $adminUser->role_id !== $superAdminRole->id) {
+            $adminUser->update(['role_id' => $superAdminRole->id]);
         }
 
         // 2. Create demo users for other roles if they do not exist
@@ -40,11 +41,12 @@ class UserSeeder extends Seeder
                     'name' => 'Store Operations Manager',
                     'password' => Hash::make('password'),
                     'status' => UserStatus::Active,
+                    'role_id' => $managerRole->id,
                 ]
             );
 
-            if (! $manager->roles()->where('roles.id', $managerRole->id)->exists()) {
-                $manager->roles()->attach($managerRole->id);
+            if ($manager->role_id !== $managerRole->id) {
+                $manager->update(['role_id' => $managerRole->id]);
             }
         }
 
@@ -56,11 +58,12 @@ class UserSeeder extends Seeder
                     'name' => 'Catalog Content Editor',
                     'password' => Hash::make('password'),
                     'status' => UserStatus::Active,
+                    'role_id' => $editorRole->id,
                 ]
             );
 
-            if (! $editor->roles()->where('roles.id', $editorRole->id)->exists()) {
-                $editor->roles()->attach($editorRole->id);
+            if ($editor->role_id !== $editorRole->id) {
+                $editor->update(['role_id' => $editorRole->id]);
             }
         }
 

@@ -30,8 +30,8 @@ class UserController extends Controller
         $roleFilter = $request->string('role')->trim()->value();
 
         $users = User::query()
-            ->select(['id', 'name', 'email', 'status', 'is_2fa', 'created_at', 'last_login_at'])
-            ->with(['roles:id,name,is_system,status'])
+            ->select(['id', 'name', 'email', 'status', 'is_2fa', 'role_id', 'created_at', 'last_login_at'])
+            ->with(['role:id,name,is_system,status'])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")
@@ -39,7 +39,7 @@ class UserController extends Controller
                 });
             })
             ->when($roleFilter !== '', function (Builder $query) use ($roleFilter): void {
-                $query->whereHas('roles', function (Builder $q) use ($roleFilter): void {
+                $query->whereHas('role', function (Builder $q) use ($roleFilter): void {
                     $q->where('name', $roleFilter);
                 });
             })
@@ -79,12 +79,9 @@ class UserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'role_id' => $validated['role_id'] ?? null,
             'status' => $validated['status'] ?? UserStatus::Active->value,
         ]);
-
-        if (! empty($validated['role_id'])) {
-            $user->roles()->attach($validated['role_id']);
-        }
 
         event(new \App\Events\User\UserCreated($user, $validated['password']));
 
@@ -116,6 +113,10 @@ class UserController extends Controller
             $user->password = Hash::make($validated['password']);
         }
 
+        if (array_key_exists('role_id', $validated)) {
+            $user->role_id = $validated['role_id'] ?: null;
+        }
+
         if ($request->boolean('reset_two_factor') || $request->boolean('reset_2fa')) {
             $user->{'2fa_secret'} = null;
             $user->{'2fa_recovery_codes'} = null;
@@ -124,14 +125,6 @@ class UserController extends Controller
         }
 
         $user->save();
-
-        if (array_key_exists('role_id', $validated)) {
-            if (! empty($validated['role_id'])) {
-                $user->roles()->sync([$validated['role_id']]);
-            } else {
-                $user->roles()->detach();
-            }
-        }
 
         return redirect()->back()->with('success', 'User updated successfully.');
     }
@@ -149,7 +142,6 @@ class UserController extends Controller
             return redirect()->back()->with('error', 'Users assigned to a system role cannot be deleted.');
         }
 
-        $user->roles()->detach();
         $user->delete();
 
         return redirect()->back()->with('success', 'User deleted successfully.');

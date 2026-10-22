@@ -26,7 +26,6 @@ class RolePermissionFactory extends Factory
             'can_add' => false,
             'can_update' => false,
             'can_delete' => false,
-            'can_approve' => false,
             'can_import' => false,
             'can_export' => false,
         ];
@@ -42,7 +41,6 @@ class RolePermissionFactory extends Factory
             'can_add' => true,
             'can_update' => true,
             'can_delete' => true,
-            'can_approve' => true,
             'can_import' => true,
             'can_export' => true,
         ]);

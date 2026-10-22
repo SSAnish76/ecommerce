@@ -83,7 +83,6 @@ export interface RolePermission {
     can_add: boolean;
     can_update: boolean;
     can_delete: boolean;
-    can_approve: boolean;
     can_import: boolean;
     can_export: boolean;
     menu?: MenuItem;
