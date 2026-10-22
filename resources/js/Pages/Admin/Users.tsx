@@ -59,7 +59,7 @@ const getPrimaryRole = (user: User): string => {
     }
     const firstRole = Array.isArray(user.roles) ? user.roles[0] : null;
     const roleName = typeof firstRole === 'object' && firstRole ? firstRole.name : (typeof firstRole === 'string' ? firstRole : null);
-    if (!roleName) return 'Member';
+    if (!roleName) return '';
     return roleName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
@@ -326,13 +326,17 @@ export default function UsersPage({
 
                                     <TableCell>
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                            <Badge
-                                                variant="indigo"
-                                                size="md"
-                                                icon={<Shield className="w-3 h-3" />}
-                                            >
-                                                {userRole}
-                                            </Badge>
+                                            {userRole ? (
+                                                <Badge
+                                                    variant="indigo"
+                                                    size="md"
+                                                    icon={<Shield className="w-3 h-3" />}
+                                                >
+                                                    {userRole}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-slate-400 dark:text-slate-600 text-xs">-</span>
+                                            )}
                                             {userHasSystemRole && (
                                                 <Badge variant="amber" size="sm">
                                                     System

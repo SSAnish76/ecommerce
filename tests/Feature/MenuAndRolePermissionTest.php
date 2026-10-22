@@ -109,11 +109,8 @@ class MenuAndRolePermissionTest extends TestCase
 
         // Editor has can_view on users and dashboard, but not can_add or can_delete
         $this->assertTrue($editorUser->hasPermission('users.view'));
-        $this->assertTrue($editorUser->canView('users'));
         $this->assertFalse($editorUser->hasPermission('users.create'));
-        $this->assertFalse($editorUser->canAdd('users'));
         $this->assertFalse($editorUser->hasPermission('users.delete'));
-        $this->assertFalse($editorUser->canDelete('users'));
     }
 
     /**

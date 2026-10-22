@@ -79,16 +79,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Get user's role wrapped in a collection for backwards compatibility.
-     *
-     * @return Collection<int, Role>
-     */
-    public function getRolesAttribute(): Collection
-    {
-        return $this->role ? collect([$this->role]) : collect();
-    }
-
-    /**
      * Check if user has a specific role or any of the given roles.
      *
      * @param  string|array<int, string>  $roles
@@ -111,7 +101,15 @@ class User extends Authenticatable
      */
     public function isSuperAdmin(): bool
     {
-        return $this->hasSystemRole();
+        return (bool) ($this->role?->isActive() && $this->role->is_system);
+    }
+
+    /**
+     * Alias for checking active system role assignment.
+     */
+    public function hasSystemRole(): bool
+    {
+        return $this->isSuperAdmin();
     }
 
     /**
@@ -127,14 +125,6 @@ class User extends Authenticatable
      * @var Collection<int, Menu>|null
      */
     protected ?Collection $cachedMenus = null;
-
-    /**
-     * Check if user has any active system role.
-     */
-    public function hasSystemRole(): bool
-    {
-        return (bool) ($this->role?->isActive() && $this->role->is_system);
-    }
 
     /**
      * Check if user has administrative access.
@@ -302,48 +292,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user has access to a specific menu by slug.
-     */
-    public function hasMenu(string $slug): bool
-    {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        return $this->allowedMenus()->contains('slug', $slug);
-    }
-
-    public function canView(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.view");
-    }
-
-    public function canAdd(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.add") || $this->hasPermission("{$menuSlug}.create");
-    }
-
-    public function canUpdate(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.update") || $this->hasPermission("{$menuSlug}.edit");
-    }
-
-    public function canDelete(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.delete");
-    }
-
-    public function canImport(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.import");
-    }
-
-    public function canExport(string $menuSlug): bool
-    {
-        return $this->hasPermission("{$menuSlug}.export");
-    }
-
-    /**
      * Flush request-level cached permissions and menus.
      */
     public function flushPermissionsCache(): void
@@ -438,7 +386,7 @@ class User extends Authenticatable
     public function primaryRoleLabel(): string
     {
         if (! $this->role) {
-            return 'Member';
+            return '';
         }
 
         return ucwords(str_replace(['_', '-'], ' ', $this->role->name));
@@ -449,7 +397,7 @@ class User extends Authenticatable
      */
     public function primaryRoleName(): string
     {
-        return $this->role?->name ?? 'member';
+        return $this->role?->name ?? '';
     }
 
     /**

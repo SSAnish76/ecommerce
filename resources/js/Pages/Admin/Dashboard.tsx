@@ -156,7 +156,7 @@ export default function Dashboard({
                                     ? roleRawName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
                                     : (Array.isArray(user.roles) && user.roles[0] && typeof user.roles[0] === 'object'
                                         ? (user.roles[0] as any).name?.replace(/[-_]/g, ' ')?.replace(/\b\w/g, (c: string) => c.toUpperCase())
-                                        : 'Member');
+                                        : '');
 
                                 return (
                                     <div key={user.id} className="py-3 flex items-center justify-between">
@@ -183,9 +183,11 @@ export default function Dashboard({
                                                     2FA
                                                 </span>
                                             )}
-                                            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
-                                                {roleLabel}
-                                            </span>
+                                            {roleLabel && (
+                                                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
+                                                    {roleLabel}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 );
