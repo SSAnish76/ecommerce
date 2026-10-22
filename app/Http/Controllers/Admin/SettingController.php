@@ -39,29 +39,27 @@ class SettingController extends Controller
     {
         /** @var array<string, mixed> $input */
         $input = $request->validate([
-            'currency_code' => ['required', 'string', 'max:10'],
-            'currency_symbol' => ['required', 'string', 'max:10'],
-            'currency_position' => ['required', Rule::enum(CurrencyPosition::class)],
-            'currency_decimals' => ['required', 'integer', 'min:0', 'max:4'],
-            'timezone' => ['required', 'string', 'max:80'],
-            'date_format' => ['required', 'string', 'max:30'],
-            'time_format' => ['required', 'string', 'max:30'],
+            'currency_code' => ['sometimes', 'required', 'string', 'max:10'],
+            'currency_symbol' => ['sometimes', 'required', 'string', 'max:10'],
+            'currency_position' => ['sometimes', 'required', Rule::enum(CurrencyPosition::class)],
+            'currency_decimals' => ['sometimes', 'required', 'integer', 'min:0', 'max:4'],
+            'timezone' => ['sometimes', 'required', 'string', 'max:80'],
 
-            'force_two_factor_all_admins' => ['required', 'boolean'],
-            'session_lifetime_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
-            'max_login_attempts' => ['required', 'integer', 'min:3', 'max:20'],
-            'lockout_duration_minutes' => ['required', 'integer', 'min:1', 'max:180'],
-            'require_strong_passwords' => ['required', 'boolean'],
+            'force_two_factor_all_admins' => ['sometimes', 'required', 'boolean'],
+            'session_lifetime_minutes' => ['sometimes', 'required', 'integer', 'min:15', 'max:1440'],
+            'max_login_attempts' => ['sometimes', 'required', 'integer', 'min:3', 'max:20'],
+            'lockout_duration_minutes' => ['sometimes', 'required', 'integer', 'min:1', 'max:180'],
+            'require_strong_passwords' => ['sometimes', 'required', 'boolean'],
 
-            'order_prefix' => ['required', 'string', 'max:20'],
-            'order_number_start' => ['required', 'integer', 'min:1'],
-            'min_order_amount' => ['required', 'numeric', 'min:0'],
-            'allow_customer_cancellation' => ['required', 'boolean'],
+            'order_prefix' => ['sometimes', 'required', 'string', 'max:20'],
+            'order_number_start' => ['sometimes', 'required', 'integer', 'min:1'],
+            'min_order_amount' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'allow_customer_cancellation' => ['sometimes', 'required', 'boolean'],
 
-            'low_stock_threshold' => ['required', 'integer', 'min:0'],
-            'out_of_stock_visibility' => ['required', Rule::enum(StockVisibility::class)],
-            'enable_customer_reviews' => ['required', 'boolean'],
-            'auto_approve_reviews' => ['required', 'boolean'],
+            'low_stock_threshold' => ['sometimes', 'required', 'integer', 'min:0'],
+            'out_of_stock_visibility' => ['sometimes', 'required', Rule::enum(StockVisibility::class)],
+            'enable_customer_reviews' => ['sometimes', 'required', 'boolean'],
+            'auto_approve_reviews' => ['sometimes', 'required', 'boolean'],
 
             'payment_cod_enabled' => ['sometimes', 'boolean'],
             'payment_stripe_enabled' => ['sometimes', 'boolean'],
@@ -123,9 +121,9 @@ class SettingController extends Controller
             'notify_new_customer_welcome' => ['sometimes', 'boolean'],
             'notify_new_review_admin' => ['sometimes', 'boolean'],
 
-            'maintenance_mode' => ['required', 'boolean'],
-            'maintenance_notice' => ['nullable', 'string', 'max:500'],
-            'allow_admin_bypass_maintenance' => ['required', 'boolean'],
+            'maintenance_mode' => ['sometimes', 'required', 'boolean'],
+            'maintenance_notice' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'allow_admin_bypass_maintenance' => ['sometimes', 'required', 'boolean'],
         ]);
 
         // 1. Bundle Payment Gateways & Methods

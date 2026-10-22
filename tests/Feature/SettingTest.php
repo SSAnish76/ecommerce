@@ -64,8 +64,6 @@ class SettingTest extends TestCase
             'currency_position' => 'suffix',
             'currency_decimals' => 2,
             'timezone' => 'Europe/Paris',
-            'date_format' => 'd/m/Y',
-            'time_format' => 'H:i',
 
             'force_two_factor_all_admins' => true,
             'session_lifetime_minutes' => 60,
