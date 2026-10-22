@@ -54,7 +54,7 @@ class Role extends Model
     public function menus(): BelongsToMany
     {
         return $this->belongsToMany(Menu::class, 'role_permissions', 'role_id', 'menu_slug', 'id', 'slug')
-            ->withPivot(['can_view', 'can_add', 'can_update', 'can_delete', 'can_import', 'can_export'])
+            ->withPivot(['can_view', 'can_create', 'can_update', 'can_delete', 'can_import', 'can_export'])
             ->withTimestamps();
     }
 

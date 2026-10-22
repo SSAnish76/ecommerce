@@ -23,7 +23,7 @@ class RolePermissionFactory extends Factory
             'role_id' => Role::factory(),
             'menu_slug' => Menu::factory(),
             'can_view' => true,
-            'can_add' => false,
+            'can_create' => false,
             'can_update' => false,
             'can_delete' => false,
             'can_import' => false,
@@ -38,7 +38,7 @@ class RolePermissionFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'can_view' => true,
-            'can_add' => true,
+            'can_create' => true,
             'can_update' => true,
             'can_delete' => true,
             'can_import' => true,

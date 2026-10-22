@@ -157,7 +157,7 @@ class User extends Authenticatable
             [$menuSlug, $action] = explode('.', $permission, 2);
             $actionCol = match ($action) {
                 'view', 'index', 'show' => 'can_view',
-                'create', 'add', 'store' => 'can_add',
+                'create', 'add', 'store' => 'can_create',
                 'edit', 'update', 'roles', 'manage' => 'can_update',
                 'delete', 'destroy' => 'can_delete',
                 'import' => 'can_import',
@@ -233,7 +233,7 @@ class User extends Authenticatable
             if ($rp->can_view) {
                 $perms->push("{$rp->menu_slug}.view");
             }
-            if ($rp->can_add) {
+            if ($rp->can_create) {
                 $perms->push("{$rp->menu_slug}.create", "{$rp->menu_slug}.add");
             }
             if ($rp->can_update) {

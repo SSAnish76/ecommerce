@@ -113,7 +113,7 @@ class DatabaseMigrationsAndSeedersTest extends TestCase
         ]);
         $this->assertNotNull($rolePermission->id);
         $this->assertTrue($rolePermission->can_view);
-        $this->assertTrue($rolePermission->can_add);
+        $this->assertTrue($rolePermission->can_create);
 
         // Store factory
         $store = Store::factory()->create();

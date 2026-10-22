@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'role_id',
     'menu_slug',
     'can_view',
-    'can_add',
+    'can_create',
     'can_update',
     'can_delete',
     'can_import',
@@ -31,7 +31,7 @@ class RolePermission extends Model
     {
         return [
             'can_view' => 'boolean',
-            'can_add' => 'boolean',
+            'can_create' => 'boolean',
             'can_update' => 'boolean',
             'can_delete' => 'boolean',
             'can_import' => 'boolean',

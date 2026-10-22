@@ -179,21 +179,21 @@ class RoleController extends Controller
 
             if ($isSystem) {
                 $canView = true;
-                $canAdd = (bool) $menu->is_crud;
+                $canCreate = (bool) $menu->is_crud;
                 $canUpdate = (bool) $menu->is_crud;
                 $canDelete = (bool) $menu->is_crud;
                 $canImport = (bool) $menu->is_import_export;
                 $canExport = (bool) $menu->is_import_export;
             } elseif ($override !== null) {
                 $canView = (bool) ($override['can_view'] ?? true);
-                $canAdd = $menu->is_crud && (bool) ($override['can_add'] ?? false);
+                $canCreate = $menu->is_crud && (bool) ($override['can_create'] ?? $override['can_add'] ?? false);
                 $canUpdate = $menu->is_crud && (bool) ($override['can_update'] ?? false);
                 $canDelete = $menu->is_crud && (bool) ($override['can_delete'] ?? false);
                 $canImport = $menu->is_import_export && (bool) ($override['can_import'] ?? false);
                 $canExport = $menu->is_import_export && (bool) ($override['can_export'] ?? false);
             } else {
                 $canView = true;
-                $canAdd = (bool) $menu->is_crud;
+                $canCreate = (bool) $menu->is_crud;
                 $canUpdate = (bool) $menu->is_crud;
                 $canDelete = $menu->slug !== 'roles' && (bool) $menu->is_crud;
                 $canImport = (bool) $menu->is_import_export;
@@ -204,7 +204,7 @@ class RoleController extends Controller
                 ['role_id' => $role->id, 'menu_slug' => $menu->slug],
                 [
                     'can_view' => $canView,
-                    'can_add' => $canAdd,
+                    'can_create' => $canCreate,
                     'can_update' => $canUpdate,
                     'can_delete' => $canDelete,
                     'can_import' => $canImport,

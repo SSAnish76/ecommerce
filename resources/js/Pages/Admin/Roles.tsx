@@ -54,11 +54,11 @@ const menuIconMap: Record<string, React.ComponentType<{ className?: string }>> =
     profile: ShieldCheck,
 };
 
-type PermissionActionKey = 'can_view' | 'can_add' | 'can_update' | 'can_delete' | 'can_import' | 'can_export';
+type PermissionActionKey = 'can_view' | 'can_create' | 'can_update' | 'can_delete' | 'can_import' | 'can_export';
 
 interface MenuPermissionState {
     can_view: boolean;
-    can_add: boolean;
+    can_create: boolean;
     can_update: boolean;
     can_delete: boolean;
     can_import: boolean;
@@ -124,7 +124,7 @@ export default function RolesPage({
         role_permissions: {
             dashboard: {
                 can_view: true,
-                can_add: false,
+                can_create: false,
                 can_update: false,
                 can_delete: false,
                 can_import: false,
@@ -159,7 +159,7 @@ export default function RolesPage({
         for (const m of available_menus) {
             initialPerms[m.slug] = {
                 can_view: true,
-                can_add: Boolean(m.is_crud),
+                can_create: Boolean(m.is_crud),
                 can_update: Boolean(m.is_crud),
                 can_delete: Boolean(m.is_crud),
                 can_import: Boolean(m.is_import_export),
@@ -198,7 +198,7 @@ export default function RolesPage({
             if (existing) {
                 permsMap[m.slug] = {
                     can_view: Boolean(existing.can_view),
-                    can_add: Boolean(existing.can_add),
+                    can_create: Boolean(existing.can_create),
                     can_update: Boolean(existing.can_update),
                     can_delete: Boolean(existing.can_delete),
                     can_import: Boolean(existing.can_import),
@@ -207,7 +207,7 @@ export default function RolesPage({
             } else {
                 permsMap[m.slug] = {
                     can_view: assignedSlugs.includes(m.slug),
-                    can_add: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
+                    can_create: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
                     can_update: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
                     can_delete: assignedSlugs.includes(m.slug) && Boolean(m.is_crud),
                     can_import: assignedSlugs.includes(m.slug) && Boolean(m.is_import_export),
@@ -270,7 +270,7 @@ export default function RolesPage({
                     ...form.data.role_permissions,
                     [slug]: {
                         can_view: true,
-                        can_add: Boolean(menuObj?.is_crud),
+                        can_create: Boolean(menuObj?.is_crud),
                         can_update: Boolean(menuObj?.is_crud),
                         can_delete: Boolean(menuObj?.is_crud),
                         can_import: Boolean(menuObj?.is_import_export),
@@ -289,7 +289,7 @@ export default function RolesPage({
     ) => {
         const currentPerms = form.data.role_permissions[menuSlug] || {
             can_view: true,
-            can_add: false,
+            can_create: false,
             can_update: false,
             can_delete: false,
             can_import: false,
@@ -412,7 +412,7 @@ export default function RolesPage({
                                         <div className="flex items-center gap-1.5">
                                             {parent.is_crud && (
                                                 <div className="flex items-center gap-1 text-[11px]">
-                                                    {(['can_view', 'can_add', 'can_update', 'can_delete'] as PermissionActionKey[]).map((action) => (
+                                                    {(['can_view', 'can_create', 'can_update', 'can_delete'] as PermissionActionKey[]).map((action) => (
                                                         <button
                                                             key={action}
                                                             type="button"
@@ -460,7 +460,7 @@ export default function RolesPage({
                                                         <div className="flex items-center gap-1">
                                                             {child.is_crud && (
                                                                 <>
-                                                                    {(['can_view', 'can_add', 'can_update', 'can_delete'] as PermissionActionKey[]).map((act) => (
+                                                                    {(['can_view', 'can_create', 'can_update', 'can_delete'] as PermissionActionKey[]).map((act) => (
                                                                         <button
                                                                             key={act}
                                                                             type="button"

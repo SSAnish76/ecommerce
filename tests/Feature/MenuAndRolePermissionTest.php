@@ -89,7 +89,7 @@ class MenuAndRolePermissionTest extends TestCase
 
         $this->assertNotNull($superAdminPerm);
         $this->assertTrue($superAdminPerm->can_view);
-        $this->assertTrue($superAdminPerm->can_add);
+        $this->assertTrue($superAdminPerm->can_create);
         $this->assertTrue($superAdminPerm->can_update);
         $this->assertTrue($superAdminPerm->can_delete);
         $this->assertTrue($superAdminPerm->can_import);
@@ -107,7 +107,7 @@ class MenuAndRolePermissionTest extends TestCase
         $editorUser = User::factory()->create();
         $editorUser->assignRole($editorRole);
 
-        // Editor has can_view on users and dashboard, but not can_add or can_delete
+        // Editor has can_view on users and dashboard, but not can_create or can_delete
         $this->assertTrue($editorUser->hasPermission('users.view'));
         $this->assertFalse($editorUser->hasPermission('users.create'));
         $this->assertFalse($editorUser->hasPermission('users.delete'));
@@ -143,7 +143,7 @@ class MenuAndRolePermissionTest extends TestCase
             'role_permissions' => [
                 'products' => [
                     'can_view' => true,
-                    'can_add' => true,
+                    'can_create' => true,
                     'can_update' => true,
                     'can_delete' => false,
                     'can_import' => true,
@@ -165,7 +165,7 @@ class MenuAndRolePermissionTest extends TestCase
 
         $this->assertNotNull($productPerm);
         $this->assertTrue($productPerm->can_view);
-        $this->assertTrue($productPerm->can_add);
+        $this->assertTrue($productPerm->can_create);
         $this->assertTrue($productPerm->can_update);
         $this->assertFalse($productPerm->can_delete);
         $this->assertTrue($productPerm->can_import);
@@ -183,7 +183,7 @@ class MenuAndRolePermissionTest extends TestCase
             'role_permissions' => [
                 'inventory' => [
                     'can_view' => true,
-                    'can_add' => false,
+                    'can_create' => false,
                     'can_update' => true,
                     'can_delete' => false,
                     'can_import' => true,
@@ -202,7 +202,7 @@ class MenuAndRolePermissionTest extends TestCase
         $invPerm = RolePermission::where('role_id', $role->id)->where('menu_slug', 'inventory')->first();
         $this->assertNotNull($invPerm);
         $this->assertTrue($invPerm->can_view);
-        $this->assertFalse($invPerm->can_add);
+        $this->assertFalse($invPerm->can_create);
         $this->assertTrue($invPerm->can_update);
     }
 
