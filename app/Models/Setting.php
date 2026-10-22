@@ -691,6 +691,16 @@ class Setting extends Model
             $result['notify_new_review_admin_email'] ??= true;
             $result['notify_new_review_admin_sms'] ??= false;
 
+            // Admin Alert Routing Defaults
+            $result['admin_alert_recipient_type'] ??= 'email';
+            $result['admin_alert_email'] ??= 'admin@example.com';
+            $result['admin_alert_roles'] = is_array($result['admin_alert_roles'] ?? null)
+                ? $result['admin_alert_roles']
+                : (json_decode((string) ($result['admin_alert_roles'] ?? '[]'), true) ?: []);
+            $result['admin_alert_users'] = is_array($result['admin_alert_users'] ?? null)
+                ? $result['admin_alert_users']
+                : (json_decode((string) ($result['admin_alert_users'] ?? '[]'), true) ?: []);
+
             // Remove legacy notify keys from returned settings
             unset(
                 $result['notify_order_placed_customer'],

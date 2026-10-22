@@ -95,9 +95,11 @@ abstract class BaseNotificationListener
     }
 
     /**
-     * Get the store administrator's alert email address.
+     * Get the store administrator's alert email address or addresses.
+     *
+     * @return string|list<string>
      */
-    protected function adminEmail(): string
+    protected function adminEmail(): string|array
     {
         return $this->notifications->adminEmail();
     }

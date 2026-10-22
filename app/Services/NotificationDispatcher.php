@@ -40,9 +40,11 @@ class NotificationDispatcher
     private ?array $storeInfoCache = null;
 
     /**
-     * In-memory cache for admin alert email address.
+     * In-memory cache for admin alert email address or list of addresses.
+     *
+     * @var string|list<string>|null
      */
-    private ?string $adminEmailCache = null;
+    private string|array|null $adminEmailCache = null;
 
     /**
      * Create a new notification dispatcher instance.
@@ -131,9 +133,11 @@ class NotificationDispatcher
     }
 
     /**
-     * Get the configured administrator alert email address (memoized).
+     * Get the configured administrator alert email address or addresses (memoized).
+     *
+     * @return string|list<string>
      */
-    public function adminEmail(): string
+    public function adminEmail(): string|array
     {
         return $this->adminEmailCache ??= $this->email()->getAdminAlertEmail();
     }

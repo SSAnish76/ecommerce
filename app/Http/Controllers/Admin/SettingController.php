@@ -8,7 +8,9 @@ use App\Enums\Product\StockVisibility;
 use App\Enums\Setting\MailEncryption;
 use App\Enums\Setting\SmsProvider;
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\Setting;
+use App\Models\User;
 use App\Support\Constants;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +29,8 @@ class SettingController extends Controller
             'settings' => Setting::getAllKeyValues(),
             'timezones' => Constants::timezones(),
             'currencies' => Constants::currencies(),
+            'roles' => Role::query()->select('id', 'name')->orderBy('name')->get(),
+            'staffUsers' => User::query()->select('id', 'name', 'email', 'role_id')->orderBy('name')->get(),
         ]);
     }
 
@@ -132,6 +136,14 @@ class SettingController extends Controller
             'notify_low_stock_admin_sms' => ['sometimes', 'boolean'],
             'notify_new_review_admin_email' => ['sometimes', 'boolean'],
             'notify_new_review_admin_sms' => ['sometimes', 'boolean'],
+
+            // Admin & Staff Alerts Recipient Routing
+            'admin_alert_recipient_type' => ['sometimes', 'nullable', 'string', 'in:email,roles,users'],
+            'admin_alert_email' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'admin_alert_roles' => ['sometimes', 'nullable', 'array'],
+            'admin_alert_roles.*' => ['string'],
+            'admin_alert_users' => ['sometimes', 'nullable', 'array'],
+            'admin_alert_users.*' => ['string'],
         ]);
 
         // 1. Bundle Payment Gateways & Methods
@@ -334,7 +346,6 @@ class SettingController extends Controller
                 'shipping_free_shipping_enabled',
                 'shipping_free_shipping_min_order',
                 'mail_mailer',
-                'admin_alert_email',
                 'enable_email_notifications',
                 'enable_in_app_notifications',
                 'maintenance_mode',
@@ -362,6 +373,21 @@ class SettingController extends Controller
         $input['shipping_settings'] = $shippingSettings;
         $input['mail_settings'] = $mailSettings;
         $input['sms_settings'] = $smsSettings;
+
+        // Filter admin alert recipient settings: ONLY save the active option's data
+        if (isset($input['admin_alert_recipient_type'])) {
+            $recipientType = $input['admin_alert_recipient_type'];
+            if ($recipientType === 'email') {
+                $input['admin_alert_roles'] = [];
+                $input['admin_alert_users'] = [];
+            } elseif ($recipientType === 'roles') {
+                $input['admin_alert_users'] = [];
+                $input['admin_alert_email'] = '';
+            } elseif ($recipientType === 'users') {
+                $input['admin_alert_roles'] = [];
+                $input['admin_alert_email'] = '';
+            }
+        }
 
         Setting::setMany($input);
 

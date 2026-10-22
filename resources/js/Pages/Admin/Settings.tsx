@@ -13,6 +13,7 @@ import {
     Button,
     Input,
     Select,
+    SelectOption,
     Toggle,
     Badge,
     PageHeader,
@@ -45,7 +46,9 @@ import {
     Star,
     UserCheck,
     XCircle,
+    Users,
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface SettingsProps extends PageProps {
     settings: {
@@ -106,12 +109,26 @@ interface SettingsProps extends PageProps {
         notify_low_stock_admin_sms?: boolean;
         notify_new_review_admin_email?: boolean;
         notify_new_review_admin_sms?: boolean;
+
+        // Admin Alert Routing
+        admin_alert_recipient_type?: 'email' | 'roles' | 'users';
+        admin_alert_email?: string;
+        admin_alert_roles?: string[];
+        admin_alert_users?: string[];
     };
     timezones: Record<string, string>;
     currencies: Array<{ code: string; symbol: string; name: string }>;
+    roles?: Array<{ id: string; name: string }>;
+    staffUsers?: Array<{ id: string; name: string; email: string; role_id?: string | null }>;
 }
 
-export default function Settings({ settings, timezones, currencies }: SettingsProps) {
+export default function Settings({
+    settings,
+    timezones,
+    currencies,
+    roles = [],
+    staffUsers = [],
+}: SettingsProps) {
     const { getOptions, constants, toOptions } = useEssentials();
 
     const stockVisibilityOptions = getOptions<StockVisibility>('stock_visibility');
@@ -293,6 +310,12 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
         notify_low_stock_admin_sms: settings?.notify_low_stock_admin_sms ?? false,
         notify_new_review_admin_email: settings?.notify_new_review_admin_email ?? true,
         notify_new_review_admin_sms: settings?.notify_new_review_admin_sms ?? false,
+
+        // Admin Alert Routing
+        admin_alert_recipient_type: (settings?.admin_alert_recipient_type as 'email' | 'roles' | 'users') ?? 'email',
+        admin_alert_email: settings?.admin_alert_email ?? 'admin@example.com',
+        admin_alert_roles: Array.isArray(settings?.admin_alert_roles) ? settings.admin_alert_roles : [],
+        admin_alert_users: Array.isArray(settings?.admin_alert_users) ? settings.admin_alert_users : [],
     });
 
     const handleCurrencySelect = (code: string) => {
@@ -1564,7 +1587,7 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                         </div>
 
                         {/* Admin Alerts Group */}
-                        <div className="space-y-3 pt-2">
+                        <div className="space-y-3.5 pt-2">
                             <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800/80">
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
@@ -1580,6 +1603,167 @@ export default function Settings({ settings, timezones, currencies }: SettingsPr
                                         <span className="flex items-center gap-1.5"><MessageSquare className="w-3 h-3 text-emerald-500" /> SMS</span>
                                     )}
                                 </div>
+                            </div>
+
+                            {/* Recipient Delivery Target Configuration */}
+                            <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                            Admin Alerts Delivery Target
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                            Choose who receives notifications for admin events
+                                        </div>
+                                    </div>
+
+                                    {/* Routing Mode Toggle: Email / Roles / Users */}
+                                    <div className="inline-flex p-0.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setData('admin_alert_recipient_type', 'email')}
+                                            className={cn(
+                                                'px-2.5 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 cursor-pointer',
+                                                form.data.admin_alert_recipient_type === 'email'
+                                                    ? 'bg-blue-600 text-white shadow-sm'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                            )}
+                                        >
+                                            <Mail className="w-3.5 h-3.5" />
+                                            Default Email
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setData('admin_alert_recipient_type', 'roles')}
+                                            className={cn(
+                                                'px-2.5 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 cursor-pointer',
+                                                form.data.admin_alert_recipient_type === 'roles'
+                                                    ? 'bg-blue-600 text-white shadow-sm'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                            )}
+                                        >
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            By Role
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setData('admin_alert_recipient_type', 'users')}
+                                            className={cn(
+                                                'px-2.5 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 cursor-pointer',
+                                                form.data.admin_alert_recipient_type === 'users'
+                                                    ? 'bg-blue-600 text-white shadow-sm'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                            )}
+                                        >
+                                            <Users className="w-3.5 h-3.5" />
+                                            By User
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Option 1: Default Email */}
+                                {form.data.admin_alert_recipient_type === 'email' && (
+                                    <div className="pt-1">
+                                        <Input
+                                            label="Alert Recipient Email Address"
+                                            placeholder="e.g. admin@yourstore.com"
+                                            value={form.data.admin_alert_email}
+                                            onChange={(e) => form.setData('admin_alert_email', e.target.value)}
+                                            error={form.errors.admin_alert_email}
+                                            leftIcon={<Mail className="w-4 h-4" />}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Option 2: By Role */}
+                                {form.data.admin_alert_recipient_type === 'roles' && (
+                                    <div className="pt-1 space-y-2">
+                                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                                            Select Roles to Receive Alerts
+                                        </span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {roles && roles.length > 0 ? (
+                                                roles.map((role) => {
+                                                    const isSelected = form.data.admin_alert_roles?.includes(role.id);
+                                                    return (
+                                                        <button
+                                                            key={role.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const current = form.data.admin_alert_roles || [];
+                                                                const next = isSelected
+                                                                    ? current.filter((id) => id !== role.id)
+                                                                    : [...current, role.id];
+                                                                form.setData('admin_alert_roles', next);
+                                                            }}
+                                                            className={cn(
+                                                                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-2 cursor-pointer',
+                                                                isSelected
+                                                                    ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20'
+                                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
+                                                            )}
+                                                        >
+                                                            <span className={cn('w-2 h-2 rounded-full', isSelected ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600')} />
+                                                            {role.name}
+                                                            {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                                                        </button>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-xs text-slate-400 italic">No roles configured</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Option 3: By Specific Users */}
+                                {form.data.admin_alert_recipient_type === 'users' && (
+                                    <div className="pt-1 space-y-2">
+                                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                                            Select Staff Users to Receive Alerts
+                                        </span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                                            {staffUsers && staffUsers.length > 0 ? (
+                                                staffUsers.map((user) => {
+                                                    const isSelected = form.data.admin_alert_users?.includes(user.id);
+                                                    return (
+                                                        <button
+                                                            key={user.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const current = form.data.admin_alert_users || [];
+                                                                const next = isSelected
+                                                                    ? current.filter((id) => id !== user.id)
+                                                                    : [...current, user.id];
+                                                                form.setData('admin_alert_users', next);
+                                                            }}
+                                                            className={cn(
+                                                                'p-2.5 rounded-lg text-left border transition-all flex items-center justify-between gap-2 cursor-pointer',
+                                                                isSelected
+                                                                    ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 ring-1 ring-blue-500/20'
+                                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                                                            )}
+                                                        >
+                                                            <div className="min-w-0">
+                                                                <div className={cn('text-xs font-semibold truncate', isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200')}>
+                                                                    {user.name}
+                                                                </div>
+                                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                                                    {user.email}
+                                                                </div>
+                                                            </div>
+                                                            <div className={cn('w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all', isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-slate-600')}>
+                                                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-xs text-slate-400 italic">No staff users found</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 gap-2.5">

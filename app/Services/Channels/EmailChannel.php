@@ -7,6 +7,7 @@ namespace App\Services\Channels;
 use App\Jobs\SendEmailJob;
 use App\Models\Setting;
 use App\Models\Store;
+use App\Models\User;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -59,14 +60,68 @@ class EmailChannel implements ChannelInterface
     }
 
     /**
-     * Get the configured administrator alert email address.
+     * Get the configured administrator alert email address or addresses.
+     *
+     * @return string|list<string>
      */
-    public function getAdminAlertEmail(): string
+    public function getAdminAlertEmail(): string|array
     {
+        $type = (string) Setting::get('admin_alert_recipient_type', 'email');
+
+        if ($type === 'roles') {
+            $roleIds = Setting::get('admin_alert_roles', []);
+            if (is_string($roleIds)) {
+                $roleIds = json_decode($roleIds, true) ?: array_filter(explode(',', $roleIds));
+            }
+            if (! empty($roleIds)) {
+                $emails = User::query()
+                    ->whereIn('role_id', (array) $roleIds)
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->pluck('email')
+                    ->filter(fn ($e) => is_string($e) && filter_var($e, FILTER_VALIDATE_EMAIL))
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                if (! empty($emails)) {
+                    return count($emails) === 1 ? $emails[0] : $emails;
+                }
+            }
+        }
+
+        if ($type === 'users') {
+            $userIds = Setting::get('admin_alert_users', []);
+            if (is_string($userIds)) {
+                $userIds = json_decode($userIds, true) ?: array_filter(explode(',', $userIds));
+            }
+            if (! empty($userIds)) {
+                $emails = User::query()
+                    ->whereIn('id', (array) $userIds)
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->pluck('email')
+                    ->filter(fn ($e) => is_string($e) && filter_var($e, FILTER_VALIDATE_EMAIL))
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                if (! empty($emails)) {
+                    return count($emails) === 1 ? $emails[0] : $emails;
+                }
+            }
+        }
+
         $email = (string) Setting::get('admin_alert_email', '');
 
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $email;
+        if ($email !== '') {
+            $emails = array_filter(
+                array_map('trim', explode(',', $email)),
+                fn ($e) => filter_var($e, FILTER_VALIDATE_EMAIL)
+            );
+            if (! empty($emails)) {
+                return count($emails) === 1 ? reset($emails) : array_values($emails);
+            }
         }
 
         $storeEmail = (string) Store::current()->email;

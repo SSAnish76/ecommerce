@@ -325,4 +325,58 @@ class SettingTest extends TestCase
         $this->assertTrue(Setting::get('shipping_ups_enabled'));
         $this->assertTrue(Setting::get('shipping_dhl_enabled'));
     }
+
+    /**
+     * Test admin alert recipient settings only saves data for the active chosen target option.
+     */
+    public function test_admin_alert_recipient_settings_only_persists_chosen_option_data(): void
+    {
+        // 1. Save with 'roles' option chosen
+        $payloadRoles = [
+            'admin_alert_recipient_type' => 'roles',
+            'admin_alert_roles' => ['1', '2'],
+            'admin_alert_users' => ['5', '6'],
+            'admin_alert_email' => 'leftover@example.com',
+        ];
+
+        $response = $this->actingAs($this->adminUser)->post('/admin/settings', $payloadRoles);
+        $response->assertSessionHasNoErrors();
+
+        $this->assertSame('roles', Setting::get('admin_alert_recipient_type'));
+        $this->assertSame(['1', '2'], Setting::get('admin_alert_roles'));
+        $this->assertSame([], Setting::get('admin_alert_users'));
+        $this->assertSame('', Setting::get('admin_alert_email'));
+
+        // 2. Save with 'users' option chosen
+        $payloadUsers = [
+            'admin_alert_recipient_type' => 'users',
+            'admin_alert_roles' => ['1'],
+            'admin_alert_users' => ['9'],
+            'admin_alert_email' => 'another@example.com',
+        ];
+
+        $response = $this->actingAs($this->adminUser)->post('/admin/settings', $payloadUsers);
+        $response->assertSessionHasNoErrors();
+
+        $this->assertSame('users', Setting::get('admin_alert_recipient_type'));
+        $this->assertSame(['9'], Setting::get('admin_alert_users'));
+        $this->assertSame([], Setting::get('admin_alert_roles'));
+        $this->assertSame('', Setting::get('admin_alert_email'));
+
+        // 3. Save with 'email' option chosen
+        $payloadEmail = [
+            'admin_alert_recipient_type' => 'email',
+            'admin_alert_email' => 'alerts@mycustomdomain.com',
+            'admin_alert_roles' => ['3'],
+            'admin_alert_users' => ['10'],
+        ];
+
+        $response = $this->actingAs($this->adminUser)->post('/admin/settings', $payloadEmail);
+        $response->assertSessionHasNoErrors();
+
+        $this->assertSame('email', Setting::get('admin_alert_recipient_type'));
+        $this->assertSame('alerts@mycustomdomain.com', Setting::get('admin_alert_email'));
+        $this->assertSame([], Setting::get('admin_alert_roles'));
+        $this->assertSame([], Setting::get('admin_alert_users'));
+    }
 }
