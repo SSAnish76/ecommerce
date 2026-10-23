@@ -75,13 +75,49 @@ class CollectionController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Admin/Collections', [
+        return Inertia::render('Admin/Collections/Index', [
             'collections' => $collections,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
                 'type' => $type,
             ],
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new collection.
+     */
+    public function create(): Response
+    {
+        $productOptions = Product::query()->active()->orderBy('name')->get(['id', 'name', 'sku', 'sale_price', 'retail_price']);
+        $brandOptions = Brand::query()->active()->with('logo')->orderBy('name')->get(['id', 'name', 'logo_id']);
+        $categoryOptions = Category::query()->active()->orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('Admin/Collections/CreateOrEdit', [
+            'collection' => null,
+            'options' => [
+                'products' => $productOptions,
+                'brands' => $brandOptions,
+                'categories' => $categoryOptions,
+                'types' => CollectionType::options(),
+            ],
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified collection.
+     */
+    public function edit(Collection $collection): Response
+    {
+        $collection->load(['products:id,name,sku,sale_price,retail_price', 'brands:id,name,logo_id', 'categories:id,name']);
+
+        $productOptions = Product::query()->active()->orderBy('name')->get(['id', 'name', 'sku', 'sale_price', 'retail_price']);
+        $brandOptions = Brand::query()->active()->with('logo')->orderBy('name')->get(['id', 'name', 'logo_id']);
+        $categoryOptions = Category::query()->active()->orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('Admin/Collections/CreateOrEdit', [
+            'collection' => $collection,
             'options' => [
                 'products' => $productOptions,
                 'brands' => $brandOptions,
@@ -134,7 +170,7 @@ class CollectionController extends Controller
 
         $this->syncCollectionItems($collection, $validated);
 
-        return redirect()->back()->with('success', "Collection '{$collection->name}' created successfully.");
+        return redirect()->route('admin.collections.index')->with('success', "Collection '{$collection->name}' created successfully.");
     }
 
     /**
@@ -180,7 +216,7 @@ class CollectionController extends Controller
 
         $this->syncCollectionItems($collection, $validated);
 
-        return redirect()->back()->with('success', "Collection '{$collection->name}' updated successfully.");
+        return redirect()->route('admin.collections.index')->with('success', "Collection '{$collection->name}' updated successfully.");
     }
 
     /**
@@ -191,7 +227,7 @@ class CollectionController extends Controller
         $name = $collection->name;
         $collection->delete();
 
-        return redirect()->back()->with('success', "Collection '{$name}' deleted successfully.");
+        return redirect()->route('admin.collections.index')->with('success', "Collection '{$name}' deleted successfully.");
     }
 
     /**

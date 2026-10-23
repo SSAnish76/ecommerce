@@ -99,7 +99,7 @@ class CouponController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Admin/Coupons', [
+        return Inertia::render('Admin/Coupons/Index', [
             'coupons' => $coupons,
             'filters' => [
                 'search' => $search,
@@ -107,14 +107,47 @@ class CouponController extends Controller
                 'type' => $type,
                 'applies_to' => $appliesTo,
             ],
-            'options' => [
-                'products' => $productOptions,
-                'categories' => $categoryOptions,
-                'collections' => $collectionOptions,
-                'types' => CouponType::options(),
-                'applies_to' => CouponApplyTo::options(),
-            ],
         ]);
+    }
+
+    /**
+     * Show the form for creating a new coupon.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Admin/Coupons/CreateOrEdit', [
+            'coupon' => null,
+            'options' => $this->getFormOptions(),
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified coupon.
+     */
+    public function edit(Coupon $coupon): Response
+    {
+        $coupon->load(['products:id,name,sku,retail_price,sale_price', 'categories:id,name', 'collections:id,name']);
+
+        return Inertia::render('Admin/Coupons/CreateOrEdit', [
+            'coupon' => $coupon,
+            'options' => $this->getFormOptions(),
+        ]);
+    }
+
+    /**
+     * Get options for create/edit forms.
+     *
+     * @return array<string, mixed>
+     */
+    protected function getFormOptions(): array
+    {
+        return [
+            'products' => Product::query()->active()->orderBy('name')->get(['id', 'name', 'sku', 'retail_price', 'sale_price', 'category_id']),
+            'categories' => Category::query()->active()->orderBy('name')->get(['id', 'name']),
+            'collections' => Collection::query()->active()->orderBy('name')->get(['id', 'name']),
+            'types' => CouponType::options(),
+            'applies_to' => CouponApplyTo::options(),
+        ];
     }
 
     /**
@@ -175,7 +208,7 @@ class CouponController extends Controller
         // Sync relationships based on applies_to
         $this->syncCouponRelations($coupon, $validated);
 
-        return redirect()->back()->with('success', "Coupon '{$coupon->code}' created successfully.");
+        return redirect()->route('admin.coupons.index')->with('success', "Coupon '{$coupon->code}' created successfully.");
     }
 
     /**
@@ -235,7 +268,7 @@ class CouponController extends Controller
         // Sync relationships
         $this->syncCouponRelations($coupon, $validated);
 
-        return redirect()->back()->with('success', "Coupon '{$coupon->code}' updated successfully.");
+        return redirect()->route('admin.coupons.index')->with('success', "Coupon '{$coupon->code}' updated successfully.");
     }
 
     /**
@@ -246,7 +279,7 @@ class CouponController extends Controller
         $code = $coupon->code;
         $coupon->delete();
 
-        return redirect()->back()->with('success', "Coupon '{$code}' deleted successfully.");
+        return redirect()->route('admin.coupons.index')->with('success', "Coupon '{$code}' deleted successfully.");
     }
 
     /**

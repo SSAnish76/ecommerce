@@ -192,9 +192,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/collections', [CollectionController::class, 'index'])
             ->middleware('permission:collections.view')
             ->name('collections.index');
+        Route::get('/collections/create', [CollectionController::class, 'create'])
+            ->middleware('permission:collections.create')
+            ->name('collections.create');
         Route::post('/collections', [CollectionController::class, 'store'])
             ->middleware('permission:collections.create')
             ->name('collections.store');
+        Route::get('/collections/{collection}/edit', [CollectionController::class, 'edit'])
+            ->middleware('permission:collections.edit')
+            ->name('collections.edit');
         Route::put('/collections/{collection}', [CollectionController::class, 'update'])
             ->middleware('permission:collections.edit')
             ->name('collections.update');
@@ -217,9 +223,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/coupons', [CouponController::class, 'index'])
             ->middleware('permission:coupons.view')
             ->name('coupons.index');
+        Route::get('/coupons/create', [CouponController::class, 'create'])
+            ->middleware('permission:coupons.create')
+            ->name('coupons.create');
         Route::post('/coupons', [CouponController::class, 'store'])
             ->middleware('permission:coupons.create')
             ->name('coupons.store');
+        Route::get('/coupons/{coupon}/edit', [CouponController::class, 'edit'])
+            ->middleware('permission:coupons.edit')
+            ->name('coupons.edit');
         Route::put('/coupons/{coupon}', [CouponController::class, 'update'])
             ->middleware('permission:coupons.edit')
             ->name('coupons.update');
