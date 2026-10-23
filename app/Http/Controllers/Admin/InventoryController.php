@@ -25,7 +25,7 @@ class InventoryController extends Controller
         $stockFilter = $request->string('stock_status')->trim()->value();
 
         $products = Product::query()
-            ->with(['brand:id,name', 'category:id,name', 'variants'])
+            ->with(['brand:id,name', 'category:id,name', 'variants.media'])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")

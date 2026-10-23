@@ -8,6 +8,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\MediaFile;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -152,7 +153,16 @@ class CatalogManagementTest extends TestCase
 
     public function test_admin_can_view_inventory_and_update_stock(): void
     {
-        $product = Product::factory()->create(['stock_quantity' => 20]);
+        $product = Product::factory()->create([
+            'stock_quantity' => 20,
+            'has_variants' => true,
+        ]);
+
+        $variant = ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'stock_quantity' => 10,
+            'low_stock_threshold' => 3,
+        ]);
 
         $indexRes = $this->actingAs($this->adminUser)->get('/admin/inventory');
         $indexRes->assertStatus(200);
@@ -167,6 +177,18 @@ class CatalogManagementTest extends TestCase
             'id' => $product->id,
             'stock_quantity' => 45,
             'low_stock_threshold' => 8,
+        ]);
+
+        $variantRes = $this->actingAs($this->adminUser)->put("/admin/inventory/variant/{$variant->id}", [
+            'stock_quantity' => 25,
+            'low_stock_threshold' => 4,
+        ]);
+
+        $variantRes->assertSessionHas('success');
+        $this->assertDatabaseHas('product_variants', [
+            'id' => $variant->id,
+            'stock_quantity' => 25,
+            'low_stock_threshold' => 4,
         ]);
     }
 

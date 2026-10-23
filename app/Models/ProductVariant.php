@@ -100,8 +100,12 @@ class ProductVariant extends Model
      */
     public function getImageUrlAttribute(): ?string
     {
-        if ($this->media !== null && ! empty($this->media->url)) {
-            return $this->media->url;
+        if ($this->relationLoaded('media')) {
+            return $this->media?->url;
+        }
+
+        if (! empty($this->media_id)) {
+            return MediaFile::find($this->media_id)?->url;
         }
 
         if (! empty($this->image_path)) {

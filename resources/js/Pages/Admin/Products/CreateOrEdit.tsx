@@ -858,7 +858,7 @@ export default function CreateOrEditProductPage({
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                                 <Select
-                                    label="Storefront Status"
+                                    label="Status"
                                     value={form.data.status}
                                     onChange={(e) => form.setData('status', e.target.value)}
                                     options={statuses}
@@ -866,7 +866,7 @@ export default function CreateOrEditProductPage({
                                 />
 
                                 <Select
-                                    label="Product Category"
+                                    label="Category"
                                     value={form.data.category_id}
                                     onChange={(e) => form.setData('category_id', e.target.value)}
                                     options={[
@@ -882,7 +882,7 @@ export default function CreateOrEditProductPage({
                                 />
 
                                 <Select
-                                    label="Brand / Manufacturer"
+                                    label="Brand"
                                     value={form.data.brand_id}
                                     onChange={(e) => form.setData('brand_id', e.target.value)}
                                     options={[

@@ -82,7 +82,15 @@ class Store extends Model
      */
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo?->url;
+        if ($this->relationLoaded('logo')) {
+            return $this->logo?->url;
+        }
+
+        if (! empty($this->logo_id)) {
+            return MediaFile::find($this->logo_id)?->url;
+        }
+
+        return null;
     }
 
     /**
@@ -90,7 +98,15 @@ class Store extends Model
      */
     public function getFaviconUrlAttribute(): ?string
     {
-        return $this->favicon?->url;
+        if ($this->relationLoaded('favicon')) {
+            return $this->favicon?->url;
+        }
+
+        if (! empty($this->favicon_id)) {
+            return MediaFile::find($this->favicon_id)?->url;
+        }
+
+        return null;
     }
 
     /**
