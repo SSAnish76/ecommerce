@@ -576,10 +576,10 @@ export default function InventoryPage({
                                                                     saveSingleItem(prod.id, 'product');
                                                                 }
                                                             }}
-                                                            className={`w-24 px-2 py-1 text-sm font-bold rounded-lg border text-right transition-all font-mono focus:outline-none focus:ring-2 ${
+                                                            className={`w-24 px-2.5 py-1 text-sm font-bold rounded-lg border text-right transition-all font-mono focus:outline-none focus:ring-2 shadow-2xs ${
                                                                 isProdModified
-                                                                    ? 'border-amber-400 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 ring-1 ring-amber-400'
-                                                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+                                                                    ? 'border-amber-500 bg-amber-50/90 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 ring-1 ring-amber-400'
+                                                                    : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600 focus:border-indigo-600 focus:ring-indigo-500/20'
                                                             }`}
                                                         />
                                                         {isProdModified && (
@@ -729,10 +729,10 @@ export default function InventoryPage({
                                                                                 if (v.id) saveSingleItem(v.id, 'variant');
                                                                             }
                                                                         }}
-                                                                        className={`w-24 px-2 py-1 text-sm font-bold rounded-lg border text-right transition-all font-mono focus:outline-none focus:ring-2 ${
+                                                                        className={`w-24 px-2.5 py-1 text-sm font-bold rounded-lg border text-right transition-all font-mono focus:outline-none focus:ring-2 shadow-2xs ${
                                                                             isVModified
-                                                                                ? 'border-amber-400 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 ring-1 ring-amber-400'
-                                                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+                                                                                ? 'border-amber-500 bg-amber-50/90 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 ring-1 ring-amber-400'
+                                                                                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600 focus:border-indigo-600 focus:ring-indigo-500/20'
                                                                         }`}
                                                                     />
                                                                     {isVModified && (

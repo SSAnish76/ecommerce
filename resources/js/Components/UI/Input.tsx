@@ -45,7 +45,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
                 <div className="relative flex items-center rounded-xl shadow-2xs">
                     {prefixText && (
-                        <span className="inline-flex items-center px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-r-0 border-slate-200/90 dark:border-slate-700/80 rounded-l-xl h-10 select-none">
+                        <span className="inline-flex items-center px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-r-0 border-slate-300 dark:border-slate-700 rounded-l-xl h-10 select-none">
                             {prefixText}
                         </span>
                     )}
@@ -62,8 +62,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         disabled={disabled}
                         required={required}
                         className={cn(
-                            'w-full h-10 px-3.5 text-xs sm:text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 border border-slate-200/90 dark:border-slate-700/80 rounded-xl transition-all duration-150',
-                            'focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
+                            'w-full h-10 px-3.5 text-xs sm:text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-xl transition-all duration-150',
+                            'focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 dark:focus:border-indigo-500',
                             leftIcon && 'pl-10',
                             rightIcon && 'pr-10',
                             prefixText && 'rounded-l-none',
@@ -78,7 +78,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     />
 
                     {suffixText && (
-                        <span className="inline-flex items-center px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-l-0 border-slate-200/90 dark:border-slate-700/80 rounded-r-xl h-10 select-none">
+                        <span className="inline-flex items-center px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-l-0 border-slate-300 dark:border-slate-700 rounded-r-xl h-10 select-none">
                             {suffixText}
                         </span>
                     )}

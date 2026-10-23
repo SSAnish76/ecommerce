@@ -178,9 +178,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                             <ListboxButton
                                 className={cn(
                                     'w-full flex items-center justify-between text-left transition-all duration-150 cursor-pointer select-none',
-                                    'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/90 dark:border-slate-700/80 shadow-2xs',
-                                    'hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none',
-                                    open && 'ring-2 ring-indigo-500/20 border-indigo-500 dark:border-indigo-500 shadow-xs',
+                                    'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 shadow-2xs',
+                                    'hover:border-slate-400 dark:hover:border-slate-600 focus:outline-none',
+                                    open && 'ring-2 ring-indigo-500/20 border-indigo-600 dark:border-indigo-500 shadow-xs',
                                     error && 'border-rose-400 dark:border-rose-500/60 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20',
                                     disabled && 'opacity-60 bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed border-slate-200 dark:border-slate-800',
                                     sizeClasses,
