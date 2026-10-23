@@ -56,6 +56,14 @@ class SettingSeeder extends Seeder
                 'label' => 'Require 2FA For Admin Access',
                 'description' => 'Block admin dashboard access until TOTP 2FA is verified',
             ],
+            [
+                'key' => 'menu_delivery_mode',
+                'value' => 'api',
+                'group' => 'system',
+                'type' => 'string',
+                'label' => 'Navigation Menu Delivery Mode',
+                'description' => 'Navigation delivery strategy: api (REST API + LocalStorage) or inertia (Shared props)',
+            ],
 
             // ================= 2. Orders & Checkout =================
             [
@@ -176,6 +184,24 @@ class SettingSeeder extends Seeder
                 'value' => json_encode([
                     'carrier' => [
                         'provider' => 'none',
+                        'account_number' => '',
+                        'api_key' => '',
+                        'api_secret' => Setting::encryptSensitive(''),
+                    ],
+                    'fedex' => [
+                        'enabled' => false,
+                        'account_number' => '',
+                        'api_key' => '',
+                        'api_secret' => Setting::encryptSensitive(''),
+                    ],
+                    'ups' => [
+                        'enabled' => false,
+                        'account_number' => '',
+                        'api_key' => '',
+                        'api_secret' => Setting::encryptSensitive(''),
+                    ],
+                    'dhl' => [
+                        'enabled' => false,
                         'account_number' => '',
                         'api_key' => '',
                         'api_secret' => Setting::encryptSensitive(''),
@@ -369,6 +395,40 @@ class SettingSeeder extends Seeder
                 'label' => 'Admin SMS: New Product Review Submitted',
                 'description' => 'Send SMS alert to store manager on new customer review',
             ],
+
+            // ================= 8. Admin Alert Routing =================
+            [
+                'key' => 'admin_alert_recipient_type',
+                'value' => 'email',
+                'group' => 'notifications',
+                'type' => 'string',
+                'label' => 'Admin Alert Recipient Mode',
+                'description' => 'Target for staff notifications: email, roles, or users',
+            ],
+            [
+                'key' => 'admin_alert_email',
+                'value' => 'admin@example.com',
+                'group' => 'notifications',
+                'type' => 'string',
+                'label' => 'Admin Alert Email Recipient',
+                'description' => 'Dedicated staff email address to receive administrative order and stock notifications',
+            ],
+            [
+                'key' => 'admin_alert_roles',
+                'value' => '[]',
+                'group' => 'notifications',
+                'type' => 'json',
+                'label' => 'Admin Alert Target Roles',
+                'description' => 'Staff role IDs to receive admin email notifications',
+            ],
+            [
+                'key' => 'admin_alert_users',
+                'value' => '[]',
+                'group' => 'notifications',
+                'type' => 'json',
+                'label' => 'Admin Alert Target Users',
+                'description' => 'Specific staff user IDs to receive admin email notifications',
+            ],
         ];
 
         foreach ($defaultSettings as $setting) {
@@ -386,7 +446,6 @@ class SettingSeeder extends Seeder
             'lockout_duration_minutes',
             'require_strong_passwords',
             'min_order_amount',
-            'admin_alert_email',
             'enable_email_notifications',
             'enable_in_app_notifications',
             'maintenance_mode',
@@ -418,6 +477,13 @@ class SettingSeeder extends Seeder
             'payment_cod_enabled',
             'payment_stripe_enabled',
             'payment_paypal_enabled',
+            'notify_order_placed_customer',
+            'notify_order_placed_admin',
+            'notify_order_status_updated',
+            'notify_order_cancelled',
+            'notify_low_stock_admin',
+            'notify_new_customer_welcome',
+            'notify_new_review_admin',
         ])->delete();
 
         Setting::clearCache();

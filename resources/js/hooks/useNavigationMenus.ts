@@ -67,7 +67,7 @@ export function clearNavigationMenuCache() {
 }
 
 export function useNavigationMenus() {
-    const { auth, menus: propsMenus, menu_delivery_mode = 'inertia', menu_version = 1 } = usePage<PageProps>().props;
+    const { auth, menus: propsMenus, menu_delivery_mode = 'api', menu_version = 1 } = usePage<PageProps>().props;
     const user = auth?.user;
     const userId = user?.id;
 

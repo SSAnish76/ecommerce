@@ -182,76 +182,6 @@ class Setting extends Model
             return data_get($all, $key, $default);
         }
 
-        // Backward compatibility mappings for legacy individual mail_* keys
-        $mailMap = [
-            'mail_host' => 'host',
-            'mail_port' => 'port',
-            'mail_username' => 'username',
-            'mail_password' => 'password',
-            'mail_encryption' => 'encryption',
-            'mail_from_name' => 'from_name',
-            'mail_from_address' => 'from_address',
-        ];
-
-        if (isset($mailMap[$key]) && isset($all['mail_settings']) && is_array($all['mail_settings'])) {
-            return $all['mail_settings'][$mailMap[$key]] ?? $default;
-        }
-
-        // Backward compatibility mappings for legacy individual sms_* keys
-        $smsMap = [
-            'sms_provider' => 'provider',
-            'sms_username' => 'username',
-            'sms_password' => 'password',
-            'sms_from_number' => 'from_number',
-        ];
-
-        if (isset($smsMap[$key]) && isset($all['sms_settings']) && is_array($all['sms_settings'])) {
-            return $all['sms_settings'][$smsMap[$key]] ?? $default;
-        }
-
-        // Backward compatibility mappings for legacy payment_* keys
-        $paymentMap = [
-            'payment_stripe_enabled' => 'stripe.enabled',
-            'payment_paypal_enabled' => 'paypal.enabled',
-            'payment_cod_enabled' => 'cod.enabled',
-            'payment_razorpay_enabled' => 'razorpay.enabled',
-        ];
-
-        if (isset($paymentMap[$key]) && isset($all['payment_settings']) && is_array($all['payment_settings'])) {
-            return data_get($all['payment_settings'], $paymentMap[$key], $default);
-        }
-
-        // Backward compatibility mappings for shipping_* carrier keys
-        $shippingMap = [
-            'shipping_fedex_enabled' => 'fedex.enabled',
-            'shipping_ups_enabled' => 'ups.enabled',
-            'shipping_dhl_enabled' => 'dhl.enabled',
-        ];
-
-        if (isset($shippingMap[$key]) && isset($all['shipping_settings']) && is_array($all['shipping_settings'])) {
-            return data_get($all['shipping_settings'], $shippingMap[$key], $default);
-        }
-
-        // Backward compatibility mappings for notification keys
-        $notifyAliasMap = [
-            'notify_order_placed_customer' => 'notify_order_placed_customer_email',
-            'notify_order_placed_admin' => 'notify_order_placed_admin_email',
-            'notify_order_status_updated' => 'notify_order_status_updated_email',
-            'notify_order_cancelled' => 'notify_order_cancelled_customer_email',
-            'notify_low_stock_admin' => 'notify_low_stock_admin_email',
-            'notify_new_customer_welcome' => 'notify_new_customer_welcome_email',
-            'notify_new_review_admin' => 'notify_new_review_admin_email',
-        ];
-
-        if (isset($notifyAliasMap[$key]) && isset($all[$notifyAliasMap[$key]])) {
-            return $all[$notifyAliasMap[$key]];
-        }
-
-        $reverseNotifyMap = array_flip($notifyAliasMap);
-        if (isset($reverseNotifyMap[$key]) && isset($all[$reverseNotifyMap[$key]])) {
-            return $all[$reverseNotifyMap[$key]];
-        }
-
         return $default;
     }
 
@@ -305,30 +235,7 @@ class Setting extends Model
             ];
         }
 
-        return [
-            'stripe' => [
-                'enabled' => (bool) ($all['payment_stripe_enabled'] ?? $default['stripe']['enabled']),
-                'publishable_key' => (string) ($all['payment_stripe_publishable_key'] ?? $default['stripe']['publishable_key']),
-                'secret_key' => (string) ($all['payment_stripe_secret_key'] ?? $default['stripe']['secret_key']),
-                'webhook_secret' => (string) ($all['payment_stripe_webhook_secret'] ?? $default['stripe']['webhook_secret']),
-            ],
-            'paypal' => [
-                'enabled' => (bool) ($all['payment_paypal_enabled'] ?? $default['paypal']['enabled']),
-                'mode' => (string) ($all['payment_paypal_mode'] ?? $default['paypal']['mode']),
-                'client_id' => (string) ($all['payment_paypal_client_id'] ?? $default['paypal']['client_id']),
-                'client_secret' => (string) ($all['payment_paypal_client_secret'] ?? $default['paypal']['client_secret']),
-            ],
-            'cod' => [
-                'enabled' => (bool) ($all['payment_cod_enabled'] ?? $default['cod']['enabled']),
-                'instructions' => (string) ($all['payment_cod_instructions'] ?? $default['cod']['instructions']),
-            ],
-            'razorpay' => [
-                'enabled' => (bool) ($all['payment_razorpay_enabled'] ?? $default['razorpay']['enabled']),
-                'key_id' => (string) ($all['payment_razorpay_key_id'] ?? $default['razorpay']['key_id']),
-                'key_secret' => (string) ($all['payment_razorpay_key_secret'] ?? $default['razorpay']['key_secret']),
-                'webhook_secret' => (string) ($all['payment_razorpay_webhook_secret'] ?? $default['razorpay']['webhook_secret']),
-            ],
-        ];
+        return $default;
     }
 
     /**
@@ -411,51 +318,11 @@ class Setting extends Model
 
         $configured = $all['shipping_settings'] ?? null;
         if (is_array($configured)) {
-            $legacyCarrier = $configured['carrier'] ?? $default['carrier'];
-            $legacyProvider = $legacyCarrier['provider'] ?? 'none';
-
-            $fedex = array_merge($default['fedex'], $configured['fedex'] ?? []);
-            if (! isset($configured['fedex']) && $legacyProvider === 'fedex') {
-                $fedex['enabled'] = true;
-                $fedex['account_number'] = $legacyCarrier['account_number'] ?? '';
-                $fedex['api_key'] = $legacyCarrier['api_key'] ?? '';
-                $fedex['api_secret'] = $legacyCarrier['api_secret'] ?? '';
-            }
-
-            $ups = array_merge($default['ups'], $configured['ups'] ?? []);
-            if (! isset($configured['ups']) && $legacyProvider === 'ups') {
-                $ups['enabled'] = true;
-                $ups['account_number'] = $legacyCarrier['account_number'] ?? '';
-                $ups['api_key'] = $legacyCarrier['api_key'] ?? '';
-                $ups['api_secret'] = $legacyCarrier['api_secret'] ?? '';
-            }
-
-            $dhl = array_merge($default['dhl'], $configured['dhl'] ?? []);
-            if (! isset($configured['dhl']) && $legacyProvider === 'dhl') {
-                $dhl['enabled'] = true;
-                $dhl['account_number'] = $legacyCarrier['account_number'] ?? '';
-                $dhl['api_key'] = $legacyCarrier['api_key'] ?? '';
-                $dhl['api_secret'] = $legacyCarrier['api_secret'] ?? '';
-            }
-
-            $activeProvider = $fedex['enabled'] ? 'fedex' : ($ups['enabled'] ? 'ups' : ($dhl['enabled'] ? 'dhl' : $legacyProvider));
-            $activeCarrierData = match ($activeProvider) {
-                'fedex' => $fedex,
-                'ups' => $ups,
-                'dhl' => $dhl,
-                default => $legacyCarrier,
-            };
-
             return [
-                'carrier' => [
-                    'provider' => $activeProvider,
-                    'account_number' => $activeCarrierData['account_number'] ?? '',
-                    'api_key' => $activeCarrierData['api_key'] ?? '',
-                    'api_secret' => $activeCarrierData['api_secret'] ?? '',
-                ],
-                'fedex' => $fedex,
-                'ups' => $ups,
-                'dhl' => $dhl,
+                'carrier' => array_merge($default['carrier'], $configured['carrier'] ?? []),
+                'fedex' => array_merge($default['fedex'], $configured['fedex'] ?? []),
+                'ups' => array_merge($default['ups'], $configured['ups'] ?? []),
+                'dhl' => array_merge($default['dhl'], $configured['dhl'] ?? []),
             ];
         }
 
@@ -495,15 +362,7 @@ class Setting extends Model
             return array_merge($default, $configured);
         }
 
-        return [
-            'host' => (string) ($all['mail_host'] ?? $default['host']),
-            'port' => isset($all['mail_port']) ? (int) $all['mail_port'] : $default['port'],
-            'username' => (string) ($all['mail_username'] ?? $default['username']),
-            'password' => (string) ($all['mail_password'] ?? $default['password']),
-            'encryption' => (string) ($all['mail_encryption'] ?? $default['encryption']),
-            'from_name' => (string) ($all['mail_from_name'] ?? $default['from_name']),
-            'from_address' => (string) ($all['mail_from_address'] ?? $default['from_address']),
-        ];
+        return $default;
     }
 
     /**
@@ -533,12 +392,7 @@ class Setting extends Model
             return array_merge($default, $configured);
         }
 
-        return [
-            'provider' => (string) ($all['sms_provider'] ?? $default['provider']),
-            'username' => (string) ($all['sms_username'] ?? $default['username']),
-            'password' => (string) ($all['sms_password'] ?? $default['password']),
-            'from_number' => (string) ($all['sms_from_number'] ?? $default['from_number']),
-        ];
+        return $default;
     }
 
     /**
@@ -640,19 +494,26 @@ class Setting extends Model
                 $result[$setting->key] = $setting->getCastValue();
             }
 
-            // Expose aliases if payment_settings is present so Inertia & legacy consumers seamlessly access them
+            // Expose aliases if payment_settings is present so Inertia & consumers seamlessly access them
             if (isset($result['payment_settings']) && is_array($result['payment_settings'])) {
                 $pay = $result['payment_settings'];
                 $result['payment_stripe_enabled'] ??= (bool) ($pay['stripe']['enabled'] ?? false);
                 $result['payment_paypal_enabled'] ??= (bool) ($pay['paypal']['enabled'] ?? false);
                 $result['payment_cod_enabled'] ??= (bool) ($pay['cod']['enabled'] ?? false);
-                $result['payment_bank_transfer_enabled'] ??= (bool) ($pay['bank_transfer']['enabled'] ?? false);
+                $result['payment_razorpay_enabled'] ??= (bool) ($pay['razorpay']['enabled'] ?? false);
             }
 
-            // Expose aliases if mail_settings or sms_settings are present so Inertia & legacy consumers seamlessly access them
+            // Expose shipping carrier aliases
+            if (isset($result['shipping_settings']) && is_array($result['shipping_settings'])) {
+                $ship = $result['shipping_settings'];
+                $result['shipping_fedex_enabled'] ??= (bool) ($ship['fedex']['enabled'] ?? false);
+                $result['shipping_ups_enabled'] ??= (bool) ($ship['ups']['enabled'] ?? false);
+                $result['shipping_dhl_enabled'] ??= (bool) ($ship['dhl']['enabled'] ?? false);
+            }
+
+            // Expose aliases if mail_settings or sms_settings are present so Inertia & consumers seamlessly access them
             if (isset($result['mail_settings']) && is_array($result['mail_settings'])) {
                 $mail = $result['mail_settings'];
-                $result['mail_mailer'] ??= $mail['mailer'] ?? 'smtp';
                 $result['mail_host'] ??= $mail['host'] ?? '';
                 $result['mail_port'] ??= isset($mail['port']) ? (int) $mail['port'] : 587;
                 $result['mail_username'] ??= $mail['username'] ?? '';
@@ -701,16 +562,7 @@ class Setting extends Model
                 ? $result['admin_alert_users']
                 : (json_decode((string) ($result['admin_alert_users'] ?? '[]'), true) ?: []);
 
-            // Remove legacy notify keys from returned settings
-            unset(
-                $result['notify_order_placed_customer'],
-                $result['notify_order_placed_admin'],
-                $result['notify_order_status_updated'],
-                $result['notify_order_cancelled'],
-                $result['notify_low_stock_admin'],
-                $result['notify_new_customer_welcome'],
-                $result['notify_new_review_admin']
-            );
+            $result['menu_delivery_mode'] ??= 'api';
 
             return $result;
         });

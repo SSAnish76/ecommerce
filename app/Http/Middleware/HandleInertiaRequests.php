@@ -51,8 +51,8 @@ class HandleInertiaRequests extends Middleware
             $user->loadMissing(['role' => fn ($q) => $q->where('status', RoleStatus::Active)]);
         }
 
-        // Navigation delivery strategy: 'inertia' (embed in page props) or 'api' (fetch via /admin/menus & cache in localStorage)
-        $menuDeliveryMode = (string) Setting::get('menu_delivery_mode', 'inertia');
+        // Navigation delivery strategy: 'api' (fetch via /admin/menus & cache in localStorage) or 'inertia' (embed in page props)
+        $menuDeliveryMode = (string) Setting::get('menu_delivery_mode', 'api');
         $roleMenusVersion = (int) Cache::get('role_menus_version', 1);
 
         return [
