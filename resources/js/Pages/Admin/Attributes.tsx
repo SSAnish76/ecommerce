@@ -530,7 +530,6 @@ export default function AttributesPage({
                             autoSync
                             error={createForm.errors.code}
                             placeholder="auto-generated from attribute name"
-                            helperText="Machine-readable unique key used in variants"
                         />
 
                         <Select
