@@ -46,7 +46,7 @@ class InventoryController extends Controller
                 }
             })
             ->orderBy('stock_quantity')
-            ->paginate(1)
+            ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory', [
