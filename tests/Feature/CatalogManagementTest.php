@@ -93,6 +93,7 @@ class CatalogManagementTest extends TestCase
     {
         $brand = Brand::factory()->create();
         $category = Category::factory()->create();
+        $media = MediaFile::factory()->create();
 
         $response = $this->actingAs($this->adminUser)->post('/admin/products', [
             'name' => 'Mechanical Gaming Keyboard',
@@ -109,7 +110,7 @@ class CatalogManagementTest extends TestCase
             'has_variants' => true,
             'status' => 'active',
             'images' => [
-                ['image_path' => 'https://example.com/keyboard.jpg', 'alt_text' => 'Keyboard Front', 'is_primary' => true],
+                ['media_id' => $media->id, 'alt_text' => 'Keyboard Front', 'is_primary' => true],
             ],
             'variants' => [
                 ['sku' => 'KEY-MECH-RED', 'name' => 'Red Switch', 'price' => 99.99, 'stock_quantity' => 25],

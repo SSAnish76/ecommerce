@@ -13,7 +13,6 @@ use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\MediaFile;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -144,13 +143,9 @@ class ProductController extends Controller
             'refund_policy' => ['nullable', 'string'],
             // Images array
             'images' => ['nullable', 'array'],
-            'images.*.image_path' => ['nullable', 'string', 'max:2048'],
-            'images.*.image_url' => ['nullable', 'string', 'max:2048'],
-            'images.*.url' => ['nullable', 'string', 'max:2048'],
-            'images.*.media_id' => ['nullable'],
-            'images.*.image_id' => ['nullable'],
+            'images.*.media_id' => ['required', 'string', 'exists:media_files,id'],
             'images.*.alt_text' => ['nullable', 'string', 'max:255'],
-            'images.*.is_primary' => ['boolean'],
+            'images.*.is_primary' => ['nullable', 'boolean'],
             'attribute_ids' => ['nullable', 'array'],
             'attribute_ids.*' => ['string', 'exists:attributes,id'],
             'attribute_value_ids' => ['nullable', 'array'],
@@ -166,8 +161,7 @@ class ProductController extends Controller
             'variants.*.stock_quantity' => ['required', 'integer', 'min:0'],
             'variants.*.low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['boolean'],
-            'variants.*.media_id' => ['nullable', 'string'],
-            'variants.*.image_path' => ['nullable', 'string', 'max:2048'],
+            'variants.*.media_id' => ['nullable', 'string', 'exists:media_files,id'],
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
         ]);
@@ -190,29 +184,9 @@ class ProductController extends Controller
 
         if (! empty($validated['images'])) {
             foreach ($validated['images'] as $img) {
-                $mediaId = $img['media_id'] ?? ($img['image_id'] ?? null);
-
-                if (! $mediaId && ! empty($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? null)))) {
-                    $rawUrl = (string) ($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? '')));
-                    $filename = basename(parse_url($rawUrl, PHP_URL_PATH) ?: 'image.jpg');
-                    $mediaFile = MediaFile::firstOrCreate(
-                        ['filename' => $filename],
-                        [
-                            'disk' => 'public',
-                            'directory' => 'media',
-                            'original_name' => $filename,
-                            'mime_type' => 'image/jpeg',
-                            'extension' => pathinfo($filename, PATHINFO_EXTENSION) ?: 'jpg',
-                            'size' => 1024,
-                            'collection' => 'products',
-                        ]
-                    );
-                    $mediaId = $mediaFile->id;
-                }
-
-                if ($mediaId !== null) {
+                if (! empty($img['media_id'])) {
                     $processedImages[] = [
-                        'media_id' => (string) $mediaId,
+                        'media_id' => (string) $img['media_id'],
                         'alt_text' => $img['alt_text'] ?? null,
                         'is_primary' => ! empty($img['is_primary']),
                     ];
@@ -291,7 +265,6 @@ class ProductController extends Controller
                         'low_stock_threshold' => $v['low_stock_threshold'] ?? 5,
                         'is_active' => $v['is_active'] ?? true,
                         'media_id' => $v['media_id'] ?? null,
-                        'image_path' => $v['image_path'] ?? null,
                     ]);
 
                     if (! empty($v['attribute_value_ids'])) {
@@ -368,13 +341,9 @@ class ProductController extends Controller
             'refund_policy' => ['nullable', 'string'],
             // Images array
             'images' => ['nullable', 'array'],
-            'images.*.image_path' => ['nullable', 'string', 'max:2048'],
-            'images.*.image_url' => ['nullable', 'string', 'max:2048'],
-            'images.*.url' => ['nullable', 'string', 'max:2048'],
-            'images.*.media_id' => ['nullable'],
-            'images.*.image_id' => ['nullable'],
+            'images.*.media_id' => ['required', 'string', 'exists:media_files,id'],
             'images.*.alt_text' => ['nullable', 'string', 'max:255'],
-            'images.*.is_primary' => ['boolean'],
+            'images.*.is_primary' => ['nullable', 'boolean'],
             'attribute_ids' => ['nullable', 'array'],
             'attribute_ids.*' => ['string', 'exists:attributes,id'],
             'attribute_value_ids' => ['nullable', 'array'],
@@ -390,8 +359,7 @@ class ProductController extends Controller
             'variants.*.stock_quantity' => ['required', 'integer', 'min:0'],
             'variants.*.low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['boolean'],
-            'variants.*.media_id' => ['nullable', 'string'],
-            'variants.*.image_path' => ['nullable', 'string', 'max:2048'],
+            'variants.*.media_id' => ['nullable', 'string', 'exists:media_files,id'],
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
         ]);
@@ -409,29 +377,9 @@ class ProductController extends Controller
 
         if (! empty($validated['images'])) {
             foreach ($validated['images'] as $img) {
-                $mediaId = $img['media_id'] ?? ($img['image_id'] ?? null);
-
-                if (! $mediaId && ! empty($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? null)))) {
-                    $rawUrl = (string) ($img['image_path'] ?? ($img['image_url'] ?? ($img['url'] ?? '')));
-                    $filename = basename(parse_url($rawUrl, PHP_URL_PATH) ?: 'image.jpg');
-                    $mediaFile = MediaFile::firstOrCreate(
-                        ['filename' => $filename],
-                        [
-                            'disk' => 'public',
-                            'directory' => 'media',
-                            'original_name' => $filename,
-                            'mime_type' => 'image/jpeg',
-                            'extension' => pathinfo($filename, PATHINFO_EXTENSION) ?: 'jpg',
-                            'size' => 1024,
-                            'collection' => 'products',
-                        ]
-                    );
-                    $mediaId = $mediaFile->id;
-                }
-
-                if ($mediaId !== null) {
+                if (! empty($img['media_id'])) {
                     $processedImages[] = [
-                        'media_id' => (string) $mediaId,
+                        'media_id' => (string) $img['media_id'],
                         'alt_text' => $img['alt_text'] ?? null,
                         'is_primary' => ! empty($img['is_primary']),
                     ];
@@ -513,7 +461,6 @@ class ProductController extends Controller
                         'low_stock_threshold' => $v['low_stock_threshold'] ?? 5,
                         'is_active' => $v['is_active'] ?? true,
                         'media_id' => $v['media_id'] ?? null,
-                        'image_path' => $v['image_path'] ?? null,
                     ]);
 
                     if (! empty($v['attribute_value_ids'])) {

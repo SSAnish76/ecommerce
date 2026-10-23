@@ -81,7 +81,6 @@ export interface ProductVariantFormItem {
     low_stock_threshold: number;
     is_active: boolean;
     media_id?: string | null;
-    image_path?: string | null;
     image_url?: string | null;
     attributes?: Record<string, string> | null;
     attribute_value_ids?: string[];
@@ -170,7 +169,6 @@ export default function CreateOrEditProductPage({
                   low_stock_threshold: v.low_stock_threshold || 5,
                   is_active: v.is_active,
                   media_id: v.media_id || v.media?.id || null,
-                  image_path: v.image_path || '',
                   image_url: v.image_url || v.media?.url || '',
                   attributes: v.attributes || null,
                   attribute_value_ids: v.attribute_values?.map((av) => av.id) || [],
@@ -549,7 +547,6 @@ export default function CreateOrEditProductPage({
                     low_stock_threshold: 5,
                     is_active: true,
                     media_id: null,
-                    image_path: '',
                     image_url: '',
                     attributes: attrMap,
                     attribute_value_ids: valIds,
@@ -646,7 +643,27 @@ export default function CreateOrEditProductPage({
         const payload = {
             ...form.data,
             specifications: cleanSpecs,
-            images: form.data.images.filter((img) => (img.url || '').trim() !== ''),
+            images: form.data.images
+                .filter((img) => Boolean(img.media_id))
+                .map((img) => ({
+                    media_id: img.media_id,
+                    alt_text: img.alt_text || '',
+                    is_primary: Boolean(img.is_primary),
+                })),
+            variants: form.data.variants.map((v) => ({
+                id: v.id,
+                sku: v.sku,
+                name: v.name,
+                price: v.price,
+                mrp: v.mrp !== '' ? v.mrp : null,
+                sale_price: v.sale_price !== '' ? v.sale_price : null,
+                stock_quantity: v.stock_quantity,
+                low_stock_threshold: v.low_stock_threshold,
+                is_active: v.is_active,
+                media_id: v.media_id || null,
+                attributes: v.attributes || null,
+                attribute_value_ids: v.attribute_value_ids || [],
+            })),
         };
 
         form.transform(() => payload);
