@@ -554,10 +554,10 @@ export default function Settings({
                     label: form.data.force_two_factor_all_admins ? '2FA Active' : '2FA Off',
                     variant: form.data.force_two_factor_all_admins ? 'emerald' : 'slate',
                 },
-                {
-                    label: form.data.menu_delivery_mode === 'api' ? 'Nav: REST API' : 'Nav: Inertia Props',
-                    variant: form.data.menu_delivery_mode === 'api' ? 'sky' : 'indigo',
-                },
+                // {
+                //     label: form.data.menu_delivery_mode === 'api' ? 'Nav: REST API' : 'Nav: Inertia Props',
+                //     variant: form.data.menu_delivery_mode === 'api' ? 'sky' : 'indigo',
+                // },
             ],
             renderForm: () => (
                 <div className="space-y-3.5">
@@ -650,7 +650,7 @@ export default function Settings({
                     </div>
 
                     {/* Navigation Delivery Strategy Mode */}
-                    <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 space-y-2.5">
+                    {/* <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 space-y-2.5">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
                                 <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
@@ -697,7 +697,7 @@ export default function Settings({
                                 </span>
                             )}
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             ),
         },
