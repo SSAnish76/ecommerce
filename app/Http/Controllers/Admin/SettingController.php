@@ -87,6 +87,7 @@ class SettingController extends Controller
             'timezone' => ['sometimes', 'required', 'string', 'max:80'],
 
             'force_two_factor_all_admins' => ['sometimes', 'required', 'boolean'],
+            'menu_delivery_mode' => ['sometimes', 'required', 'string', 'in:inertia,api'],
 
             'order_prefix' => ['sometimes', 'required', 'string', 'max:20'],
             'order_number_start' => ['sometimes', 'required', 'integer', 'min:1'],

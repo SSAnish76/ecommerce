@@ -313,5 +313,50 @@ class MenuAndRolePermissionTest extends TestCase
             ->missing('auth.user.allowed_menus')
         );
     }
+
+    /**
+     * Test /admin/menus REST API endpoint returns json role menus and version.
+     */
+    public function test_menu_api_endpoint_returns_json_for_authenticated_admin(): void
+    {
+        $response = $this->actingAs($this->adminUser)->getJson('/admin/menus');
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'success',
+                'version',
+                'menus',
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $this->assertNotEmpty($response->json('menus'));
+    }
+
+    /**
+     * Test menu delivery mode setting toggles Inertia payload sharing vs API mode.
+     */
+    public function test_menu_delivery_mode_setting_controls_inertia_shared_payload(): void
+    {
+        // 1. By default or when 'inertia', Inertia shares menus
+        \App\Models\Setting::set('menu_delivery_mode', 'inertia');
+        $inertiaResponse = $this->actingAs($this->adminUser)->get('/admin');
+        $inertiaResponse->assertOk();
+        $inertiaResponse->assertInertia(fn ($page) => $page
+            ->where('menu_delivery_mode', 'inertia')
+            ->has('menus')
+            ->where('menus', fn ($menus) => ! empty($menus))
+        );
+
+        // 2. When set to 'api', Inertia sends null for menus, saving payload size
+        \App\Models\Setting::set('menu_delivery_mode', 'api');
+        $apiModeResponse = $this->actingAs($this->adminUser)->get('/admin');
+        $apiModeResponse->assertOk();
+        $apiModeResponse->assertInertia(fn ($page) => $page
+            ->where('menu_delivery_mode', 'api')
+            ->where('menus', null)
+        );
+    }
 }
 

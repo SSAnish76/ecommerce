@@ -173,6 +173,8 @@ export interface PageProps<T = Record<string, unknown>> {
         user: User | null;
     };
     menus?: MenuItem[];
+    menu_delivery_mode?: 'inertia' | 'api';
+    menu_version?: number;
     essentials?: EssentialsData;
     flash: {
         message?: string | null;

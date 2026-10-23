@@ -49,6 +49,7 @@ import {
     SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { clearNavigationMenuCache } from '../../hooks/useNavigationMenus';
 
 interface SettingsProps extends PageProps {
     settings: {
@@ -58,6 +59,7 @@ interface SettingsProps extends PageProps {
         timezone: string;
 
         force_two_factor_all_admins: boolean;
+        menu_delivery_mode?: 'inertia' | 'api';
 
         order_prefix: string;
         order_number_start: number;
@@ -362,6 +364,7 @@ export default function Settings({
         timezone: settings?.timezone ?? 'UTC',
 
         force_two_factor_all_admins: settings?.force_two_factor_all_admins ?? true,
+        menu_delivery_mode: (settings?.menu_delivery_mode as 'inertia' | 'api') ?? 'inertia',
 
         order_prefix: settings?.order_prefix ?? 'ORD-',
         order_number_start: settings?.order_number_start ?? 1001,
@@ -496,6 +499,9 @@ export default function Settings({
         form.post('/admin/settings', {
             preserveScroll: true,
             onSuccess: () => {
+                if (sectionId === 'localization') {
+                    clearNavigationMenuCache();
+                }
                 setSavedSection(sectionId);
                 setTimeout(() => setSavedSection(null), 3000);
             },
@@ -547,6 +553,10 @@ export default function Settings({
                 {
                     label: form.data.force_two_factor_all_admins ? '2FA Active' : '2FA Off',
                     variant: form.data.force_two_factor_all_admins ? 'emerald' : 'slate',
+                },
+                {
+                    label: form.data.menu_delivery_mode === 'api' ? 'Nav: REST API' : 'Nav: Inertia Props',
+                    variant: form.data.menu_delivery_mode === 'api' ? 'sky' : 'indigo',
                 },
             ],
             renderForm: () => (
@@ -636,6 +646,56 @@ export default function Settings({
                                     form.setData('force_two_factor_all_admins', checked)
                                 }
                             />
+                        </div>
+                    </div>
+
+                    {/* Navigation Delivery Strategy Mode */}
+                    <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                    <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+                                    Navigation & Menu Delivery Strategy
+                                </span>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    Control whether role-based navigation menus and permissions are sent with page payloads or loaded via REST API with browser caching.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => form.setData('menu_delivery_mode', 'inertia')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                                        form.data.menu_delivery_mode === 'inertia'
+                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    Inertia Props (Classic)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => form.setData('menu_delivery_mode', 'api')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                                        form.data.menu_delivery_mode === 'api'
+                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    REST API + LocalStorage
+                                </button>
+                            </div>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700/80">
+                            {form.data.menu_delivery_mode === 'api' ? (
+                                <span>
+                                    ⚡ <strong>REST API Mode (Option 2):</strong> Inertia page responses do not contain menu data, making navigation responses lightweight. Menus are cached in <code className="text-indigo-500 font-semibold">localStorage</code> and synced automatically when role permissions change.
+                                </span>
+                            ) : (
+                                <span>
+                                    📦 <strong>Inertia Props Mode (Option 1):</strong> Navigation menus are shared directly inside every Inertia page payload by the server middleware.
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

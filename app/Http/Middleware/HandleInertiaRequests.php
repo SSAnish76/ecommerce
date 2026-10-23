@@ -5,8 +5,10 @@ namespace App\Http\Middleware;
 use App\Enums\User\RoleStatus;
 use App\Enums\User\UserStatus;
 use App\Models\Menu;
+use App\Models\Setting;
 use App\Models\Store;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -49,6 +51,10 @@ class HandleInertiaRequests extends Middleware
             $user->loadMissing(['role' => fn ($q) => $q->where('status', RoleStatus::Active)]);
         }
 
+        // Navigation delivery strategy: 'inertia' (embed in page props) or 'api' (fetch via /admin/menus & cache in localStorage)
+        $menuDeliveryMode = (string) Setting::get('menu_delivery_mode', 'inertia');
+        $roleMenusVersion = (int) Cache::get('role_menus_version', 1);
+
         return [
             ...parent::share($request),
             'app_name' => $appName,
@@ -64,8 +70,10 @@ class HandleInertiaRequests extends Middleware
                     'status' => $user->status?->value ?? UserStatus::Active->value,
                 ] : null,
             ],
+            'menu_delivery_mode' => $menuDeliveryMode,
+            'menu_version' => $roleMenusVersion,
             // 3. Role-based navigation menus with permissions (scoped to authenticated user, served from cache)
-            'menus' => fn () => $user ? Menu::roleMenuData($user) : null,
+            'menus' => fn () => ($menuDeliveryMode === 'inertia' && $user) ? Menu::roleMenuData($user) : null,
             // 4. Session flash notifications
             'flash' => [
                 'message' => fn () => $request->session()->get('message'),

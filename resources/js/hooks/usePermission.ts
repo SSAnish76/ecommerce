@@ -1,9 +1,11 @@
 import { usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { PageProps, MenuItem } from '../types';
+import { useNavigationMenus } from './useNavigationMenus';
 
 export function usePermission() {
-    const { auth, menus } = usePage<PageProps>().props;
+    const { auth } = usePage<PageProps>().props;
+    const { menus } = useNavigationMenus();
     const user = auth?.user;
     const isSuperAdmin = Boolean(user?.is_super_admin);
     const menuList = (menus || []) as MenuItem[];

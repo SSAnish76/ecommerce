@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CollectionController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\RoleController;
@@ -252,6 +253,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         // Essentials Lookup (All Enums and System Constants)
         Route::get('/essentials', [EssentialsController::class, 'index'])->name('essentials');
+
+        // Accessible Role Menus API (Client-Side Cached Navigation)
+        Route::get('/menus', [MenuController::class, 'index'])->name('menus');
 
         // Personal Administrator Profile Management
         Route::get('/profile', function () {

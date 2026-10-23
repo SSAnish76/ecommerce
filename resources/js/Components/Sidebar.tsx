@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { PageProps, MenuItem } from '../types';
+import { useNavigationMenus } from '../hooks/useNavigationMenus';
 import {
     LayoutDashboard,
     Users,
@@ -63,6 +64,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const { url, props } = usePage<PageProps>();
+    const { menus: navMenus, isLoading } = useNavigationMenus();
     const user = props.auth?.user;
     const appName = props.store?.name || props.app_name || 'E-Commerce';
     const [navSearch, setNavSearch] = useState('');
@@ -85,7 +87,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
     // Build the hierarchical Parent-Child menu tree
     const menuTree: NavTreeItem[] = useMemo(() => {
-        const rawMenus: MenuItem[] = (props.menus as MenuItem[]) || [];
+        const rawMenus: MenuItem[] = (navMenus as MenuItem[]) || [];
         if (rawMenus.length === 0) return [];
 
         const itemsMap: Record<string, NavTreeItem> = {};
@@ -122,7 +124,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         }
 
         return roots;
-    }, [props.menus]);
+    }, [navMenus]);
 
     // Automatically expand any parent if a child is active
     useEffect(() => {
@@ -248,6 +250,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                 {/* Hierarchical Parent-Child Navigation */}
                 <div className="flex-1 px-3 py-3 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                    {isLoading && filteredTree.length === 0 && (
+                        <div className="space-y-2 p-1">
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                                <div key={i} className="h-9 rounded-xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+                            ))}
+                        </div>
+                    )}
                     {filteredTree.map((root) => {
                         const accessibleChildren = root.children.filter((child) => hasAccess(child.slug));
                         const isRootAccessible = hasAccess(root.slug);
