@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Product, ProductVariant } from '../../types';
@@ -31,6 +31,7 @@ import {
     Lock,
     Save,
     Undo2,
+    TableProperties,
 } from 'lucide-react';
 
 interface PaginatedProducts {
@@ -48,6 +49,9 @@ interface InventoryProps {
         stock_status?: string;
     };
 }
+
+const STORAGE_KEY = 'inventory_pending_stock';
+const BULK_MODE_KEY = 'inventory_bulk_mode';
 
 export default function InventoryPage({
     products,
@@ -69,12 +73,53 @@ export default function InventoryPage({
         return initial;
     });
 
-    // Track modified inline stock quantities: { "product:ID": number, "variant:ID": number }
-    const [modifiedStock, setModifiedStock] = useState<Record<string, number>>({});
+    // Toggle bulk edit mode (grid inputs only active when true)
+    const [isBulkEditMode, setIsBulkEditMode] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            return sessionStorage.getItem(BULK_MODE_KEY) === 'true';
+        } catch {
+            return false;
+        }
+    });
+
+    // Track modified inline stock quantities across pagination: { "product:ID": number, "variant:ID": number }
+    const [modifiedStock, setModifiedStock] = useState<Record<string, number>>(() => {
+        if (typeof window === 'undefined') return {};
+        try {
+            const saved = sessionStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {};
+        } catch {
+            return {};
+        }
+    });
+
     const [savingItemKey, setSavingItemKey] = useState<string | null>(null);
     const [isBulkSaving, setIsBulkSaving] = useState(false);
 
-    // Modal for threshold adjustments
+    // Sync bulk edit mode to sessionStorage
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(BULK_MODE_KEY, isBulkEditMode ? 'true' : 'false');
+        } catch {
+            // ignore
+        }
+    }, [isBulkEditMode]);
+
+    // Sync modifiedStock to sessionStorage so pagination visits retain all previous changes
+    useEffect(() => {
+        try {
+            if (Object.keys(modifiedStock).length > 0) {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(modifiedStock));
+            } else {
+                sessionStorage.removeItem(STORAGE_KEY);
+            }
+        } catch {
+            // ignore
+        }
+    }, [modifiedStock]);
+
+    // Modal for threshold adjustments / single item editing in normal flow
     const [editingItem, setEditingItem] = useState<{
         id: string;
         type: 'product' | 'variant';
@@ -122,6 +167,15 @@ export default function InventoryPage({
 
     const discardAllModified = () => {
         setModifiedStock({});
+        try {
+            sessionStorage.removeItem(STORAGE_KEY);
+        } catch {
+            // ignore
+        }
+    };
+
+    const toggleBulkEditMode = () => {
+        setIsBulkEditMode((prev) => !prev);
     };
 
     const saveSingleItem = (id: string, type: 'product' | 'variant') => {
@@ -137,6 +191,7 @@ export default function InventoryPage({
             { stock_quantity: newStock },
             {
                 preserveScroll: true,
+                preserveState: true,
                 onSuccess: () => {
                     setModifiedStock((prev) => {
                         const next = { ...prev };
@@ -171,9 +226,16 @@ export default function InventoryPage({
             { items },
             {
                 preserveScroll: true,
+                preserveState: true,
                 onSuccess: () => {
                     setModifiedStock({});
+                    try {
+                        sessionStorage.removeItem(STORAGE_KEY);
+                    } catch {
+                        // ignore
+                    }
                     setIsBulkSaving(false);
+                    setIsBulkEditMode(false);
                 },
                 onError: () => {
                     setIsBulkSaving(false);
@@ -209,6 +271,7 @@ export default function InventoryPage({
 
         editForm.put(url, {
             preserveScroll: true,
+            preserveState: true,
             onSuccess: () => {
                 const key = `${editingItem.type}:${editingItem.id}`;
                 setModifiedStock((prev) => {
@@ -226,14 +289,14 @@ export default function InventoryPage({
         router.get(
             '/admin/inventory',
             { search, stock_status: stockFilter },
-            { preserveState: true, replace: true }
+            { preserveState: true, preserveScroll: true, replace: true }
         );
     };
 
     const handleReset = () => {
         setSearch('');
         setStockFilter('');
-        router.get('/admin/inventory', {}, { preserveState: true, replace: true });
+        router.get('/admin/inventory', {}, { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const modifiedCount = Object.keys(modifiedStock).length;
@@ -246,7 +309,7 @@ export default function InventoryPage({
             <Head title="Inventory - Admin" />
 
             <div className="space-y-4">
-                {/* Header without hint text */}
+                {/* Header with Bulk Update Mode Toggle Button */}
                 <div className="flex items-center justify-between gap-4 bg-white dark:bg-slate-900 px-5 py-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
                     <div className="flex items-center gap-3">
                         <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -257,19 +320,45 @@ export default function InventoryPage({
                         </Badge>
                     </div>
 
-                    {canCreate && (
-                        <Link href="/admin/products/create">
+                    <div className="flex items-center gap-2.5">
+                        {/* Bulk Update Mode Toggle Button */}
+                        {canEdit && (
                             <Button
-                                variant="primary"
+                                type="button"
+                                variant={isBulkEditMode ? 'primary' : 'secondary'}
                                 size="sm"
-                                pill
-                                leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
-                                className="shadow-xs font-medium px-4 py-1.5 rounded-full"
+                                onClick={toggleBulkEditMode}
+                                leftIcon={
+                                    isBulkEditMode ? (
+                                        <Check className="w-3.5 h-3.5" />
+                                    ) : (
+                                        <TableProperties className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    )
+                                }
+                                className={`text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition-all ${
+                                    isBulkEditMode
+                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
                             >
-                                Add Product
+                                {isBulkEditMode ? 'Exit Bulk Edit' : 'Bulk Update'}
                             </Button>
-                        </Link>
-                    )}
+                        )}
+
+                        {canCreate && (
+                            <Link href="/admin/products/create">
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    pill
+                                    leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
+                                    className="shadow-xs font-medium px-4 py-1.5 rounded-full"
+                                >
+                                    Add Product
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
                 </div>
 
                 {/* Filters Bar */}
@@ -290,7 +379,7 @@ export default function InventoryPage({
                                                 router.get(
                                                     '/admin/inventory',
                                                     { stock_status: stockFilter },
-                                                    { preserveState: true }
+                                                    { preserveState: true, preserveScroll: true }
                                                 );
                                             }}
                                             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-0.5 cursor-pointer text-xs"
@@ -311,7 +400,7 @@ export default function InventoryPage({
                                     router.get(
                                         '/admin/inventory',
                                         { search, stock_status: e.target.value },
-                                        { preserveState: true }
+                                        { preserveState: true, preserveScroll: true }
                                     );
                                 }}
                                 options={[
@@ -344,13 +433,13 @@ export default function InventoryPage({
                     </form>
                 </div>
 
-                {/* Unsaved Changes Banner */}
+                {/* Unsaved Changes Banner (Active in Bulk Mode or when items modified) */}
                 {modifiedCount > 0 && (
                     <div className="px-4 py-2.5 rounded-xl bg-amber-50/95 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center justify-between gap-3 shadow-xs">
                         <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                             <span className="text-xs sm:text-sm font-semibold text-amber-900 dark:text-amber-200">
-                                {modifiedCount} {modifiedCount === 1 ? 'item' : 'items'} modified
+                                {modifiedCount} {modifiedCount === 1 ? 'item' : 'items'} modified across pages
                             </span>
                         </div>
 
@@ -380,12 +469,14 @@ export default function InventoryPage({
                     </div>
                 )}
 
-                {/* Compact, Focused Inventory Table */}
+                {/* Table Container: Normal View or Bulk Edit Grid */}
                 <TableContainer>
                     <TableHead>
                         <TableRow>
                             <TableHeaderCell className="min-w-[260px]">Product / Variant</TableHeaderCell>
-                            <TableHeaderCell className="w-36">Stock</TableHeaderCell>
+                            <TableHeaderCell className="w-36">
+                                {isBulkEditMode ? 'Stock (Edit)' : 'Stock'}
+                            </TableHeaderCell>
                             <TableHeaderCell className="w-24">Min Alert</TableHeaderCell>
                             <TableHeaderCell className="w-28">Status</TableHeaderCell>
                             <TableHeaderCell className="text-right w-24">Action</TableHeaderCell>
@@ -423,7 +514,7 @@ export default function InventoryPage({
                                 return (
                                     <React.Fragment key={`prod-${prod.id}`}>
                                         <TableRow className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
-                                            {/* Space-efficient Product Name & SKU */}
+                                            {/* Product Name & SKU */}
                                             <TableCell>
                                                 <div className="flex items-center gap-2 py-0.5">
                                                     {hasVariants && (
@@ -458,10 +549,10 @@ export default function InventoryPage({
                                                 </div>
                                             </TableCell>
 
-                                            {/* Stock Column */}
+                                            {/* Stock Column: Input in bulk mode; Normal text in view mode */}
                                             <TableCell>
                                                 {hasVariants ? (
-                                                    <div className="flex items-center gap-1.5 font-mono">
+                                                    <div className="flex items-center gap-1.5 font-mono py-0.5">
                                                         <span className="text-sm font-bold text-slate-900 dark:text-white">
                                                             {parentDisplayStock}
                                                         </span>
@@ -469,7 +560,7 @@ export default function InventoryPage({
                                                             Units
                                                         </span>
                                                     </div>
-                                                ) : (
+                                                ) : isBulkEditMode ? (
                                                     <div className="flex items-center gap-1.5">
                                                         <input
                                                             type="number"
@@ -494,6 +585,13 @@ export default function InventoryPage({
                                                         {isProdModified && (
                                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                                                         )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-baseline gap-1 font-mono py-0.5">
+                                                        <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                                                            {parentDisplayStock}
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 font-sans">units</span>
                                                     </div>
                                                 )}
                                             </TableCell>
@@ -532,7 +630,7 @@ export default function InventoryPage({
                                                         <Lock className="w-3 h-3" />
                                                         Synced
                                                     </span>
-                                                ) : isProdModified ? (
+                                                ) : isBulkEditMode && isProdModified ? (
                                                     <div className="flex items-center justify-end gap-1">
                                                         <button
                                                             type="button"
@@ -591,7 +689,7 @@ export default function InventoryPage({
                                                     <TableRow
                                                         key={`var-${v.id}`}
                                                         className={`text-xs border-b border-slate-100 dark:border-slate-800/60 transition-colors ${
-                                                            isVModified
+                                                            isBulkEditMode && isVModified
                                                                 ? 'bg-amber-50/30 dark:bg-amber-950/20'
                                                                 : 'bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-900/50'
                                                         }`}
@@ -613,33 +711,42 @@ export default function InventoryPage({
                                                             </div>
                                                         </TableCell>
 
-                                                        {/* Variant Stock Input */}
+                                                        {/* Variant Stock: Input in bulk mode; Normal text in view mode */}
                                                         <TableCell>
-                                                            <div className="flex items-center gap-1.5">
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    disabled={!canEdit}
-                                                                    value={currentVStock}
-                                                                    onChange={(e) =>
-                                                                        handleStockChange(vKey, e.target.value, v.stock_quantity)
-                                                                    }
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            e.preventDefault();
-                                                                            if (v.id) saveSingleItem(v.id, 'variant');
+                                                            {isBulkEditMode ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        disabled={!canEdit}
+                                                                        value={currentVStock}
+                                                                        onChange={(e) =>
+                                                                            handleStockChange(vKey, e.target.value, v.stock_quantity)
                                                                         }
-                                                                    }}
-                                                                    className={`w-24 px-2 py-1 text-sm font-bold rounded-lg border text-right transition-all font-mono focus:outline-none focus:ring-2 ${
-                                                                        isVModified
-                                                                            ? 'border-amber-400 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 ring-1 ring-amber-400'
-                                                                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
-                                                                    }`}
-                                                                />
-                                                                {isVModified && (
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                                                                )}
-                                                            </div>
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                e.preventDefault();
+                                                                                if (v.id) saveSingleItem(v.id, 'variant');
+                                                                            }
+                                                                        }}
+                                                                        className={`w-24 px-2 py-1 text-sm font-bold rounded-lg border text-right transition-all font-mono focus:outline-none focus:ring-2 ${
+                                                                            isVModified
+                                                                                ? 'border-amber-400 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 ring-1 ring-amber-400'
+                                                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20'
+                                                                        }`}
+                                                                    />
+                                                                    {isVModified && (
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-baseline gap-1 font-mono py-0.5">
+                                                                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                                        {currentVStock}
+                                                                    </span>
+                                                                    <span className="text-[10px] text-slate-400 font-sans">units</span>
+                                                                </div>
+                                                            )}
                                                         </TableCell>
 
                                                         {/* Variant Threshold */}
@@ -671,7 +778,7 @@ export default function InventoryPage({
 
                                                         {/* Variant Actions */}
                                                         <TableCell className="text-right">
-                                                            {isVModified && v.id ? (
+                                                            {isBulkEditMode && isVModified && v.id ? (
                                                                 <div className="flex items-center justify-end gap-1">
                                                                     <button
                                                                         type="button"
@@ -733,7 +840,7 @@ export default function InventoryPage({
                             {products.links.map((link, idx) => (
                                 <button
                                     key={idx}
-                                    onClick={() => link.url && router.get(link.url)}
+                                    onClick={() => link.url && router.get(link.url, {}, { preserveState: true, preserveScroll: true })}
                                     disabled={!link.url || link.active}
                                     className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                                         link.active
