@@ -49,20 +49,8 @@ class InventoryController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Inventory Telemetry Summary
-        $totalProducts = Product::count();
-        $lowStockCount = Product::lowStock()->count();
-        $outOfStockCount = Product::outOfStock()->count();
-        $inStockCount = Product::where('stock_quantity', '>', 0)->count();
-
         return Inertia::render('Admin/Inventory', [
             'products' => $products,
-            'metrics' => [
-                'total_products' => $totalProducts,
-                'in_stock' => $inStockCount,
-                'low_stock' => $lowStockCount,
-                'out_of_stock' => $outOfStockCount,
-            ],
             'filters' => [
                 'search' => $search,
                 'stock_status' => $stockFilter,
@@ -75,6 +63,10 @@ class InventoryController extends Controller
      */
     public function updateStock(Request $request, Product $product): RedirectResponse
     {
+        if ($product->has_variants || $product->variants()->exists()) {
+            return redirect()->back()->with('error', 'Cannot directly update stock for a product with variants. Stock is automatically calculated from variants.');
+        }
+
         /** @var array{stock_quantity: int, low_stock_threshold: int} $validated */
         $validated = $request->validate([
             'stock_quantity' => ['required', 'integer', 'min:0'],
@@ -131,7 +123,10 @@ class InventoryController extends Controller
         DB::transaction(function () use ($validated): void {
             foreach ($validated['items'] as $item) {
                 if ($item['type'] === 'product') {
-                    Product::where('id', $item['id'])->update(['stock_quantity' => $item['stock_quantity']]);
+                    $prod = Product::find($item['id']);
+                    if ($prod !== null && ! ($prod->has_variants || $prod->variants()->exists())) {
+                        $prod->update(['stock_quantity' => $item['stock_quantity']]);
+                    }
                 } elseif ($item['type'] === 'variant') {
                     $v = ProductVariant::find($item['id']);
                     if ($v !== null) {

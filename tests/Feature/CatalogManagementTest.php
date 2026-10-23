@@ -153,13 +153,18 @@ class CatalogManagementTest extends TestCase
 
     public function test_admin_can_view_inventory_and_update_stock(): void
     {
-        $product = Product::factory()->create([
+        $simpleProduct = Product::factory()->create([
             'stock_quantity' => 20,
+            'has_variants' => false,
+        ]);
+
+        $productWithVariants = Product::factory()->create([
+            'stock_quantity' => 10,
             'has_variants' => true,
         ]);
 
         $variant = ProductVariant::factory()->create([
-            'product_id' => $product->id,
+            'product_id' => $productWithVariants->id,
             'stock_quantity' => 10,
             'low_stock_threshold' => 3,
         ]);
@@ -167,18 +172,31 @@ class CatalogManagementTest extends TestCase
         $indexRes = $this->actingAs($this->adminUser)->get('/admin/inventory');
         $indexRes->assertStatus(200);
 
-        $updateRes = $this->actingAs($this->adminUser)->put("/admin/inventory/product/{$product->id}", [
+        // Simple product without variants can be updated directly
+        $updateRes = $this->actingAs($this->adminUser)->put("/admin/inventory/product/{$simpleProduct->id}", [
             'stock_quantity' => 45,
             'low_stock_threshold' => 8,
         ]);
 
         $updateRes->assertSessionHas('success');
         $this->assertDatabaseHas('products', [
-            'id' => $product->id,
+            'id' => $simpleProduct->id,
             'stock_quantity' => 45,
             'low_stock_threshold' => 8,
         ]);
 
+        // Product with variants CANNOT be updated directly
+        $blockedRes = $this->actingAs($this->adminUser)->put("/admin/inventory/product/{$productWithVariants->id}", [
+            'stock_quantity' => 99,
+            'low_stock_threshold' => 8,
+        ]);
+        $blockedRes->assertSessionHas('error');
+        $this->assertDatabaseMissing('products', [
+            'id' => $productWithVariants->id,
+            'stock_quantity' => 99,
+        ]);
+
+        // Variant stock update works and automatically updates parent product's stock_quantity
         $variantRes = $this->actingAs($this->adminUser)->put("/admin/inventory/variant/{$variant->id}", [
             'stock_quantity' => 25,
             'low_stock_threshold' => 4,
@@ -189,6 +207,12 @@ class CatalogManagementTest extends TestCase
             'id' => $variant->id,
             'stock_quantity' => 25,
             'low_stock_threshold' => 4,
+        ]);
+
+        // Verify parent product was auto-calculated to 25
+        $this->assertDatabaseHas('products', [
+            'id' => $productWithVariants->id,
+            'stock_quantity' => 25,
         ]);
     }
 

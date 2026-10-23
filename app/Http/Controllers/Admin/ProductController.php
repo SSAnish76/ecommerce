@@ -298,6 +298,8 @@ class ProductController extends Controller
                         $variant->attributeValues()->sync($v['attribute_value_ids']);
                     }
                 }
+
+                $product->update(['stock_quantity' => (int) $product->variants()->sum('stock_quantity')]);
             }
         });
 
@@ -518,6 +520,8 @@ class ProductController extends Controller
                         $variant->attributeValues()->sync($v['attribute_value_ids']);
                     }
                 }
+
+                $product->update(['stock_quantity' => (int) $product->variants()->sum('stock_quantity')]);
             } elseif (empty($validated['has_variants'])) {
                 $product->variants()->delete();
                 $product->attributes()->detach();
