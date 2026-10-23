@@ -52,6 +52,7 @@ class Collection extends Model
         'type',
         'description',
         'image_id',
+        'custom_items',
         'is_active',
     ];
 
@@ -97,6 +98,7 @@ class Collection extends Model
     {
         return [
             'type' => CollectionType::class,
+            'custom_items' => 'array',
             'is_active' => 'boolean',
         ];
     }

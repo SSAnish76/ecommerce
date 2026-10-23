@@ -402,7 +402,14 @@ export interface Order {
     updated_at?: string;
 }
 
-export type CollectionType = 'product' | 'brand' | 'category';
+export type CollectionType = 'product' | 'brand' | 'category' | 'other';
+
+export interface CollectionCustomItem {
+    url?: string;
+    image_url?: string;
+    image_id?: string | null;
+    title?: string;
+}
 
 export interface Collection {
     id: string;
@@ -416,6 +423,7 @@ export interface Collection {
     products_count?: number;
     brands_count?: number;
     categories_count?: number;
+    custom_items?: CollectionCustomItem[] | null;
     products?: Product[];
     brands?: Brand[];
     categories?: Category[];

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
-import { Collection, Product, Brand, Category } from '../../../types';
+import { Collection, Product, Brand, Category, CollectionType, CollectionCustomItem } from '../../../types';
 import {
     Button,
     Input,
@@ -16,9 +16,7 @@ import {
     CardFooter,
     MultiSelect,
 } from '../../../Components/UI';
-import { ArrowLeft } from 'lucide-react';
-
-type CollectionType = 'product' | 'brand' | 'category';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 interface Options {
     products: (Product & { sale_price?: string | number; retail_price?: string | number })[];
@@ -50,6 +48,7 @@ export default function CollectionCreateOrEdit({ collection, options }: CreateOr
         product_ids: string[];
         brand_ids: string[];
         category_ids: string[];
+        custom_items: CollectionCustomItem[];
     }>({
         name: collection?.name || '',
         slug: collection?.slug || '',
@@ -61,6 +60,10 @@ export default function CollectionCreateOrEdit({ collection, options }: CreateOr
         product_ids: collection?.products ? collection.products.map((p) => p.id) : [],
         brand_ids: collection?.brands ? collection.brands.map((b) => b.id) : [],
         category_ids: collection?.categories ? collection.categories.map((c) => c.id) : [],
+        custom_items:
+            collection?.custom_items && collection.custom_items.length > 0
+                ? collection.custom_items
+                : [{ url: '', image_url: '', image_id: null, title: '' }],
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -70,6 +73,31 @@ export default function CollectionCreateOrEdit({ collection, options }: CreateOr
         } else {
             post('/admin/collections');
         }
+    };
+
+    const handleAddCustomItem = () => {
+        setData('custom_items', [
+            ...data.custom_items,
+            { url: '', image_url: '', image_id: null, title: '' },
+        ]);
+    };
+
+    const handleRemoveCustomItem = (index: number) => {
+        const next = data.custom_items.filter((_, i) => i !== index);
+        setData(
+            'custom_items',
+            next.length > 0 ? next : [{ url: '', image_url: '', image_id: null, title: '' }]
+        );
+    };
+
+    const handleUpdateCustomItem = (
+        index: number,
+        field: keyof CollectionCustomItem,
+        val: any
+    ) => {
+        const updated = [...data.custom_items];
+        updated[index] = { ...updated[index], [field]: val };
+        setData('custom_items', updated);
     };
 
     const pageTitle = isEdit ? `Edit Collection: ${collection?.name}` : 'Create Collection';
@@ -210,6 +238,7 @@ export default function CollectionCreateOrEdit({ collection, options }: CreateOr
                                 { value: 'product', label: 'Product Collection' },
                                 { value: 'brand', label: 'Brand Showcase' },
                                 { value: 'category', label: 'Category Group' },
+                                { value: 'other', label: 'Other' },
                             ]}
                         />
 
@@ -244,6 +273,91 @@ export default function CollectionCreateOrEdit({ collection, options }: CreateOr
                                 value={data.category_ids}
                                 onChange={(vals) => setData('category_ids', vals)}
                             />
+                        )}
+
+                        {data.type === 'other' && (
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                        Custom Items ({data.custom_items.length})
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        leftIcon={<Plus className="w-3.5 h-3.5" />}
+                                        onClick={handleAddCustomItem}
+                                    >
+                                        Add Item
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {data.custom_items.map((item, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50 space-y-3"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                                                    Item #{idx + 1}
+                                                </span>
+                                                {data.custom_items.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveCustomItem(idx)}
+                                                        className="text-rose-500 hover:text-rose-700 p-1 rounded-md transition-colors"
+                                                        title="Remove Item"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                                        Image
+                                                    </label>
+                                                    <ImagePicker
+                                                        value={item.image_url || ''}
+                                                        mediaId={item.image_id || null}
+                                                        collection="collections"
+                                                        onChange={({ id, url }) => {
+                                                            const updated = [...data.custom_items];
+                                                            updated[idx] = {
+                                                                ...updated[idx],
+                                                                image_id: id,
+                                                                image_url: url,
+                                                            };
+                                                            setData('custom_items', updated);
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Input
+                                                        label="Target URL"
+                                                        placeholder="https://... or /products/summer"
+                                                        value={item.url || ''}
+                                                        onChange={(e) =>
+                                                            handleUpdateCustomItem(idx, 'url', e.target.value)
+                                                        }
+                                                    />
+                                                    <Input
+                                                        label="Title / Label"
+                                                        placeholder="Optional title"
+                                                        value={item.title || ''}
+                                                        onChange={(e) =>
+                                                            handleUpdateCustomItem(idx, 'title', e.target.value)
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </CardContent>
 

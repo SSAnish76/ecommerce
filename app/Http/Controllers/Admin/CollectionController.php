@@ -145,6 +145,11 @@ class CollectionController extends Controller
             'brand_ids.*' => ['string', 'exists:brands,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['string', 'exists:categories,id'],
+            'custom_items' => ['nullable', 'array'],
+            'custom_items.*.url' => ['nullable', 'string', 'max:2000'],
+            'custom_items.*.image_url' => ['nullable', 'string', 'max:2000'],
+            'custom_items.*.image_id' => ['nullable', 'string'],
+            'custom_items.*.title' => ['nullable', 'string', 'max:255'],
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
@@ -165,6 +170,7 @@ class CollectionController extends Controller
             'type' => $validated['type'],
             'description' => $validated['description'] ?? null,
             'image_id' => $validated['image_id'] ?? null,
+            'custom_items' => $validated['custom_items'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -191,6 +197,11 @@ class CollectionController extends Controller
             'brand_ids.*' => ['string', 'exists:brands,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['string', 'exists:categories,id'],
+            'custom_items' => ['nullable', 'array'],
+            'custom_items.*.url' => ['nullable', 'string', 'max:2000'],
+            'custom_items.*.image_url' => ['nullable', 'string', 'max:2000'],
+            'custom_items.*.image_id' => ['nullable', 'string'],
+            'custom_items.*.title' => ['nullable', 'string', 'max:255'],
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
@@ -211,6 +222,7 @@ class CollectionController extends Controller
             'type' => $validated['type'] ?? $collection->type,
             'description' => $validated['description'] ?? null,
             'image_id' => array_key_exists('image_id', $validated) ? $validated['image_id'] : $collection->image_id,
+            'custom_items' => array_key_exists('custom_items', $validated) ? $validated['custom_items'] : $collection->custom_items,
             'is_active' => $validated['is_active'] ?? $collection->is_active,
         ]);
 
@@ -275,6 +287,11 @@ class CollectionController extends Controller
             $collection->categories()->sync($syncData);
             $collection->products()->detach();
             $collection->brands()->detach();
+        } else {
+            // Other or none
+            $collection->products()->detach();
+            $collection->brands()->detach();
+            $collection->categories()->detach();
         }
     }
 }

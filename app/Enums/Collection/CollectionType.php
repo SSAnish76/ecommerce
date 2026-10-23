@@ -13,6 +13,7 @@ enum CollectionType: string
     case Product = 'product';
     case Brand = 'brand';
     case Category = 'category';
+    case Other = 'other';
 
     /**
      * Get user-friendly label.
@@ -21,8 +22,9 @@ enum CollectionType: string
     {
         return match ($this) {
             self::Product => 'Product Collection',
-            self::Brand => 'Brand Showcase Collection',
-            self::Category => 'Category Group Collection',
+            self::Brand => 'Brand Showcase',
+            self::Category => 'Category Group',
+            self::Other => 'Other',
         };
     }
 }
