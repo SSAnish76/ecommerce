@@ -6,10 +6,7 @@ use App\Enums\User\RoleStatus;
 use App\Enums\User\UserStatus;
 use App\Models\Menu;
 use App\Models\Store;
-use App\Services\EnumRegistryService;
-use App\Support\Constants;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -69,19 +66,7 @@ class HandleInertiaRequests extends Middleware
             ],
             // 3. Role-based navigation menus with permissions (scoped to authenticated user, served from cache)
             'menus' => fn () => $user ? Menu::roleMenuData($user) : null,
-            // 4. System enums & dropdown constants (scoped to authenticated admin, served from cache)
-            'essentials' => fn () => $user ? Cache::remember('app_essentials_data', 86400, fn () => [
-                'modules' => app(EnumRegistryService::class)->discover(),
-                'enums' => app(EnumRegistryService::class)->getFlatEnums(),
-                'constants' => [
-                    'timezones' => Constants::timezones(),
-                    'currencies' => Constants::currencies(),
-                    'currencies_map' => Constants::currenciesMap(),
-                    'date_formats' => Constants::dateFormats(),
-                    'time_formats' => Constants::timeFormats(),
-                ],
-            ]) : null,
-            // 5. Session flash notifications
+            // 4. Session flash notifications
             'flash' => [
                 'message' => fn () => $request->session()->get('message'),
                 'success' => fn () => $request->session()->get('success'),

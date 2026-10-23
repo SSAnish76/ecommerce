@@ -55,6 +55,7 @@ class RoleController extends Controller
                 'search' => $search,
                 'status' => $status,
             ],
+            'statuses' => RoleStatus::options(),
         ]);
     }
 
@@ -71,6 +72,7 @@ class RoleController extends Controller
         return Inertia::render('Admin/Roles/CreateOrEdit', [
             'role' => null,
             'available_menus' => $availableMenus,
+            'statuses' => RoleStatus::options(),
         ]);
     }
 
@@ -133,6 +135,7 @@ class RoleController extends Controller
         return Inertia::render('Admin/Roles/CreateOrEdit', [
             'role' => $role,
             'available_menus' => $availableMenus,
+            'statuses' => RoleStatus::options(),
         ]);
     }
 

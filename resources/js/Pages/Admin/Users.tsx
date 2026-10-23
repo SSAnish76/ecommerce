@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { User, Role, MenuItem, PageProps, UserStatus } from '../../types';
-import { useEssentials } from '../../hooks/useEssentials';
 import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
@@ -51,6 +50,7 @@ interface UsersProps {
         search: string;
         role?: string;
     };
+    statuses?: Array<{ value: string; label: string }>;
 }
 
 const getPrimaryRole = (user: User): string => {
@@ -86,9 +86,12 @@ export default function UsersPage({
     users,
     roles = [],
     filters,
+    statuses = [],
 }: UsersProps) {
-    const { getOptions } = useEssentials();
-    const userStatusOptions = getOptions<UserStatus>('user_status');
+    const userStatusOptions = statuses.length > 0 ? statuses : [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+    ];
     const defaultStatus = (userStatusOptions[0]?.value ?? 'active') as UserStatus;
 
     const { auth } = usePage<PageProps>().props;

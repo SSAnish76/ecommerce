@@ -8,7 +8,6 @@ import {
     SmsProvider,
     CURRENCY_DECIMAL_OPTIONS,
 } from '../../types';
-import { useEssentials } from '../../hooks/useEssentials';
 import {
     Button,
     Input,
@@ -139,6 +138,9 @@ interface SettingsProps extends PageProps {
     currencies: Array<{ code: string; symbol: string; name: string }>;
     roles?: Array<{ id: string; name: string }>;
     staffUsers?: Array<{ id: string; name: string; email: string; role_id?: string | null }>;
+    stock_visibility_options?: Array<{ value: StockVisibility; label: string }>;
+    mail_encryption_options?: Array<{ value: MailEncryption; label: string }>;
+    sms_provider_options?: Array<{ value: SmsProvider; label: string }>;
 }
 
 const ALL_SECTION_IDS = ['localization', 'orders', 'payments', 'storage', 'email_sms', 'triggers'];
@@ -305,12 +307,33 @@ export default function Settings({
     currencies,
     roles = [],
     staffUsers = [],
+    stock_visibility_options = [],
+    mail_encryption_options = [],
+    sms_provider_options = [],
 }: SettingsProps) {
-    const { getOptions } = useEssentials();
+    const stockVisibilityOptions = stock_visibility_options.length > 0
+        ? stock_visibility_options
+        : [
+            { value: 'badge', label: "Display product with 'Sold Out' badge (Recommended)" },
+            { value: 'hide', label: 'Hide product completely from catalog storefront' },
+            { value: 'backorder', label: 'Allow customers to backorder' },
+        ];
 
-    const stockVisibilityOptions = getOptions<StockVisibility>('stock_visibility');
-    const mailEncryptionOptions = getOptions<MailEncryption>('mail_encryption');
-    const smsProviderOptions = getOptions<SmsProvider>('sms_provider');
+    const mailEncryptionOptions = mail_encryption_options.length > 0
+        ? mail_encryption_options
+        : [
+            { value: 'tls', label: 'TLS' },
+            { value: 'ssl', label: 'SSL' },
+            { value: 'none', label: 'None' },
+        ];
+
+    const smsProviderOptions = sms_provider_options.length > 0
+        ? sms_provider_options
+        : [
+            { value: 'twilio', label: 'Twilio' },
+            { value: 'vonage', label: 'Vonage' },
+            { value: 'aws_sns', label: 'AWS SNS' },
+        ];
 
     // List expand/collapse state
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({

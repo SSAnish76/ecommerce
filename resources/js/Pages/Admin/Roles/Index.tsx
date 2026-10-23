@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { PageProps, Role, MenuItem, RoleStatus } from '../../../types';
-import { useEssentials } from '../../../hooks/useEssentials';
 import { usePermission } from '../../../hooks/usePermission';
 import { Button, Select, Badge } from '../../../Components/UI';
 import {
@@ -23,11 +22,13 @@ interface RolesProps {
         search: string;
         status?: string;
     };
+    statuses?: Array<{ value: string; label: string }>;
 }
 
 export default function RolesIndexPage({
     roles = [],
     filters = { search: '' },
+    statuses = [],
 }: RolesProps) {
     const { can, isSuperAdmin } = usePermission();
     const canManageRoles = isSuperAdmin || can('roles', 'view') || can('users', 'edit');
@@ -35,8 +36,10 @@ export default function RolesIndexPage({
     const [search, setSearch] = useState(filters?.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters?.status || '');
 
-    const { getOptions } = useEssentials();
-    const roleStatusOptions = getOptions<RoleStatus>('role_status');
+    const roleStatusOptions = statuses.length > 0 ? statuses : [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+    ];
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();

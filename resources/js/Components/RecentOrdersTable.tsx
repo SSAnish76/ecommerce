@@ -1,17 +1,29 @@
 import { CheckCircle2, Clock, AlertCircle, XCircle, ExternalLink } from 'lucide-react';
 import { RecentOrder } from '../types';
-import { useEssentials } from '../hooks/useEssentials';
 
 interface RecentOrdersTableProps {
     orders: RecentOrder[];
+    orderStatusMap?: Record<string, string>;
 }
 
-export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
-    const { getMap } = useEssentials();
-    const orderStatusMap = getMap('order_status');
+const DEFAULT_ORDER_STATUS_MAP: Record<string, string> = {
+    pending: 'Pending',
+    processing: 'Processing',
+    shipped: 'Shipped',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled',
+    refunded: 'Refunded',
+    failed: 'Failed',
+};
+
+export default function RecentOrdersTable({
+    orders,
+    orderStatusMap = DEFAULT_ORDER_STATUS_MAP,
+}: RecentOrdersTableProps) {
+    const statusMap = { ...DEFAULT_ORDER_STATUS_MAP, ...orderStatusMap };
 
     const getStatusBadge = (status: RecentOrder['status']) => {
-        const label = orderStatusMap[status] || status;
+        const label = statusMap[status] || status;
         const s = String(status).toLowerCase();
 
         let Icon = Clock;

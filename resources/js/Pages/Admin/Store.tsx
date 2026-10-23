@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { PageProps, Store, StoreStatus } from '../../types';
-import { useEssentials } from '../../hooks/useEssentials';
 import {
     Button,
     Input,
@@ -32,14 +31,18 @@ import {
 
 interface StorePageProps extends PageProps {
     store: Store;
+    statuses?: Array<{ value: string; label: string }>;
 }
 
-export default function StorePage({ store }: StorePageProps) {
+export default function StorePage({ store, statuses = [] }: StorePageProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [copiedField, setCopiedField] = useState<string | null>(null);
 
-    const { getOptions } = useEssentials();
-    const storeStatusOptions = getOptions<StoreStatus>('store_status');
+    const storeStatusOptions = statuses.length > 0 ? statuses : [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+        { value: 'maintenance', label: 'Maintenance' },
+    ];
     const defaultStoreStatus = (storeStatusOptions[0]?.value ?? 'active') as StoreStatus;
 
     const form = useForm({

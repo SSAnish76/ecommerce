@@ -147,6 +147,8 @@ class DashboardController extends Controller
             'recentOrders' => $recentOrders,
             'recentUsers' => $recentUsers,
             'activityFeed' => $activityFeed,
+            'orderStatusMap' => OrderStatus::toArray(),
+            'activityMap' => ActivityStatus::toArray(),
         ]);
     }
 }

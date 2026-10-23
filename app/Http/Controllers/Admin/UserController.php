@@ -58,6 +58,7 @@ class UserController extends Controller
                 'search' => $search,
                 'role' => $roleFilter,
             ],
+            'statuses' => UserStatus::options(),
         ]);
     }
 

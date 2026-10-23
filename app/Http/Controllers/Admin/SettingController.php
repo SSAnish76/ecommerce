@@ -68,6 +68,9 @@ class SettingController extends Controller
             'currencies' => Constants::currencies(),
             'roles' => Role::query()->select('id', 'name')->orderBy('name')->get(),
             'staffUsers' => User::query()->select('id', 'name', 'email', 'role_id')->orderBy('name')->get(),
+            'stock_visibility_options' => StockVisibility::options(),
+            'mail_encryption_options' => MailEncryption::options(),
+            'sms_provider_options' => SmsProvider::options(),
         ]);
     }
 

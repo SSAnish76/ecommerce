@@ -22,6 +22,8 @@ interface DashboardProps {
     recentOrders: RecentOrder[];
     recentUsers: User[];
     activityFeed: ActivityItem[];
+    orderStatusMap?: Record<string, string>;
+    activityMap?: Record<string, string>;
 }
 
 export default function Dashboard({
@@ -29,6 +31,8 @@ export default function Dashboard({
     recentOrders,
     recentUsers,
     activityFeed,
+    orderStatusMap,
+    activityMap,
 }: DashboardProps) {
     return (
         <AdminLayout title="Dashboard Overview">
@@ -200,10 +204,10 @@ export default function Dashboard({
             {/* Orders & Activity Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                    <RecentOrdersTable orders={recentOrders} />
+                    <RecentOrdersTable orders={recentOrders} orderStatusMap={orderStatusMap} />
                 </div>
                 <div>
-                    <ActivityList activities={activityFeed} />
+                    <ActivityList activities={activityFeed} activityMap={activityMap} />
                 </div>
             </div>
         </AdminLayout>

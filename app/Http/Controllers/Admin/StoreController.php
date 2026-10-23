@@ -27,6 +27,7 @@ class StoreController extends Controller
                 'status' => $store->status?->value ?? StoreStatus::Active->value,
                 'is_active' => $store->isActive(),
             ]),
+            'statuses' => StoreStatus::options(),
         ]);
     }
 

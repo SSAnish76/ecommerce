@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { PageProps, Role, MenuItem, RoleStatus } from '../../../types';
-import { useEssentials } from '../../../hooks/useEssentials';
 import { Button, Input, Card, CardHeader, CardTitle, CardContent, CardFooter, Badge, Select } from '../../../Components/UI';
 import {
     ArrowLeft,
@@ -27,6 +26,7 @@ import {
 interface CreateOrEditProps {
     role?: Role | null;
     available_menus: MenuItem[];
+    statuses?: Array<{ value: string; label: string }>;
 }
 
 const menuIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -72,13 +72,16 @@ interface RoleFormData {
 export default function CreateOrEditRolePage({
     role = null,
     available_menus = [],
+    statuses = [],
 }: CreateOrEditProps) {
     const isEdit = Boolean(role?.id);
     const isSystemRole = Boolean(role?.is_system);
 
-    const { getOptions, getValues } = useEssentials();
-    const roleStatusOptions = getOptions<RoleStatus>('role_status');
-    const defaultStatus = (getValues<RoleStatus>('role_status')[0] ?? 'active') as RoleStatus;
+    const roleStatusOptions = statuses.length > 0 ? statuses : [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+    ];
+    const defaultStatus = (roleStatusOptions[0]?.value ?? 'active') as RoleStatus;
 
     // Group available menus into parent-child hierarchy
     const menuHierarchy = useMemo(() => {

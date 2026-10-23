@@ -1,15 +1,24 @@
 import React from 'react';
 import { ActivityItem } from '../types';
-import { useEssentials } from '../hooks/useEssentials';
 import { ShoppingCart, Tag, RefreshCw, Database } from 'lucide-react';
 
 interface ActivityListProps {
     activities: ActivityItem[];
+    activityMap?: Record<string, string>;
 }
 
-export default function ActivityList({ activities }: ActivityListProps) {
-    const { getMap } = useEssentials();
-    const activityMap = getMap('activity_status');
+const DEFAULT_ACTIVITY_MAP: Record<string, string> = {
+    completed: 'Completed',
+    pending: 'Pending',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+};
+
+export default function ActivityList({
+    activities,
+    activityMap = DEFAULT_ACTIVITY_MAP,
+}: ActivityListProps) {
+    const statusMap = { ...DEFAULT_ACTIVITY_MAP, ...activityMap };
 
     const getIcon = (target: string) => {
         if (target.includes('ORD')) return ShoppingCart;
