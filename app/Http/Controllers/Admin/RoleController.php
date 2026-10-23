@@ -48,13 +48,29 @@ class RoleController extends Controller
             ->orderBy('sort_order')
             ->get(['slug', 'parent_slug', 'name', 'icon', 'sort_order', 'is_crud', 'is_import_export']);
 
-        return Inertia::render('Admin/Roles', [
+        return Inertia::render('Admin/Roles/Index', [
             'roles' => $roles,
             'available_menus' => $availableMenus,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
             ],
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new role.
+     */
+    public function create(): Response
+    {
+        $availableMenus = Menu::query()
+            ->where('status', MenuStatus::Active)
+            ->orderBy('sort_order')
+            ->get(['slug', 'parent_slug', 'name', 'icon', 'sort_order', 'is_crud', 'is_import_export']);
+
+        return Inertia::render('Admin/Roles/CreateOrEdit', [
+            'role' => null,
+            'available_menus' => $availableMenus,
         ]);
     }
 
@@ -96,7 +112,28 @@ class RoleController extends Controller
 
         Cache::forget('app_navigation_menus');
 
-        return redirect()->back()->with('success', "Role '{$role->name}' created successfully.");
+        return redirect()->route('admin.roles.index')->with('success', "Role '{$role->name}' created successfully.");
+    }
+
+    /**
+     * Show the form for editing the specified role.
+     */
+    public function edit(Role $role): Response
+    {
+        $role->load([
+            'menus:slug,name,icon,parent_slug,sort_order',
+            'rolePermissions',
+        ]);
+
+        $availableMenus = Menu::query()
+            ->where('status', MenuStatus::Active)
+            ->orderBy('sort_order')
+            ->get(['slug', 'parent_slug', 'name', 'icon', 'sort_order', 'is_crud', 'is_import_export']);
+
+        return Inertia::render('Admin/Roles/CreateOrEdit', [
+            'role' => $role,
+            'available_menus' => $availableMenus,
+        ]);
     }
 
     /**
@@ -144,7 +181,7 @@ class RoleController extends Controller
 
         Cache::forget('app_navigation_menus');
 
-        return redirect()->back()->with('success', "Role '{$role->name}' updated successfully.");
+        return redirect()->route('admin.roles.index')->with('success', "Role '{$role->name}' updated successfully.");
     }
 
     /**

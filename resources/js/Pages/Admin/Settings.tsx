@@ -13,6 +13,7 @@ import {
     Button,
     Input,
     Select,
+    MultiSelect,
     Toggle,
     Badge,
     PageHeader,
@@ -1547,50 +1548,22 @@ export default function Settings({
 
                                 {/* Option 3: By Specific Users */}
                                 {form.data.admin_alert_recipient_type === 'users' && (
-                                    <div className="pt-1 space-y-2">
-                                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                                            Select Staff Users to Receive Alerts
-                                        </span>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
-                                            {staffUsers && staffUsers.length > 0 ? (
-                                                staffUsers.map((user) => {
-                                                    const isSelected = form.data.admin_alert_users?.includes(user.id);
-                                                    return (
-                                                        <button
-                                                            key={user.id}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const current = form.data.admin_alert_users || [];
-                                                                const next = isSelected
-                                                                    ? current.filter((id) => id !== user.id)
-                                                                    : [...current, user.id];
-                                                                form.setData('admin_alert_users', next);
-                                                            }}
-                                                            className={cn(
-                                                                'p-2.5 rounded-lg text-left border transition-all flex items-center justify-between gap-2 cursor-pointer',
-                                                                isSelected
-                                                                    ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 ring-1 ring-blue-500/20'
-                                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                                                            )}
-                                                        >
-                                                            <div className="min-w-0">
-                                                                <div className={cn('text-xs font-semibold truncate', isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200')}>
-                                                                    {user.name}
-                                                                </div>
-                                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                                                                    {user.email}
-                                                                </div>
-                                                            </div>
-                                                            <div className={cn('w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all', isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-slate-600')}>
-                                                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                })
-                                            ) : (
-                                                <div className="text-xs text-slate-400 italic">No staff users found</div>
-                                            )}
-                                        </div>
+                                    <div className="pt-1">
+                                        <MultiSelect
+                                            label="Select Staff Users to Receive Alerts"
+                                            placeholder="Select staff users to receive alerts..."
+                                            searchPlaceholder="Search staff by name or email..."
+                                            options={(staffUsers || []).map((u) => ({
+                                                value: String(u.id),
+                                                label: u.name,
+                                                description: u.email,
+                                            }))}
+                                            value={form.data.admin_alert_users || []}
+                                            onChange={(nextUsers) => form.setData('admin_alert_users', nextUsers)}
+                                            error={form.errors.admin_alert_users}
+                                            leftIcon={<Users className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
+                                            itemTypeLabel="staff users"
+                                        />
                                     </div>
                                 )}
                             </div>

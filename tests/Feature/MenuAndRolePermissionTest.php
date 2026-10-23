@@ -122,10 +122,44 @@ class MenuAndRolePermissionTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('Admin/Roles')
+            ->component('Admin/Roles/Index')
             ->has('roles')
             ->has('available_menus')
             ->has('filters')
+        );
+    }
+
+    /**
+     * Test admin can view roles create page.
+     */
+    public function test_admin_can_view_roles_create_page(): void
+    {
+        $response = $this->actingAs($this->adminUser)->get('/admin/roles/create');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Roles/CreateOrEdit')
+            ->where('role', null)
+            ->has('available_menus')
+        );
+    }
+
+    /**
+     * Test admin can view roles edit page.
+     */
+    public function test_admin_can_view_roles_edit_page(): void
+    {
+        $managerRole = Role::where('name', 'Manager')->first();
+        $this->assertNotNull($managerRole);
+
+        $response = $this->actingAs($this->adminUser)->get("/admin/roles/{$managerRole->id}/edit");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Roles/CreateOrEdit')
+            ->has('role')
+            ->where('role.id', $managerRole->id)
+            ->has('available_menus')
         );
     }
 

@@ -70,9 +70,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/roles', [RoleController::class, 'index'])
             ->middleware('permission:users.roles')
             ->name('roles.index');
+        Route::get('/roles/create', [RoleController::class, 'create'])
+            ->middleware('permission:users.roles')
+            ->name('roles.create');
         Route::post('/roles', [RoleController::class, 'store'])
             ->middleware('permission:users.roles')
             ->name('roles.store');
+        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
+            ->middleware('permission:users.roles')
+            ->name('roles.edit');
         Route::put('/roles/{role}', [RoleController::class, 'update'])
             ->middleware('permission:users.roles')
             ->name('roles.update');
