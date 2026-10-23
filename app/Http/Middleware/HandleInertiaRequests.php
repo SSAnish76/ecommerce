@@ -74,9 +74,7 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             // 3. Navigation menus (scoped to authenticated admin, served from cache)
-            'navigation_menus' => fn () => $user ? Cache::remember('app_navigation_menus', 86400, fn () => Menu::activeList()
-                ->toArray()
-            ) : null,
+            'navigation_menus' => fn () => $user ? Menu::activeList()->toArray() : null,
             // 4. System enums & dropdown constants (scoped to authenticated admin, served from cache)
             'essentials' => fn () => $user ? Cache::remember('app_essentials_data', 86400, fn () => [
                 'modules' => app(EnumRegistryService::class)->discover(),

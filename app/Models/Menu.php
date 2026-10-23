@@ -31,11 +31,28 @@ class Menu extends Model
      */
     public static function activeList(): \Illuminate\Database\Eloquent\Collection
     {
-        return Cache::remember(self::ACTIVE_CACHE_KEY, 86400, fn () => static::query()
+        $cached = Cache::get(self::ACTIVE_CACHE_KEY);
+
+        if (is_array($cached)) {
+            return static::hydrate($cached);
+        }
+
+        if ($cached instanceof \Illuminate\Database\Eloquent\Collection) {
+            return $cached;
+        }
+
+        // Invalidate corrupt/legacy incomplete class serialization
+        Cache::forget(self::ACTIVE_CACHE_KEY);
+
+        $menus = static::query()
             ->where('status', MenuStatus::Active)
             ->orderBy('sort_order')
-            ->get(['slug', 'parent_slug', 'name', 'description', 'href', 'icon', 'sort_order', 'is_crud', 'is_import_export'])
-        );
+            ->get(['slug', 'parent_slug', 'name', 'description', 'href', 'icon', 'sort_order', 'is_crud', 'is_import_export']);
+
+        // Cache as plain array to be 100% immune to PHP serialization / autoloading issues
+        Cache::put(self::ACTIVE_CACHE_KEY, $menus->toArray(), 86400);
+
+        return $menus;
     }
 
     /**
