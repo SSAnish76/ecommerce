@@ -83,23 +83,7 @@ class CouponController extends Controller
             });
 
         $coupons = $query->latest()->paginate(15)->withQueryString();
-
-        // Form selection options
-        $productOptions = Product::query()
-            ->active()
-            ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'retail_price', 'sale_price', 'category_id']);
-
-        $categoryOptions = Category::query()
-            ->active()
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        $collectionOptions = Collection::query()
-            ->active()
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
+      
         return Inertia::render('Admin/Coupons/Index', [
             'coupons' => $coupons,
             'filters' => [

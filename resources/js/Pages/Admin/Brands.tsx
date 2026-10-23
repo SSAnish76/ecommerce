@@ -416,20 +416,28 @@ export default function BrandsPage({ brands, filters }: BrandsProps) {
                                     </div>
 
                                     {/* Description */}
-                                    {brand.description && (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-                                            {brand.description}
-                                        </p>
-                                    )}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 min-h-[2.5rem] leading-relaxed mb-3">
+                                        {brand.description || (
+                                            <span className="italic text-slate-400/70 dark:text-slate-600">
+                                                No description provided
+                                            </span>
+                                        )}
+                                    </p>
                                 </div>
 
                                 {/* Footer: Actions */}
-                                <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-                                    <span className="text-[11px] text-slate-400 font-mono">
-                                        ID #{brand.id}
-                                    </span>
+                                <div className="pt-3 mt-auto border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 text-xs">
+                                    <div className="flex items-center gap-1 min-w-0">
+                                        <span
+                                            className="text-[11px] text-slate-400 dark:text-slate-500 font-mono truncate"
+                                            title={`Full ID: ${brand.id}`}
+                                        >
+                                            ID #{brand.id.slice(0, 8)}
+                                        </span>
+                                        <CopyButton text={brand.id} title="Copy ID" />
+                                    </div>
 
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 shrink-0">
                                         {canEdit && (
                                             <Button
                                                 size="sm"

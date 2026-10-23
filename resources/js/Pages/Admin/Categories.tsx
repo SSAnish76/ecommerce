@@ -649,9 +649,14 @@ export default function CategoriesPage({
                                                 <span className="text-xs text-slate-500 font-mono">/{sub.slug}</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                                            <span className="text-slate-400 font-mono text-[11px]">ID #{sub.id}</span>
-                                            <div className="flex items-center gap-1">
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs gap-2">
+                                            <div className="flex items-center gap-1 min-w-0">
+                                                <span className="text-slate-400 font-mono text-[11px] truncate" title={`Category ID: ${sub.id}`}>
+                                                    ID #{sub.id.slice(0, 8)}
+                                                </span>
+                                                <CopyButton text={sub.id} title="Copy ID" />
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
                                                 {canEdit && (
                                                     <Button
                                                         size="sm"
