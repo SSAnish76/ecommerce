@@ -15,6 +15,12 @@ class Role extends Model
 {
     use HasFactory, HasUuids;
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => Menu::clearCache());
+        static::deleted(fn () => Menu::clearCache());
+    }
+
     /**
      * Get the attributes that should be cast.
      *

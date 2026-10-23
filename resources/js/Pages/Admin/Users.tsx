@@ -3,6 +3,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { User, Role, MenuItem, PageProps, UserStatus } from '../../types';
 import { useEssentials } from '../../hooks/useEssentials';
+import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -91,10 +92,11 @@ export default function UsersPage({
     const defaultStatus = (userStatusOptions[0]?.value ?? 'active') as UserStatus;
 
     const { auth } = usePage<PageProps>().props;
+    const { can } = usePermission();
     const currentUserId = auth?.user?.id;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('users.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('users.edit');
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('users.delete');
+    const canCreate = can('users', 'create');
+    const canEdit = can('users', 'edit');
+    const canDelete = can('users', 'delete');
 
     const [search, setSearch] = useState(filters.search || '');
     const [selectedRole, setSelectedRole] = useState(filters.role || '');

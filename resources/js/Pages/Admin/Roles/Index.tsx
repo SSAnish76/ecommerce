@@ -3,6 +3,7 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { PageProps, Role, MenuItem, RoleStatus } from '../../../types';
 import { useEssentials } from '../../../hooks/useEssentials';
+import { usePermission } from '../../../hooks/usePermission';
 import { Button, Select, Badge } from '../../../Components/UI';
 import {
     Shield,
@@ -28,12 +29,8 @@ export default function RolesIndexPage({
     roles = [],
     filters = { search: '' },
 }: RolesProps) {
-    const { auth } = usePage<PageProps>().props;
-    const isSuperAdmin = auth?.user?.is_super_admin;
-    const canManageRoles =
-        isSuperAdmin ||
-        auth?.user?.permissions?.includes('users.roles') ||
-        auth?.user?.permissions?.includes('roles.view');
+    const { can, isSuperAdmin } = usePermission();
+    const canManageRoles = isSuperAdmin || can('roles', 'view') || can('users', 'edit');
 
     const [search, setSearch] = useState(filters?.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters?.status || '');

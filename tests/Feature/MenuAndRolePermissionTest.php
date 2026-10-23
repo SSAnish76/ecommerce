@@ -264,4 +264,54 @@ class MenuAndRolePermissionTest extends TestCase
         $this->assertDatabaseMissing('roles', ['name' => 'Temporary Staff']);
         $this->assertDatabaseMissing('role_permissions', ['role_id' => $customRole->id]);
     }
+
+    /**
+     * Test Menu::roleMenuData returns cached role menus with attached permissions.
+     */
+    public function test_role_menu_data_is_cached_and_scoped_per_role(): void
+    {
+        $editorRole = Role::where('name', 'Editor')->first();
+        $this->assertNotNull($editorRole);
+
+        $editorUser = User::factory()->create();
+        $editorUser->assignRole($editorRole);
+
+        $menus = Menu::roleMenuData($editorUser);
+        $this->assertIsArray($menus);
+
+        // Editor has access to dashboard and users, but each menu has permissions attached
+        $menuSlugs = collect($menus)->pluck('slug')->all();
+        $this->assertContains('dashboard', $menuSlugs);
+        $this->assertContains('users', $menuSlugs);
+
+        $usersMenu = collect($menus)->firstWhere('slug', 'users');
+        $this->assertNotNull($usersMenu);
+        $this->assertArrayHasKey('permissions', $usersMenu);
+        $this->assertTrue($usersMenu['permissions']['can_view']);
+        $this->assertFalse($usersMenu['permissions']['can_create']);
+
+        // Check super admin gets full permissions
+        $superAdminMenus = Menu::roleMenuData($this->adminUser);
+        $this->assertNotEmpty($superAdminMenus);
+        $adminUsersMenu = collect($superAdminMenus)->firstWhere('slug', 'users');
+        $this->assertTrue($adminUsersMenu['permissions']['can_create']);
+    }
+
+    /**
+     * Test Inertia request sharing delivers only menus without duplicate props.
+     */
+    public function test_inertia_requests_share_simplified_role_menu_and_permissions(): void
+    {
+        $response = $this->actingAs($this->adminUser)->get('/admin');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('menus')
+            ->missing('navigation_menus')
+            ->missing('auth.user.role_permissions')
+            ->missing('auth.user.permissions')
+            ->missing('auth.user.allowed_menus')
+        );
+    }
 }
+

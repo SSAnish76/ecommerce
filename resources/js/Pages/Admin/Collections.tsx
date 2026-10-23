@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Collection, CollectionType, PageProps, Product, Brand, Category } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -72,10 +73,10 @@ export default function CollectionsPage({
     filters,
     options,
 }: CollectionsPageProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('collections.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('collections.edit');
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('collections.delete');
+    const { can } = usePermission();
+    const canCreate = can('collections', 'create');
+    const canEdit = can('collections', 'edit');
+    const canDelete = can('collections', 'delete');
 
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');

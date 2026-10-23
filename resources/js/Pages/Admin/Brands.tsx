@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Brand, PageProps } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -50,10 +51,10 @@ interface BrandsProps {
 }
 
 export default function BrandsPage({ brands, filters }: BrandsProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('brands.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('brands.edit');
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('brands.delete');
+    const { can } = usePermission();
+    const canCreate = can('brands', 'create');
+    const canEdit = can('brands', 'edit');
+    const canDelete = can('brands', 'delete');
 
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');

@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
         // 2. Authenticated user payload (only loaded for logged in accounts)
         $user = $request->user();
         if ($user) {
-            $user->loadMissing(['role' => fn ($q) => $q->where('status', RoleStatus::Active)->with('rolePermissions')]);
+            $user->loadMissing(['role' => fn ($q) => $q->where('status', RoleStatus::Active)]);
         }
 
         return [
@@ -62,19 +62,13 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->primaryRoleLabel(),
-                    'role_name' => $user->primaryRoleName(),
-                    'role_id' => $user->role_id,
-                    'roles' => $user->role ? [$user->role->name] : [],
-                    'permissions' => $user->allPermissions()->all(),
                     'is_super_admin' => $user->isSuperAdmin(),
                     'is_2fa' => $user->hasTwoFactorEnabled(),
-                    'is_active' => $user->isActive(),
                     'status' => $user->status?->value ?? UserStatus::Active->value,
-                    'allowed_menus' => $user->allowedMenus()->pluck('slug')->all(),
                 ] : null,
             ],
-            // 3. Navigation menus (scoped to authenticated admin, served from cache)
-            'navigation_menus' => fn () => $user ? Menu::activeList()->toArray() : null,
+            // 3. Role-based navigation menus with permissions (scoped to authenticated user, served from cache)
+            'menus' => fn () => $user ? Menu::roleMenuData($user) : null,
             // 4. System enums & dropdown constants (scoped to authenticated admin, served from cache)
             'essentials' => fn () => $user ? Cache::remember('app_essentials_data', 86400, fn () => [
                 'modules' => app(EnumRegistryService::class)->discover(),
@@ -85,7 +79,6 @@ class HandleInertiaRequests extends Middleware
                     'currencies_map' => Constants::currenciesMap(),
                     'date_formats' => Constants::dateFormats(),
                     'time_formats' => Constants::timeFormats(),
-                    'vital_permissions' => Constants::vitalPermissions(),
                 ],
             ]) : null,
             // 5. Session flash notifications

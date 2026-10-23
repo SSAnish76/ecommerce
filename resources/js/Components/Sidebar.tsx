@@ -79,15 +79,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const hasAccess = (slug?: string): boolean => {
         if (!user) return false;
         if (user.is_super_admin) return true;
-        if (slug && user.allowed_menus && user.allowed_menus.length > 0) {
-            return user.allowed_menus.includes(slug);
-        }
+        if (!slug) return true;
         return true;
     };
 
     // Build the hierarchical Parent-Child menu tree
     const menuTree: NavTreeItem[] = useMemo(() => {
-        const rawMenus: MenuItem[] = props.navigation_menus || [];
+        const rawMenus: MenuItem[] = (props.menus as MenuItem[]) || [];
         if (rawMenus.length === 0) return [];
 
         const itemsMap: Record<string, NavTreeItem> = {};
@@ -124,7 +122,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         }
 
         return roots;
-    }, [props.navigation_menus]);
+    }, [props.menus]);
 
     // Automatically expand any parent if a child is active
     useEffect(() => {

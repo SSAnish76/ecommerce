@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Attribute, PageProps } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 import { slugify } from '../../lib/utils';
 import {
     Button,
@@ -48,10 +49,10 @@ export default function AttributesPage({
     filters,
     attributeTypes,
 }: AttributesProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('attributes.create') || true;
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('attributes.edit') || true;
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('attributes.delete') || true;
+    const { can } = usePermission();
+    const canCreate = can('attributes', 'create') || true;
+    const canEdit = can('attributes', 'edit') || true;
+    const canDelete = can('attributes', 'delete') || true;
 
     const [search, setSearch] = useState(filters?.search || '');
     const [typeFilter, setTypeFilter] = useState(filters?.type || '');

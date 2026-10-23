@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Category, PageProps } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -59,10 +60,10 @@ export default function CategoriesPage({
     parentOptions,
     filters,
 }: CategoriesProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('categories.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('categories.edit');
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('categories.delete');
+    const { can } = usePermission();
+    const canCreate = can('categories', 'create');
+    const canEdit = can('categories', 'edit');
+    const canDelete = can('categories', 'delete');
 
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');

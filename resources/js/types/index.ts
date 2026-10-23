@@ -60,6 +60,14 @@ export interface MenuItem {
     is_import_export?: boolean;
     is_active?: boolean;
     children?: MenuItem[];
+    permissions?: {
+        can_view?: boolean;
+        can_create?: boolean;
+        can_update?: boolean;
+        can_delete?: boolean;
+        can_import?: boolean;
+        can_export?: boolean;
+    };
 }
 
 export interface NavItem {
@@ -118,8 +126,6 @@ export interface User {
     role_name?: string;
     role_id?: string;
     roles?: (Role | string)[];
-    permissions?: string[];
-    allowed_menus?: string[];
     is_super_admin?: boolean;
     is_2fa?: boolean;
     '2fa_confirmed_at'?: string | null;
@@ -151,7 +157,7 @@ export interface EssentialsConstants {
     currencies_map: Record<string, string>;
     date_formats: Record<string, string>;
     time_formats: Record<string, string>;
-    vital_permissions: string[];
+    vital_permissions?: string[];
 }
 
 export interface EssentialsData {
@@ -166,7 +172,7 @@ export interface PageProps<T = Record<string, unknown>> {
     auth: {
         user: User | null;
     };
-    navigation_menus?: MenuItem[];
+    menus?: MenuItem[];
     essentials?: EssentialsData;
     flash: {
         message?: string | null;

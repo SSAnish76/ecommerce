@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Coupon, CouponType, CouponApplyTo, PageProps, Product, Category, Collection } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -131,10 +132,10 @@ const couponExpiryDatePresets = (baseStartDate?: string) => {
 };
 
 export default function CouponsPage({ coupons, filters, options }: CouponsPageProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('coupons.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('coupons.edit');
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('coupons.delete');
+    const { can } = usePermission();
+    const canCreate = can('coupons', 'create');
+    const canEdit = can('coupons', 'edit');
+    const canDelete = can('coupons', 'delete');
 
     // Filtering & View state
     const [search, setSearch] = useState(filters.search || '');

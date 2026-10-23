@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { Product, PageProps } from '../../../types';
+import { usePermission } from '../../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -68,12 +69,13 @@ export default function ProductsIndexPage({
     statuses,
     filters,
 }: ProductsIndexProps) {
-    const { auth, store } = usePage<PageProps>().props;
+    const { store } = usePage<PageProps>().props;
+    const { can } = usePermission();
     const currency = store?.currency || '$';
 
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('products.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('products.edit');
-    const canDelete = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('products.delete');
+    const canCreate = can('products', 'create');
+    const canEdit = can('products', 'edit');
+    const canDelete = can('products', 'delete');
 
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || '');

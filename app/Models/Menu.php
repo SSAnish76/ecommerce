@@ -62,6 +62,117 @@ class Menu extends Model
     {
         Cache::forget(self::ACTIVE_CACHE_KEY);
         Cache::forget('app_navigation_menus');
+        Cache::put('role_menus_version', (int) Cache::get('role_menus_version', 1) + 1, 86400 * 30);
+    }
+
+    /**
+     * Get cached role-based menu list with role permissions for a user.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function roleMenuData(User $user): array
+    {
+        $isSuperAdmin = $user->isSuperAdmin();
+        $roleId = $isSuperAdmin ? 'super_admin' : ($user->role_id ?? 'guest');
+
+        $version = (int) Cache::get('role_menus_version', 1);
+        $cacheKey = "role_menus_{$version}_{$roleId}";
+
+        return Cache::remember($cacheKey, 86400, function () use ($user, $isSuperAdmin) {
+            $activeMenus = static::activeList();
+
+            if ($isSuperAdmin) {
+                $menus = [];
+
+                foreach ($activeMenus as $m) {
+                    $menus[] = [
+                        'slug' => $m->slug,
+                        'parent_slug' => $m->parent_slug,
+                        'name' => $m->name,
+                        'description' => $m->description,
+                        'href' => $m->href,
+                        'icon' => $m->icon,
+                        'sort_order' => $m->sort_order,
+                        'permissions' => [
+                            'can_view' => true,
+                            'can_create' => true,
+                            'can_update' => true,
+                            'can_delete' => true,
+                            'can_import' => true,
+                            'can_export' => true,
+                        ],
+                    ];
+                }
+
+                return $menus;
+            }
+
+            if (! $user->role || ! $user->role->isActive()) {
+                return [];
+            }
+
+            // Fetch RolePermission entries for this role
+            $dbPermissions = RolePermission::query()
+                ->where('role_id', $user->role_id)
+                ->get()
+                ->keyBy('menu_slug');
+
+            $accessibleSlugs = [];
+            $rolePermissions = [];
+
+            foreach ($activeMenus as $m) {
+                /** @var RolePermission|null $rp */
+                $rp = $dbPermissions->get($m->slug);
+                $canView = (bool) ($rp?->can_view ?? false);
+
+                if ($canView) {
+                    $accessibleSlugs[$m->slug] = true;
+                    if ($m->parent_slug) {
+                        $accessibleSlugs[$m->parent_slug] = true;
+                    }
+                }
+
+                if ($rp) {
+                    $rolePermissions[$m->slug] = [
+                        'can_view' => (bool) $rp->can_view,
+                        'can_create' => (bool) $rp->can_create,
+                        'can_update' => (bool) $rp->can_update,
+                        'can_delete' => (bool) $rp->can_delete,
+                        'can_import' => (bool) $rp->can_import,
+                        'can_export' => (bool) $rp->can_export,
+                    ];
+                }
+            }
+
+            $menus = [];
+            foreach ($activeMenus as $m) {
+                if (! isset($accessibleSlugs[$m->slug])) {
+                    continue;
+                }
+
+                $perms = $rolePermissions[$m->slug] ?? [
+                    'can_view' => true,
+                    'can_create' => false,
+                    'can_update' => false,
+                    'can_delete' => false,
+                    'can_import' => false,
+                    'can_export' => false,
+                ];
+
+                $menus[] = [
+                    'slug' => $m->slug,
+                    'parent_slug' => $m->parent_slug,
+                    'name' => $m->name,
+                    'description' => $m->description,
+                    'href' => $m->href,
+                    'icon' => $m->icon,
+                    'sort_order' => $m->sort_order,
+                    'permissions' => $perms,
+                ];
+            }
+
+            return $menus;
+        });
     }
 
     /**

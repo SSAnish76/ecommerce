@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { Product, ProductVariant, PageProps } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 import {
     Button,
     Input,
@@ -62,9 +63,9 @@ export default function InventoryPage({
     metrics,
     filters,
 }: InventoryProps) {
-    const { auth } = usePage<PageProps>().props;
-    const canCreate = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('products.create');
-    const canEdit = auth?.user?.is_super_admin || auth?.user?.permissions?.includes('inventory.edit');
+    const { can } = usePermission();
+    const canCreate = can('products', 'create') || can('inventory', 'create');
+    const canEdit = can('inventory', 'edit');
 
     const [search, setSearch] = useState(filters.search || '');
     const [stockFilter, setStockFilter] = useState(filters.stock_status || '');
