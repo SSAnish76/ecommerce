@@ -664,6 +664,7 @@ export default function AttributesPage({
                             value={editForm.data.code}
                             onChange={(slug) => editForm.setData('code', slug)}
                             sourceValue={editForm.data.name}
+                            autoSync={false}
                             error={editForm.errors.code}
                             placeholder="auto-generated from attribute name"
                         />

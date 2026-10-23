@@ -32,7 +32,7 @@ export const SlugInput: React.FC<SlugInputProps> = ({
     onGenerated,
     ...rest
 }) => {
-    const [isManuallyEdited, setIsManuallyEdited] = useState(false);
+    const [isManuallyEdited, setIsManuallyEdited] = useState(() => Boolean(value));
     const [displayValue, setDisplayValue] = useState<string>(value || '');
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
@@ -46,9 +46,9 @@ export const SlugInput: React.FC<SlugInputProps> = ({
         if (value !== lastEmittedValueRef.current) {
             setDisplayValue(value || '');
             lastEmittedValueRef.current = value || '';
-            if (!value) {
-                setIsManuallyEdited(false);
-            }
+            // If value is set externally (e.g. opening edit modal with existing slug),
+            // preserve it by marking as manually edited. If reset to empty, allow auto-sync.
+            setIsManuallyEdited(Boolean(value));
         }
     }, [value]);
 

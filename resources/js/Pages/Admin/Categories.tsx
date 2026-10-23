@@ -1006,6 +1006,7 @@ export default function CategoriesPage({
                         value={editForm.data.slug}
                         onChange={(slug) => editForm.setData('slug', slug)}
                         sourceValue={editForm.data.name}
+                        autoSync={false}
                         error={editForm.errors.slug}
                         required
                     />
