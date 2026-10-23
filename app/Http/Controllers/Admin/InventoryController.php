@@ -25,7 +25,7 @@ class InventoryController extends Controller
         $stockFilter = $request->string('stock_status')->trim()->value();
 
         $products = Product::query()
-            ->with(['brand:id,name', 'category:id,name', 'variants.media'])
+            ->with(['variants'])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {
                     $q->where('name', 'like', "%{$search}%")
@@ -67,15 +67,15 @@ class InventoryController extends Controller
             return redirect()->back()->with('error', 'Cannot directly update stock for a product with variants. Stock is automatically calculated from variants.');
         }
 
-        /** @var array{stock_quantity: int, low_stock_threshold: int} $validated */
+        /** @var array{stock_quantity: int, low_stock_threshold?: int|null} $validated */
         $validated = $request->validate([
             'stock_quantity' => ['required', 'integer', 'min:0'],
-            'low_stock_threshold' => ['required', 'integer', 'min:0'],
+            'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $product->update([
             'stock_quantity' => $validated['stock_quantity'],
-            'low_stock_threshold' => $validated['low_stock_threshold'],
+            'low_stock_threshold' => $validated['low_stock_threshold'] ?? $product->low_stock_threshold,
         ]);
 
         return redirect()->back()->with('success', "Stock for '{$product->name}' updated to {$validated['stock_quantity']} units.");
@@ -86,15 +86,15 @@ class InventoryController extends Controller
      */
     public function updateVariantStock(Request $request, ProductVariant $variant): RedirectResponse
     {
-        /** @var array{stock_quantity: int, low_stock_threshold: int} $validated */
+        /** @var array{stock_quantity: int, low_stock_threshold?: int|null} $validated */
         $validated = $request->validate([
             'stock_quantity' => ['required', 'integer', 'min:0'],
-            'low_stock_threshold' => ['required', 'integer', 'min:0'],
+            'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $variant->update([
             'stock_quantity' => $validated['stock_quantity'],
-            'low_stock_threshold' => $validated['low_stock_threshold'],
+            'low_stock_threshold' => $validated['low_stock_threshold'] ?? $variant->low_stock_threshold,
         ]);
 
         // Keep parent product stock quantity in sync
@@ -112,12 +112,13 @@ class InventoryController extends Controller
      */
     public function batchUpdate(Request $request): RedirectResponse
     {
-        /** @var array{items: list<array{id: string, type: string, stock_quantity: int}>} $validated */
+        /** @var array{items: list<array{id: string, type: string, stock_quantity: int, low_stock_threshold?: int|null}>} $validated */
         $validated = $request->validate([
-            'items' => ['required', 'array'],
+            'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'string'],
             'items.*.type' => ['required', 'string', 'in:product,variant'],
             'items.*.stock_quantity' => ['required', 'integer', 'min:0'],
+            'items.*.low_stock_threshold' => ['nullable', 'integer', 'min:0'],
         ]);
 
         DB::transaction(function () use ($validated): void {
@@ -125,12 +126,20 @@ class InventoryController extends Controller
                 if ($item['type'] === 'product') {
                     $prod = Product::find($item['id']);
                     if ($prod !== null && ! ($prod->has_variants || $prod->variants()->exists())) {
-                        $prod->update(['stock_quantity' => $item['stock_quantity']]);
+                        $updateData = ['stock_quantity' => $item['stock_quantity']];
+                        if (array_key_exists('low_stock_threshold', $item) && $item['low_stock_threshold'] !== null) {
+                            $updateData['low_stock_threshold'] = $item['low_stock_threshold'];
+                        }
+                        $prod->update($updateData);
                     }
                 } elseif ($item['type'] === 'variant') {
                     $v = ProductVariant::find($item['id']);
                     if ($v !== null) {
-                        $v->update(['stock_quantity' => $item['stock_quantity']]);
+                        $updateData = ['stock_quantity' => $item['stock_quantity']];
+                        if (array_key_exists('low_stock_threshold', $item) && $item['low_stock_threshold'] !== null) {
+                            $updateData['low_stock_threshold'] = $item['low_stock_threshold'];
+                        }
+                        $v->update($updateData);
                         $parent = $v->product;
                         if ($parent !== null) {
                             $parent->update(['stock_quantity' => (int) $parent->variants()->sum('stock_quantity')]);

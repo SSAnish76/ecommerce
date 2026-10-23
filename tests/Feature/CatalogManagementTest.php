@@ -214,6 +214,18 @@ class CatalogManagementTest extends TestCase
             'id' => $productWithVariants->id,
             'stock_quantity' => 25,
         ]);
+
+        // Batch update test for both simple product and variant
+        $batchRes = $this->actingAs($this->adminUser)->post('/admin/inventory/batch-update', [
+            'items' => [
+                ['id' => $simpleProduct->id, 'type' => 'product', 'stock_quantity' => 50],
+                ['id' => $variant->id, 'type' => 'variant', 'stock_quantity' => 30],
+            ],
+        ]);
+        $batchRes->assertSessionHas('success');
+        $this->assertDatabaseHas('products', ['id' => $simpleProduct->id, 'stock_quantity' => 50]);
+        $this->assertDatabaseHas('product_variants', ['id' => $variant->id, 'stock_quantity' => 30]);
+        $this->assertDatabaseHas('products', ['id' => $productWithVariants->id, 'stock_quantity' => 30]);
     }
 
     public function test_admin_can_create_brand_with_uploaded_file(): void
