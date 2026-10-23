@@ -424,7 +424,7 @@ export interface Collection {
 }
 
 export type CouponType = 'percentage' | 'fixed';
-export type CouponApplyTo = 'all' | 'products' | 'categories' | 'collections';
+export type CouponApplyTo = 'all' | 'products' | 'brands' | 'categories' | 'collections';
 export type CouponStatus = 'active' | 'inactive' | 'expired' | 'scheduled' | 'exhausted';
 
 export interface Coupon {
@@ -445,6 +445,7 @@ export interface Coupon {
     is_active: boolean;
     status_badge?: CouponStatus;
     products?: Product[];
+    brands?: Brand[];
     categories?: Category[];
     collections?: Collection[];
     usages_count?: number;

@@ -92,6 +92,16 @@ class Coupon extends Model
     }
 
     /**
+     * Associated brands when applies_to is 'brands'.
+     *
+     * @return BelongsToMany<Brand, $this>
+     */
+    public function brands(): BelongsToMany
+    {
+        return $this->belongsToMany(Brand::class, 'coupon_brand', 'coupon_id', 'brand_id');
+    }
+
+    /**
      * Associated collections when applies_to is 'collections'.
      *
      * @return BelongsToMany<Collection, $this>

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\Coupon\CouponApplyTo;
 use App\Enums\Coupon\CouponType;
 use App\Http\Controllers\Controller;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Collection;
 use App\Models\Coupon;
@@ -40,8 +41,8 @@ class CouponController extends Controller
         $query = Coupon::query()
             ->with([
                 'products:id,name,sku,retail_price,sale_price',
+                'brands:id,name',
                 'categories:id,name',
-                'collections:id,name',
             ])
             ->withCount('usages')
             ->when($search !== '', function (Builder $q) use ($search): void {
@@ -126,7 +127,7 @@ class CouponController extends Controller
      */
     public function edit(Coupon $coupon): Response
     {
-        $coupon->load(['products:id,name,sku,retail_price,sale_price', 'categories:id,name', 'collections:id,name']);
+        $coupon->load(['products:id,name,sku,retail_price,sale_price', 'brands:id,name', 'categories:id,name']);
 
         return Inertia::render('Admin/Coupons/CreateOrEdit', [
             'coupon' => $coupon,
@@ -143,8 +144,8 @@ class CouponController extends Controller
     {
         return [
             'products' => Product::query()->active()->orderBy('name')->get(['id', 'name', 'sku', 'retail_price', 'sale_price', 'category_id']),
+            'brands' => Brand::query()->active()->orderBy('name')->get(['id', 'name']),
             'categories' => Category::query()->active()->orderBy('name')->get(['id', 'name']),
-            'collections' => Collection::query()->active()->orderBy('name')->get(['id', 'name']),
             'types' => CouponType::options(),
             'applies_to' => CouponApplyTo::options(),
         ];
@@ -175,10 +176,10 @@ class CouponController extends Controller
             'applies_to' => ['required', Rule::in(CouponApplyTo::values())],
             'product_ids' => ['nullable', 'array'],
             'product_ids.*' => ['string', 'exists:products,id'],
+            'brand_ids' => ['nullable', 'array'],
+            'brand_ids.*' => ['string', 'exists:brands,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['string', 'exists:categories,id'],
-            'collection_ids' => ['nullable', 'array'],
-            'collection_ids.*' => ['string', 'exists:collections,id'],
             'usage_limit' => ['nullable', 'integer', 'min:1'],
             'usage_limit_per_customer' => ['nullable', 'integer', 'min:1'],
             'starts_at' => ['nullable', 'date'],
@@ -236,10 +237,10 @@ class CouponController extends Controller
             'applies_to' => ['required', Rule::in(CouponApplyTo::values())],
             'product_ids' => ['nullable', 'array'],
             'product_ids.*' => ['string', 'exists:products,id'],
+            'brand_ids' => ['nullable', 'array'],
+            'brand_ids.*' => ['string', 'exists:brands,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['string', 'exists:categories,id'],
-            'collection_ids' => ['nullable', 'array'],
-            'collection_ids.*' => ['string', 'exists:collections,id'],
             'usage_limit' => ['nullable', 'integer', 'min:1'],
             'usage_limit_per_customer' => ['nullable', 'integer', 'min:1'],
             'starts_at' => ['nullable', 'date'],
@@ -306,19 +307,23 @@ class CouponController extends Controller
 
         if ($appliesTo === CouponApplyTo::Products->value || $appliesTo === CouponApplyTo::Products) {
             $coupon->products()->sync($data['product_ids'] ?? []);
+            $coupon->brands()->detach();
+            $coupon->categories()->detach();
+            $coupon->collections()->detach();
+        } elseif ($appliesTo === CouponApplyTo::Brands->value || $appliesTo === CouponApplyTo::Brands) {
+            $coupon->brands()->sync($data['brand_ids'] ?? []);
+            $coupon->products()->detach();
             $coupon->categories()->detach();
             $coupon->collections()->detach();
         } elseif ($appliesTo === CouponApplyTo::Categories->value || $appliesTo === CouponApplyTo::Categories) {
             $coupon->categories()->sync($data['category_ids'] ?? []);
             $coupon->products()->detach();
+            $coupon->brands()->detach();
             $coupon->collections()->detach();
-        } elseif ($appliesTo === CouponApplyTo::Collections->value || $appliesTo === CouponApplyTo::Collections) {
-            $coupon->collections()->sync($data['collection_ids'] ?? []);
-            $coupon->products()->detach();
-            $coupon->categories()->detach();
         } else {
             // All
             $coupon->products()->detach();
+            $coupon->brands()->detach();
             $coupon->categories()->detach();
             $coupon->collections()->detach();
         }

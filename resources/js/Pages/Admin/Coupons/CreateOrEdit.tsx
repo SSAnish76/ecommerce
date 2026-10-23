@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
-import { Coupon, CouponType, CouponApplyTo, Product, Category, Collection } from '../../../types';
+import { Coupon, CouponType, CouponApplyTo, Product, Brand, Category } from '../../../types';
 import {
     Button,
     Input,
@@ -32,8 +32,8 @@ import {
 
 interface Options {
     products: (Product & { sale_price?: string | number; retail_price?: string | number; category_id?: string })[];
+    brands: Brand[];
     categories: Category[];
-    collections: Collection[];
     types: { value: string; label: string }[];
     applies_to: { value: string; label: string }[];
 }
@@ -88,8 +88,8 @@ export default function CouponCreateOrEdit({ coupon, options }: CreateOrEditProp
         max_discount_amount: string | number;
         applies_to: CouponApplyTo;
         product_ids: string[];
+        brand_ids: string[];
         category_ids: string[];
-        collection_ids: string[];
         usage_limit: string | number;
         usage_limit_per_customer: string | number;
         starts_at: string;
@@ -103,10 +103,10 @@ export default function CouponCreateOrEdit({ coupon, options }: CreateOrEditProp
         value: coupon?.value ?? '10',
         min_order_amount: coupon?.min_order_amount ?? '',
         max_discount_amount: coupon?.max_discount_amount ?? '',
-        applies_to: coupon?.applies_to || 'all',
+        applies_to: (coupon?.applies_to as CouponApplyTo) || 'all',
         product_ids: coupon?.products ? coupon.products.map((p) => p.id) : [],
+        brand_ids: coupon?.brands ? coupon.brands.map((b) => b.id) : [],
         category_ids: coupon?.categories ? coupon.categories.map((c) => c.id) : [],
-        collection_ids: coupon?.collections ? coupon.collections.map((c) => c.id) : [],
         usage_limit: coupon?.usage_limit ?? '',
         usage_limit_per_customer: coupon?.usage_limit_per_customer ?? '1',
         starts_at: formatDateForInput(coupon?.starts_at),
@@ -125,20 +125,20 @@ export default function CouponCreateOrEdit({ coupon, options }: CreateOrEditProp
 
     const pageTitle = isEdit ? `Edit Coupon: ${coupon?.code}` : 'Create Coupon';
 
-    const productOptions = options.products.map((p) => ({
+    const productOptions = (options.products || []).map((p) => ({
         value: p.id,
         label: p.name,
         description: `${p.sku ? `[${p.sku}] ` : ''}$${parseFloat(String(p.sale_price || p.retail_price || 0)).toFixed(2)}`,
     }));
 
-    const categoryOptions = options.categories.map((c) => ({
-        value: c.id,
-        label: c.name,
+    const brandOptions = (options.brands || []).map((b) => ({
+        value: b.id,
+        label: b.name,
     }));
 
-    const collectionOptions = options.collections.map((col) => ({
-        value: col.id,
-        label: col.name,
+    const categoryOptions = (options.categories || []).map((c) => ({
+        value: c.id,
+        label: c.name,
     }));
 
     return (
@@ -315,8 +315,8 @@ export default function CouponCreateOrEdit({ coupon, options }: CreateOrEditProp
                             options={[
                                 { value: 'all', label: 'All Products (Entire Store)' },
                                 { value: 'products', label: 'Specific Products' },
+                                { value: 'brands', label: 'Specific Brands' },
                                 { value: 'categories', label: 'Specific Categories' },
-                                { value: 'collections', label: 'Specific Collections' },
                             ]}
                         />
 
@@ -331,6 +331,17 @@ export default function CouponCreateOrEdit({ coupon, options }: CreateOrEditProp
                             />
                         )}
 
+                        {data.applies_to === 'brands' && (
+                            <MultiSelect
+                                label="Select Brands"
+                                placeholder="Choose brands..."
+                                searchPlaceholder="Search brands..."
+                                options={brandOptions}
+                                value={data.brand_ids}
+                                onChange={(vals) => setData('brand_ids', vals)}
+                            />
+                        )}
+
                         {data.applies_to === 'categories' && (
                             <MultiSelect
                                 label="Select Categories"
@@ -339,17 +350,6 @@ export default function CouponCreateOrEdit({ coupon, options }: CreateOrEditProp
                                 options={categoryOptions}
                                 value={data.category_ids}
                                 onChange={(vals) => setData('category_ids', vals)}
-                            />
-                        )}
-
-                        {data.applies_to === 'collections' && (
-                            <MultiSelect
-                                label="Select Collections"
-                                placeholder="Choose collections..."
-                                searchPlaceholder="Search collections..."
-                                options={collectionOptions}
-                                value={data.collection_ids}
-                                onChange={(vals) => setData('collection_ids', vals)}
                             />
                         )}
 

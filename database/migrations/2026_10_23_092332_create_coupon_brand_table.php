@@ -11,9 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('coupon_brand', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::create('coupon_brand', function (Blueprint $table): void {
+            $table->foreignUuid('coupon_id')->constrained('coupons')->cascadeOnDelete();
+            $table->foreignUuid('brand_id')->constrained('brands')->cascadeOnDelete();
+            $table->primary(['coupon_id', 'brand_id']);
         });
     }
 
