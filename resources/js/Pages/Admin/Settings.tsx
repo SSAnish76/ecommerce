@@ -364,7 +364,7 @@ export default function Settings({
         timezone: settings?.timezone ?? 'UTC',
 
         force_two_factor_all_admins: settings?.force_two_factor_all_admins ?? true,
-        menu_delivery_mode: (settings?.menu_delivery_mode as 'inertia' | 'api') ?? 'inertia',
+        menu_delivery_mode: (settings?.menu_delivery_mode as 'inertia' | 'api') ?? 'api',
 
         order_prefix: settings?.order_prefix ?? 'ORD-',
         order_number_start: settings?.order_number_start ?? 1001,
