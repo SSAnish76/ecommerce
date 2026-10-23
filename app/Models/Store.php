@@ -123,26 +123,28 @@ class Store extends Model
     public const CACHE_KEY = 'app_store_current';
 
     /**
+     * Cache key for lightweight shared store branding data.
+     */
+    public const SHARED_CACHE_KEY = 'app_store_shared_data';
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => static::clearCache());
+        static::deleted(fn () => static::clearCache());
+    }
+
+    /**
      * Get or create the singleton active store profile.
      */
     public static function current(): self
     {
         $cached = Cache::get(self::CACHE_KEY);
 
-        if (is_array($cached)) {
-            $store = (new static)->newFromBuilder($cached);
-            $store->loadMissing(['logo', 'favicon']);
-
-            return $store;
-        }
-
         if ($cached instanceof self) {
-            $cached->loadMissing(['logo', 'favicon']);
-
             return $cached;
         }
 
-        if ($cached !== null) {
+        if (is_array($cached)) {
             Cache::forget(self::CACHE_KEY);
         }
 
@@ -158,16 +160,36 @@ class Store extends Model
             $store->loadMissing(['logo', 'favicon']);
         }
 
-        Cache::put(self::CACHE_KEY, $store->getRawOriginal(), 3600);
+        Cache::put(self::CACHE_KEY, $store, 86400);
 
         return $store;
     }
 
     /**
-     * Clear cached store profile.
+     * Get lightweight shared store branding data for Inertia payloads.
+     *
+     * @return array{name: string, legal_name: string|null, logo_url: string|null, favicon_url: string|null}
+     */
+    public static function currentSharedData(): array
+    {
+        return Cache::remember(self::SHARED_CACHE_KEY, 86400, function (): array {
+            $store = static::current();
+
+            return [
+                'name' => $store->name,
+                'legal_name' => $store->legal_name,
+                'logo_url' => $store->logo_url,
+                'favicon_url' => $store->favicon_url,
+            ];
+        });
+    }
+
+    /**
+     * Clear cached store profile and shared branding data.
      */
     public static function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::SHARED_CACHE_KEY);
     }
 }

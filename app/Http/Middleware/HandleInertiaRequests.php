@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\Menu\MenuStatus;
 use App\Enums\User\RoleStatus;
 use App\Enums\User\UserStatus;
 use App\Models\Menu;
@@ -10,6 +9,7 @@ use App\Models\Store;
 use App\Services\EnumRegistryService;
 use App\Support\Constants;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -42,9 +42,11 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $store = Store::current();
-        $appName = $store->name ?: (string) config('app.name');
+        // 1. Cached lightweight store branding data (zero repetitive queries)
+        $store = Store::currentSharedData();
+        $appName = $store['name'] ?: (string) config('app.name', 'E-Commerce');
 
+        // 2. Authenticated user payload (only loaded for logged in accounts)
         $user = $request->user();
         if ($user) {
             $user->loadMissing(['role' => fn ($q) => $q->where('status', RoleStatus::Active)->with('rolePermissions')]);
@@ -53,12 +55,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'app_name' => $appName,
-            'store' => [
-                'name' => $store->name,
-                'legal_name' => $store->legal_name,
-                'logo_url' => $store->logo_url,
-                'favicon_url' => $store->favicon_url,
-            ],
+            'store' => $store,
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
@@ -76,13 +73,12 @@ class HandleInertiaRequests extends Middleware
                     'allowed_menus' => $user->allowedMenus()->pluck('slug')->all(),
                 ] : null,
             ],
-            'navigation_menus' => fn () => \Illuminate\Support\Facades\Cache::remember('app_navigation_menus', 3600, fn () => Menu::query()
-                ->where('status', MenuStatus::Active)
-                ->orderBy('sort_order')
-                ->get(['slug', 'parent_slug', 'name', 'description', 'href', 'icon', 'sort_order', 'is_crud', 'is_import_export'])
+            // 3. Navigation menus (scoped to authenticated admin, served from cache)
+            'navigation_menus' => fn () => $user ? Cache::remember('app_navigation_menus', 86400, fn () => Menu::activeList()
                 ->toArray()
-            ),
-            'essentials' => fn () => [
+            ) : null,
+            // 4. System enums & dropdown constants (scoped to authenticated admin, served from cache)
+            'essentials' => fn () => $user ? Cache::remember('app_essentials_data', 86400, fn () => [
                 'modules' => app(EnumRegistryService::class)->discover(),
                 'enums' => app(EnumRegistryService::class)->getFlatEnums(),
                 'constants' => [
@@ -93,14 +89,15 @@ class HandleInertiaRequests extends Middleware
                     'time_formats' => Constants::timeFormats(),
                     'vital_permissions' => Constants::vitalPermissions(),
                 ],
-            ],
+            ]) : null,
+            // 5. Session flash notifications
             'flash' => [
-                'message' => fn() => $request->session()->get('message'),
-                'success' => fn() => $request->session()->get('success'),
-                'error' => fn() => $request->session()->get('error'),
-                'warning' => fn() => $request->session()->get('warning'),
-                'status' => fn() => $request->session()->get('status'),
-                'recovery_codes' => fn() => $request->session()->get('recovery_codes'),
+                'message' => fn () => $request->session()->get('message'),
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'status' => fn () => $request->session()->get('status'),
+                'recovery_codes' => fn () => $request->session()->get('recovery_codes'),
             ],
         ];
     }

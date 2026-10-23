@@ -205,7 +205,7 @@ class User extends Authenticatable
         }
 
         if ($this->isSuperAdmin()) {
-            $menus = Menu::query()->where('status', MenuStatus::Active)->get();
+            $menus = Menu::activeList();
             $perms = collect();
             foreach ($menus as $m) {
                 $perms->push("{$m->slug}.view");
@@ -271,7 +271,7 @@ class User extends Authenticatable
         }
 
         if ($this->isSuperAdmin()) {
-            return $this->cachedMenus = Menu::query()->where('status', MenuStatus::Active)->orderBy('sort_order')->get();
+            return $this->cachedMenus = Menu::activeList();
         }
 
         $this->loadMissing(['role.rolePermissions']);
@@ -282,13 +282,12 @@ class User extends Authenticatable
 
         $allowedSlugs = $this->role->rolePermissions
             ->filter(fn (RolePermission $rp) => (bool) $rp->can_view)
-            ->pluck('menu_slug');
+            ->pluck('menu_slug')
+            ->all();
 
-        return $this->cachedMenus = Menu::query()
-            ->where('status', MenuStatus::Active)
+        return $this->cachedMenus = Menu::activeList()
             ->whereIn('slug', $allowedSlugs)
-            ->orderBy('sort_order')
-            ->get();
+            ->values();
     }
 
     /**

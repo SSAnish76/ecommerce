@@ -25,8 +25,6 @@ return new class extends Migration
             $table->string('country')->nullable();
             $table->foreignUuid('logo_id')->nullable()->nullOnDelete()->constrained('media_files');
             $table->foreignUuid('favicon_id')->nullable()->nullOnDelete()->constrained('media_files');
-            $table->string('currency', 10)->default('USD');
-            $table->string('timezone', 80)->default('UTC');
             $table->string('tax_number', 60)->nullable();
             $table->text('description')->nullable();
             $table->string('website_url')->nullable();

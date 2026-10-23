@@ -9,11 +9,43 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 #[Fillable(['slug', 'parent_slug', 'name', 'description', 'href', 'icon', 'sort_order', 'status', 'is_crud', 'is_import_export'])]
 class Menu extends Model
 {
     use HasFactory;
+
+    public const ACTIVE_CACHE_KEY = 'app_active_menus_cache';
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => static::clearCache());
+        static::deleted(fn () => static::clearCache());
+    }
+
+    /**
+     * Get cached list of active menus.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<string, static>
+     */
+    public static function activeList(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Cache::remember(self::ACTIVE_CACHE_KEY, 86400, fn () => static::query()
+            ->where('status', MenuStatus::Active)
+            ->orderBy('sort_order')
+            ->get(['slug', 'parent_slug', 'name', 'description', 'href', 'icon', 'sort_order', 'is_crud', 'is_import_export'])
+        );
+    }
+
+    /**
+     * Clear menu related caches.
+     */
+    public static function clearCache(): void
+    {
+        Cache::forget(self::ACTIVE_CACHE_KEY);
+        Cache::forget('app_navigation_menus');
+    }
 
     /**
      * The primary key for the model.

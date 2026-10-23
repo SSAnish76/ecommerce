@@ -202,10 +202,11 @@ class EnumRegistryService
     }
 
     /**
-     * Clear cached enums.
+     * Clear cached enums and Inertia essentials payload.
      */
     public function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget('app_essentials_data');
     }
 }

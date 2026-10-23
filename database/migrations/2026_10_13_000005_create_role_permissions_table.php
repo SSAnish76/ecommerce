@@ -16,10 +16,9 @@ return new class extends Migration
             $table->foreignUuid('role_id')->constrained('roles')->cascadeOnDelete();
             $table->string('menu_slug');
             $table->boolean('can_view')->default(false);
-            $table->boolean('can_add')->default(false);
+            $table->boolean('can_create')->default(false);
             $table->boolean('can_update')->default(false);
             $table->boolean('can_delete')->default(false);
-            $table->boolean('can_approve')->default(false);
             $table->boolean('can_import')->default(false);
             $table->boolean('can_export')->default(false);
             $table->timestamps();
