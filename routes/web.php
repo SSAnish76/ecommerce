@@ -279,7 +279,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Two-Factor Management (Settings -> Security)
         Route::middleware('permission:security.manage')->prefix('two-factor')->name('two-factor.')->group(function (): void {
             Route::post('/setup', [TwoFactorManagementController::class, 'setup'])->name('setup');
-            Route::post('/enable', [TwoFactorManagementController::class, 'enable'])->name('enable');
+            Route::post('/enable', [TwoFactorManagementController::class, 'enable'])
+                ->middleware('throttle:10,1')
+                ->name('enable');
             Route::post('/disable', [TwoFactorManagementController::class, 'disable'])->name('disable');
             Route::post('/recovery-codes', [TwoFactorManagementController::class, 'showRecoveryCodes'])->name('recovery-codes');
             Route::post('/recovery-codes/regenerate', [TwoFactorManagementController::class, 'regenerateRecoveryCodes'])->name('regenerate-recovery-codes');
@@ -302,7 +304,11 @@ Route::get('/media/download/{mediaFile}', [MediaController::class, 'download'])-
 // Customer Storefront: Reactive Product View & Instant Checkout
 Route::get('/product/{product:slug}', [ShopController::class, 'show'])->name('shop.product');
 Route::get('/products/{product:slug}', [ShopController::class, 'show']);
-Route::post('/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
-Route::post('/coupon/validate', [ShopController::class, 'validateCoupon'])->name('shop.coupon.validate');
+Route::post('/checkout', [ShopController::class, 'checkout'])
+    ->middleware('throttle:15,1')
+    ->name('shop.checkout');
+Route::post('/coupon/validate', [ShopController::class, 'validateCoupon'])
+    ->middleware('throttle:30,1')
+    ->name('shop.coupon.validate');
 
 

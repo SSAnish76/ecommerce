@@ -45,7 +45,7 @@ class MediaController extends Controller
     {
         $maxUploadKilobytes = $storage->maxUploadKilobytes();
         $validated = $request->validate([
-            'file' => ['required', 'file', "max:{$maxUploadKilobytes}", 'mimes:jpg,jpeg,png,webp,gif,svg,ico,pdf,doc,docx,xls,xlsx,txt,csv,zip'],
+            'file' => ['required', 'file', "max:{$maxUploadKilobytes}", 'mimes:jpg,jpeg,png,webp,gif,ico,pdf,doc,docx,xls,xlsx,txt,csv,zip'],
             'collection' => ['nullable', 'string', 'max:60'],
             'folder' => ['nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_\-\/]+$/'],
         ]);
@@ -84,9 +84,14 @@ class MediaController extends Controller
             return response()->json(['success' => false, 'message' => 'Media file not found.'], 404);
         }
 
+        $isUnsafeInline = in_array(strtolower((string) $media->extension), ['svg', 'html', 'htm', 'xml', 'js'], true)
+            || str_contains(strtolower((string) $media->mime_type), 'svg')
+            || str_contains(strtolower((string) $media->mime_type), 'html');
+        $disposition = $isUnsafeInline ? 'attachment' : 'inline';
+
         return Storage::disk($media->disk)->response($media->path, $media->original_name, [
             'Content-Type' => $media->mime_type,
-            'Content-Disposition' => 'inline; filename="'.addcslashes(basename($media->original_name), '"\\').'"',
+            'Content-Disposition' => $disposition.'; filename="'.addcslashes(basename($media->original_name), '"\\').'"',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }

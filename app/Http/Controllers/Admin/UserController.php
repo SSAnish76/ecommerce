@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -76,6 +77,17 @@ class UserController extends Controller
             'status' => ['nullable', 'string', Rule::enum(UserStatus::class)],
         ]);
 
+        $isSuperAdmin = (bool) $request->user()?->isSuperAdmin();
+
+        if (! empty($validated['role_id']) && ! $isSuperAdmin) {
+            $targetRole = Role::find($validated['role_id']);
+            if ($targetRole?->is_system) {
+                throw ValidationException::withMessages([
+                    'role_id' => 'Only super administrators can assign system roles.',
+                ]);
+            }
+        }
+
         $user = User::query()->create([
             'name' => $validated['name'],
             'email' => $validated['email'],
@@ -102,6 +114,28 @@ class UserController extends Controller
             'role_id' => ['nullable', 'string', 'exists:roles,id'],
             'status' => ['nullable', 'string', Rule::enum(UserStatus::class)],
         ]);
+
+        $isSuperAdmin = (bool) $request->user()?->isSuperAdmin();
+
+        // Non-superadmins cannot modify a user with a system role
+        if ($user->hasSystemRole() && ! $isSuperAdmin) {
+            return redirect()->back()->with('error', 'Only super administrators can modify users with a system role.');
+        }
+
+        // Prevent users from changing their own role unless super admin
+        if ($user->id === Auth::id() && array_key_exists('role_id', $validated) && $validated['role_id'] !== $user->role_id && ! $isSuperAdmin) {
+            return redirect()->back()->with('error', 'You cannot change your own role.');
+        }
+
+        // Non-superadmins cannot assign a system role
+        if (! empty($validated['role_id']) && ! $isSuperAdmin) {
+            $targetRole = Role::find($validated['role_id']);
+            if ($targetRole?->is_system) {
+                throw ValidationException::withMessages([
+                    'role_id' => 'Only super administrators can assign system roles.',
+                ]);
+            }
+        }
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];

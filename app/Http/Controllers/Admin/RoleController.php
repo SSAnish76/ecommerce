@@ -81,7 +81,8 @@ class RoleController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $isSystem = $request->boolean('is_system');
+        $isSuperAdmin = (bool) $request->user()?->isSuperAdmin();
+        $isSystem = $isSuperAdmin ? $request->boolean('is_system') : false;
 
         /** @var array{name: string, is_system?: ?bool, status?: ?string, menu_slugs?: array<int, string>, role_permissions?: array<string, array<string, bool>>} $validated */
         $validated = $request->validate([
@@ -144,7 +145,15 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role): RedirectResponse
     {
-        $isSystem = $request->has('is_system') ? $request->boolean('is_system') : (bool) $role->is_system;
+        $isSuperAdmin = (bool) $request->user()?->isSuperAdmin();
+
+        if ($role->is_system && ! $isSuperAdmin) {
+            return redirect()->back()->with('error', 'Only super administrators can modify system roles.');
+        }
+
+        $isSystem = $isSuperAdmin
+            ? ($request->has('is_system') ? $request->boolean('is_system') : (bool) $role->is_system)
+            : (bool) $role->is_system;
 
         /** @var array{name?: ?string, is_system?: ?bool, status?: ?string, menu_slugs?: array<int, string>, role_permissions?: array<string, array<string, bool>>} $validated */
         $validated = $request->validate([
@@ -168,7 +177,7 @@ class RoleController extends Controller
             'status' => $validated['status'] ?? $role->status?->value ?? RoleStatus::Active->value,
         ];
 
-        if (! $role->is_system) {
+        if (! $role->is_system && $isSuperAdmin) {
             $updateData['is_system'] = $isSystem;
         }
 

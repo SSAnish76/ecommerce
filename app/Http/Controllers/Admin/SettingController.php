@@ -63,7 +63,7 @@ class SettingController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Settings', [
-            'settings' => Setting::getAllKeyValues(),
+            'settings' => $this->maskSensitiveSettings(Setting::getAllKeyValues()),
             'timezones' => Constants::timezones(),
             'currencies' => Constants::currencies(),
             'roles' => Role::query()->select('id', 'name')->orderBy('name')->get(),
@@ -213,6 +213,69 @@ class SettingController extends Controller
     }
 
     /**
+     * Mask sensitive credentials before passing to frontend Inertia props.
+     *
+     * @param array<string, mixed> $settings
+     * @return array<string, mixed>
+     */
+    private function maskSensitiveSettings(array $settings): array
+    {
+        $mask = fn (?string $val) => (filled($val) ? '••••••••••••' : '');
+
+        if (isset($settings['payment_settings']['stripe']['secret_key'])) {
+            $settings['payment_settings']['stripe']['secret_key'] = $mask($settings['payment_settings']['stripe']['secret_key']);
+        }
+        if (isset($settings['payment_settings']['stripe']['webhook_secret'])) {
+            $settings['payment_settings']['stripe']['webhook_secret'] = $mask($settings['payment_settings']['stripe']['webhook_secret']);
+        }
+        if (isset($settings['payment_settings']['paypal']['client_secret'])) {
+            $settings['payment_settings']['paypal']['client_secret'] = $mask($settings['payment_settings']['paypal']['client_secret']);
+        }
+        if (isset($settings['payment_settings']['razorpay']['key_secret'])) {
+            $settings['payment_settings']['razorpay']['key_secret'] = $mask($settings['payment_settings']['razorpay']['key_secret']);
+        }
+        if (isset($settings['payment_settings']['razorpay']['webhook_secret'])) {
+            $settings['payment_settings']['razorpay']['webhook_secret'] = $mask($settings['payment_settings']['razorpay']['webhook_secret']);
+        }
+
+        if (isset($settings['storage_settings']['s3']['secret'])) {
+            $settings['storage_settings']['s3']['secret'] = $mask($settings['storage_settings']['s3']['secret']);
+        }
+
+        if (isset($settings['shipping_settings'])) {
+            foreach (['carrier', 'fedex', 'ups', 'dhl'] as $carrier) {
+                if (isset($settings['shipping_settings'][$carrier]['api_secret'])) {
+                    $settings['shipping_settings'][$carrier]['api_secret'] = $mask($settings['shipping_settings'][$carrier]['api_secret']);
+                }
+            }
+        }
+
+        if (isset($settings['mail_settings']['password'])) {
+            $settings['mail_settings']['password'] = $mask($settings['mail_settings']['password']);
+        }
+        if (isset($settings['mail_password'])) {
+            $settings['mail_password'] = $mask($settings['mail_password']);
+        }
+
+        if (isset($settings['sms_settings']['password'])) {
+            $settings['sms_settings']['password'] = $mask($settings['sms_settings']['password']);
+        }
+        if (isset($settings['sms_password'])) {
+            $settings['sms_password'] = $mask($settings['sms_password']);
+        }
+
+        return $settings;
+    }
+
+    /**
+     * Determine if a submitted secret value is fresh and not an empty or masked placeholder.
+     */
+    private function isFreshSecret(mixed $val): bool
+    {
+        return filled($val) && ! str_contains((string) $val, '••');
+    }
+
+    /**
      * Build payment settings array preserving credentials if unmodified.
      *
      * @param array<string, mixed> $input
@@ -226,14 +289,14 @@ class SettingController extends Controller
             'stripe' => [
                 'enabled' => isset($input['payment_stripe_enabled']) ? (bool) $input['payment_stripe_enabled'] : $existing['stripe']['enabled'],
                 'publishable_key' => $input['payment_stripe_publishable_key'] ?? $existing['stripe']['publishable_key'],
-                'secret_key' => ! empty($input['payment_stripe_secret_key']) ? $input['payment_stripe_secret_key'] : $existing['stripe']['secret_key'],
-                'webhook_secret' => ! empty($input['payment_stripe_webhook_secret']) ? $input['payment_stripe_webhook_secret'] : $existing['stripe']['webhook_secret'],
+                'secret_key' => $this->isFreshSecret($input['payment_stripe_secret_key'] ?? null) ? $input['payment_stripe_secret_key'] : $existing['stripe']['secret_key'],
+                'webhook_secret' => $this->isFreshSecret($input['payment_stripe_webhook_secret'] ?? null) ? $input['payment_stripe_webhook_secret'] : $existing['stripe']['webhook_secret'],
             ],
             'paypal' => [
                 'enabled' => isset($input['payment_paypal_enabled']) ? (bool) $input['payment_paypal_enabled'] : $existing['paypal']['enabled'],
                 'mode' => $input['payment_paypal_mode'] ?? $existing['paypal']['mode'],
                 'client_id' => $input['payment_paypal_client_id'] ?? $existing['paypal']['client_id'],
-                'client_secret' => ! empty($input['payment_paypal_client_secret']) ? $input['payment_paypal_client_secret'] : $existing['paypal']['client_secret'],
+                'client_secret' => $this->isFreshSecret($input['payment_paypal_client_secret'] ?? null) ? $input['payment_paypal_client_secret'] : $existing['paypal']['client_secret'],
             ],
             'cod' => [
                 'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : $existing['cod']['enabled'],
@@ -242,8 +305,8 @@ class SettingController extends Controller
             'razorpay' => [
                 'enabled' => isset($input['payment_razorpay_enabled']) ? (bool) $input['payment_razorpay_enabled'] : ($existing['razorpay']['enabled'] ?? false),
                 'key_id' => $input['payment_razorpay_key_id'] ?? ($existing['razorpay']['key_id'] ?? ''),
-                'key_secret' => ! empty($input['payment_razorpay_key_secret']) ? $input['payment_razorpay_key_secret'] : ($existing['razorpay']['key_secret'] ?? ''),
-                'webhook_secret' => ! empty($input['payment_razorpay_webhook_secret']) ? $input['payment_razorpay_webhook_secret'] : ($existing['razorpay']['webhook_secret'] ?? ''),
+                'key_secret' => $this->isFreshSecret($input['payment_razorpay_key_secret'] ?? null) ? $input['payment_razorpay_key_secret'] : ($existing['razorpay']['key_secret'] ?? ''),
+                'webhook_secret' => $this->isFreshSecret($input['payment_razorpay_webhook_secret'] ?? null) ? $input['payment_razorpay_webhook_secret'] : ($existing['razorpay']['webhook_secret'] ?? ''),
             ],
         ];
     }
@@ -262,7 +325,7 @@ class SettingController extends Controller
             'default_disk' => $input['storage_default_disk'] ?? $existing['default_disk'],
             's3' => [
                 'key' => $input['storage_s3_key'] ?? $existing['s3']['key'],
-                'secret' => ! empty($input['storage_s3_secret']) ? $input['storage_s3_secret'] : $existing['s3']['secret'],
+                'secret' => $this->isFreshSecret($input['storage_s3_secret'] ?? null) ? $input['storage_s3_secret'] : $existing['s3']['secret'],
                 'region' => $input['storage_s3_region'] ?? $existing['s3']['region'],
                 'bucket' => $input['storage_s3_bucket'] ?? $existing['s3']['bucket'],
                 'url' => $input['storage_s3_url'] ?? $existing['s3']['url'],
@@ -299,7 +362,7 @@ class SettingController extends Controller
                 ?? ($isLegacyMatch ? ($input['shipping_carrier_api_key'] ?? '') : ($existing[$carrier]['api_key'] ?? ''));
 
             $secretInput = $input["shipping_{$carrier}_api_secret"] ?? ($isLegacyMatch ? ($input['shipping_carrier_api_secret'] ?? '') : '');
-            $secret = ! empty($secretInput) ? $secretInput : ($existing[$carrier]['api_secret'] ?? '');
+            $secret = $this->isFreshSecret($secretInput) ? $secretInput : ($existing[$carrier]['api_secret'] ?? '');
 
             $settings[$carrier] = [
                 'enabled' => $enabled,
@@ -344,7 +407,7 @@ class SettingController extends Controller
             'host' => $input['mail_host'] ?? $existing['host'],
             'port' => isset($input['mail_port']) ? (int) $input['mail_port'] : $existing['port'],
             'username' => $input['mail_username'] ?? $existing['username'],
-            'password' => ! empty($input['mail_password']) ? $input['mail_password'] : $existing['password'],
+            'password' => $this->isFreshSecret($input['mail_password'] ?? null) ? $input['mail_password'] : $existing['password'],
             'encryption' => $input['mail_encryption'] ?? $existing['encryption'],
             'from_name' => $input['mail_from_name'] ?? $existing['from_name'],
             'from_address' => $input['mail_from_address'] ?? $existing['from_address'],
@@ -364,7 +427,7 @@ class SettingController extends Controller
         return [
             'provider' => $input['sms_provider'] ?? $existing['provider'],
             'username' => $input['sms_username'] ?? $existing['username'],
-            'password' => ! empty($input['sms_password']) ? $input['sms_password'] : $existing['password'],
+            'password' => $this->isFreshSecret($input['sms_password'] ?? null) ? $input['sms_password'] : $existing['password'],
             'from_number' => $input['sms_from_number'] ?? $existing['from_number'],
         ];
     }
