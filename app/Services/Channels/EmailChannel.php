@@ -171,9 +171,9 @@ class EmailChannel implements ChannelInterface
 
         $mail = Setting::getMailSettings();
 
-        if ($mail['mailer'] !== '') {
-            Config::set('mail.default', $mail['mailer']);
-        }
+        // if ($mail['mailer'] !== '') {
+        //     Config::set('mail.default', $mail['mailer']);
+        // }
 
         if ($mail['host'] !== '') {
             Config::set('mail.mailers.smtp.host', $mail['host']);
