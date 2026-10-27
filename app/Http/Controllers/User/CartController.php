@@ -66,8 +66,7 @@ class CartController extends Controller
                 if (! $variant) {
                     return $this->returnError(
                         'Selected variant is not valid for this product or unavailable.',
-                        'Selected variant is not valid for this product or unavailable.',
-                        422
+                        'Selected variant is not valid for this product or unavailable.'
                     );
                 }
 
@@ -91,8 +90,7 @@ class CartController extends Controller
             if ($targetQuantity > $availableStock) {
                 return $this->returnError(
                     "Insufficient stock for '{$itemName}'. Only {$availableStock} available.",
-                    "Insufficient stock for '{$itemName}'. Only {$availableStock} available.",
-                    422
+                    "Insufficient stock for '{$itemName}'. Only {$availableStock} available."
                 );
             }
 
@@ -154,8 +152,7 @@ class CartController extends Controller
 
                     return $this->returnError(
                         "Insufficient stock for variant. Only {$stock} available.",
-                        "Insufficient stock for variant. Only {$stock} available.",
-                        422
+                        "Insufficient stock for variant. Only {$stock} available."
                     );
                 }
             } else {
@@ -165,8 +162,7 @@ class CartController extends Controller
 
                     return $this->returnError(
                         "Insufficient stock for product. Only {$stock} available.",
-                        "Insufficient stock for product. Only {$stock} available.",
-                        422
+                        "Insufficient stock for product. Only {$stock} available."
                     );
                 }
             }

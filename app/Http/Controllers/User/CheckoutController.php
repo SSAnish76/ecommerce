@@ -64,8 +64,7 @@ class CheckoutController extends Controller
                     if (! $variant || ! $variant->is_active) {
                         return $this->returnError(
                             'One or more selected items are no longer active.',
-                            'One or more selected items are no longer active.',
-                            422
+                            'One or more selected items are no longer active.'
                         );
                     }
 
@@ -98,8 +97,7 @@ class CheckoutController extends Controller
                     if (! $product || $product->status->value !== 'active') {
                         return $this->returnError(
                             'One or more selected products are no longer active.',
-                            'One or more selected products are no longer active.',
-                            422
+                            'One or more selected products are no longer active.'
                         );
                     }
 
@@ -151,7 +149,7 @@ class CheckoutController extends Controller
                         'message' => $couponResult['message'],
                     ];
                 } else {
-                    return $this->returnError($couponResult['message'], $couponResult['message'], 422);
+                    return $this->returnError($couponResult['message'], $couponResult['message']);
                 }
             }
 
@@ -184,7 +182,7 @@ class CheckoutController extends Controller
 
             return $this->returnSuccess($data, 'Checkout summary calculated successfully.');
         } catch (\Throwable $e) {
-            return $this->returnError($e->getMessage(), $e->getMessage(), 422);
+            return $this->returnError($e->getMessage());
         }
     }
 
@@ -210,7 +208,7 @@ class CheckoutController extends Controller
             );
 
             if (! $result['valid']) {
-                return $this->returnError($result['message'], $result['message'], 422);
+                return $this->returnError($result['message'], $result['message']);
             }
 
             $data = [
@@ -256,7 +254,7 @@ class CheckoutController extends Controller
         $customerPhone = $validated['customer_phone'] ?? $customer?->phone;
 
         if (empty($customerName) || empty($customerEmail)) {
-            return $this->returnError('Customer name and email are required for checkout.', 'Customer name and email are required for checkout.', 422);
+            return $this->returnError('Customer name and email are required for checkout.', 'Customer name and email are required for checkout.');
         }
 
         // Resolve shipping address
@@ -270,7 +268,7 @@ class CheckoutController extends Controller
         }
 
         if (empty($shippingAddress)) {
-            return $this->returnError('A valid shipping address is required.', 'A valid shipping address is required.', 422);
+            return $this->returnError('A valid shipping address is required.', 'A valid shipping address is required.');
         }
 
         try {
@@ -452,7 +450,7 @@ class CheckoutController extends Controller
 
             return $this->returnSuccess($data, "Order #{$order->order_number} placed successfully!", 201);
         } catch (\Throwable $e) {
-            return $this->returnError($e->getMessage(), $e->getMessage(), 422);
+            return $this->returnError($e->getMessage());
         }
     }
 

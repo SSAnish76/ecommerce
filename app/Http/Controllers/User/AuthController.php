@@ -201,8 +201,7 @@ class AuthController extends Controller
             if (! Hash::check($validated['current_password'], $customer->password)) {
                 return $this->returnError(
                     ['current_password' => ['The current password provided is incorrect.']],
-                    'The current password provided is incorrect.',
-                    422
+                    'The current password provided is incorrect.'
                 );
             }
 

@@ -24,7 +24,7 @@ class SearchController extends Controller
             $perPage = min(max($request->integer('per_page', 15), 1), 60);
 
             if ($keyword === '') {
-                return $this->returnError('Search query parameter [q] is required.', 'Search query parameter [q] is required.', 422);
+                return $this->returnError('Search query parameter [q] is required.', 'Search query parameter [q] is required.');
             }
 
             $query = Product::query()

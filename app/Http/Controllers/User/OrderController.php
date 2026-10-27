@@ -161,14 +161,13 @@ class OrderController extends Controller
             }
 
             if ($order->status === 'cancelled') {
-                return $this->returnError('This order has already been cancelled.', 'This order has already been cancelled.', 422);
+                return $this->returnError('This order has already been cancelled.', 'This order has already been cancelled.');
             }
 
             if (! in_array($order->status, ['pending', 'processing'], true)) {
                 return $this->returnError(
                     "Order cannot be cancelled in '{$order->status}' status.",
-                    "Order cannot be cancelled in '{$order->status}' status.",
-                    422
+                    "Order cannot be cancelled in '{$order->status}' status."
                 );
             }
 
