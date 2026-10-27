@@ -92,6 +92,7 @@ Route::prefix('user')->name('api.user.')->group(function (): void {
 
         // Customer Order History & Tracking
         Route::prefix('orders')->name('orders.')->group(function (): void {
+            Route::get('/statuses', [OrderController::class, 'statuses'])->name('statuses');
             Route::get('/', [OrderController::class, 'index'])->name('index');
             Route::get('/{orderNumberOrId}', [OrderController::class, 'show'])->name('show');
             Route::post('/{orderNumberOrId}/cancel', [OrderController::class, 'cancel'])->name('cancel');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\Order\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -25,7 +28,13 @@ class OrderController extends Controller
         try {
             /** @var Customer $customer */
             $customer = $request->user();
-            $perPage = min(max($request->integer('per_page', 10), 1), 50);
+
+            $validated = $request->validate([
+                'status' => ['nullable', Rule::enum(OrderStatus::class)],
+                'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            ]);
+
+            $perPage = (int) ($validated['per_page'] ?? min(max($request->integer('per_page', 10), 1), 50));
 
             $query = Order::query()
                 ->where(function (Builder $q) use ($customer): void {
@@ -36,8 +45,11 @@ class OrderController extends Controller
                 ->latest();
 
             // Optional status filter
-            if ($status = $request->string('status')->trim()->value()) {
-                $query->where('status', $status);
+            if (! empty($validated['status'])) {
+                $statusValue = $validated['status'] instanceof OrderStatus
+                    ? $validated['status']->value
+                    : (string) $validated['status'];
+                $query->where('status', $statusValue);
             }
 
             $paginator = $query->paginate($perPage);
@@ -47,7 +59,8 @@ class OrderController extends Controller
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'created_at' => $order->created_at?->toISOString(),
-                    'status' => $order->status,
+                    'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
+                    'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
                     'payment_method' => $order->payment_method?->value ?? $order->payment_method,
                     'payment_status' => $order->payment_status?->value ?? $order->payment_status,
                     'items_count' => $order->items->count(),
@@ -66,9 +79,24 @@ class OrderController extends Controller
             }, $paginator->items());
 
             return $this->paginatedResponse($paginator, $items, 'Orders retrieved successfully.');
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.', 422);
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
+    }
+
+    /**
+     * Get list of available order statuses and labels.
+     */
+    public function statuses()
+    {
+        $statuses = array_map(fn (OrderStatus $status) => [
+            'value' => $status->value,
+            'label' => $status->label(),
+        ], OrderStatus::cases());
+
+        return $this->returnSuccess($statuses, 'Order statuses retrieved successfully.');
     }
 
     /**
@@ -105,7 +133,8 @@ class OrderController extends Controller
                 'customer_email' => $order->customer_email,
                 'customer_phone' => $order->customer_phone,
                 'shipping_address' => $order->shipping_address,
-                'status' => $order->status,
+                'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
+                'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
                 'payment_method' => $order->payment_method?->value ?? $order->payment_method,
                 'payment_status' => $order->payment_status?->value ?? $order->payment_status,
                 'coupon_code' => $order->coupon_code,
@@ -160,14 +189,19 @@ class OrderController extends Controller
                 return $this->returnError('Unauthorized to cancel this order.', 'Unauthorized to cancel this order.', 403);
             }
 
-            if ($order->status === 'cancelled') {
+            if ($order->isCancelled() || $order->status === OrderStatus::Cancelled || $order->status === OrderStatus::Cancelled->value) {
                 return $this->returnError('This order has already been cancelled.', 'This order has already been cancelled.');
             }
 
-            if (! in_array($order->status, ['pending', 'processing'], true)) {
+            $cancellableStatuses = [OrderStatus::Pending, OrderStatus::Processing];
+            $isCancellable = in_array($order->status, $cancellableStatuses, true)
+                || in_array($order->status, [OrderStatus::Pending->value, OrderStatus::Processing->value], true);
+
+            if (! $isCancellable) {
+                $statusVal = $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status;
                 return $this->returnError(
-                    "Order cannot be cancelled in '{$order->status}' status.",
-                    "Order cannot be cancelled in '{$order->status}' status."
+                    "Order cannot be cancelled in '{$statusVal}' status.",
+                    "Order cannot be cancelled in '{$statusVal}' status."
                 );
             }
 
@@ -194,14 +228,15 @@ class OrderController extends Controller
                 }
 
                 $order->update([
-                    'status' => 'cancelled',
+                    'status' => OrderStatus::Cancelled,
                     'notes' => trim(($order->notes ? "{$order->notes}\n" : '') . "Cancellation Reason: {$reason}"),
                 ]);
             });
 
             $data = [
                 'order_number' => $order->order_number,
-                'status' => 'cancelled',
+                'status' => OrderStatus::Cancelled->value,
+                'status_label' => OrderStatus::Cancelled->label(),
             ];
 
             return $this->returnSuccess($data, 'Order has been successfully cancelled and inventory restored.');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\Order\OrderStatus;
 use App\Enums\Order\PaymentMethod;
 use App\Enums\Order\PaymentStatus;
 use App\Http\Controllers\Controller;
@@ -402,7 +403,7 @@ class CheckoutController extends Controller
                     'tax' => $tax,
                     'shipping_fee' => $shippingFee,
                     'total' => $total,
-                    'status' => 'pending',
+                    'status' => OrderStatus::Pending->value,
                     'payment_method' => $validated['payment_method'],
                     'payment_status' => PaymentStatus::Pending->value,
                     'notes' => $validated['notes'] ?? null,

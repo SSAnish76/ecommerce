@@ -10,8 +10,25 @@ enum OrderStatus: string
 {
     use HasEnumHelpers;
 
-    case Delivered = 'Delivered';
-    case Processing = 'Processing';
-    case Shipped = 'Shipped';
-    case Cancelled = 'Cancelled';
+    case Pending = 'pending';
+    case Processing = 'processing';
+    case Shipped = 'shipped';
+    case Delivered = 'delivered';
+    case Completed = 'completed';
+    case Cancelled = 'cancelled';
+
+    /**
+     * Get user-friendly label.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Pending => 'Pending',
+            self::Processing => 'Processing',
+            self::Shipped => 'Shipped',
+            self::Delivered => 'Delivered',
+            self::Completed => 'Completed',
+            self::Cancelled => 'Cancelled',
+        };
+    }
 }

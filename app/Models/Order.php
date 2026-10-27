@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Order\OrderStatus;
 use App\Enums\Order\PaymentMethod;
 use App\Enums\Order\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -79,6 +80,7 @@ class Order extends Model
             'tax' => 'decimal:2',
             'shipping_fee' => 'decimal:2',
             'total' => 'decimal:2',
+            'status' => OrderStatus::class,
             'payment_method' => PaymentMethod::class,
             'payment_status' => PaymentStatus::class,
         ];
@@ -129,7 +131,7 @@ class Order extends Model
      */
     public function isCancelled(): bool
     {
-        return $this->status === 'cancelled';
+        return $this->status === OrderStatus::Cancelled || $this->status === OrderStatus::Cancelled->value;
     }
 
     /**
@@ -137,6 +139,6 @@ class Order extends Model
      */
     public function isCompleted(): bool
     {
-        return $this->status === 'completed';
+        return $this->status === OrderStatus::Completed || $this->status === OrderStatus::Completed->value;
     }
 }

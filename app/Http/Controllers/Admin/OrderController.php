@@ -84,7 +84,7 @@ class OrderController extends Controller
             'status' => ['required', 'string', 'in:pending,processing,completed,cancelled'],
         ]);
 
-        $previousStatus = $order->status;
+        $previousStatus = $order->status instanceof \App\Enums\Order\OrderStatus ? $order->status->value : (string) $order->status;
         $newStatus = $validated['status'];
 
         if ($previousStatus === $newStatus) {

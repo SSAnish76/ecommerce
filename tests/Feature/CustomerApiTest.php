@@ -711,5 +711,39 @@ class CustomerApiTest extends TestCase
                 'message' => 'Invalid refresh token.',
             ]);
     }
+    /**
+     * Test retrieval of available order statuses enum list.
+     */
+    public function test_customer_can_retrieve_order_statuses(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        $response = $this->getJson('/api/user/orders/statuses');
+        $response->assertOk()
+            ->assertJson(['success' => true])
+            ->assertJsonFragment(['value' => 'pending', 'label' => 'Pending'])
+            ->assertJsonFragment(['value' => 'cancelled', 'label' => 'Cancelled']);
+    }
+
+    /**
+     * Test order filtering by status enum and validation of invalid status.
+     */
+    public function test_customer_order_status_filtering_and_validation(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        // Valid enum filter
+        $validResponse = $this->getJson('/api/user/orders?status=pending');
+        $validResponse->assertOk()
+            ->assertJson(['success' => true]);
+
+        // Invalid enum value should return 422 validation error
+        $invalidResponse = $this->getJson('/api/user/orders?status=non_existent_status');
+        $invalidResponse->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Validation failed.',
+            ]);
+    }
 }
 
