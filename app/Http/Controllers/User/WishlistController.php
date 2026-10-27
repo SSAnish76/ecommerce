@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Customer;
-use App\Models\Wishlist;
 use App\Models\Product;
+use App\Models\Wishlist;
 use Exception;
 use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
+    use HandlesUserPagination;
+
     /**
      * Display a listing of products in customer wishlist.
      */
@@ -21,54 +24,22 @@ class WishlistController extends Controller
         try {
             /** @var Customer $customer */
             $customer = $request->user();
-            $perPage = min(max($request->integer('per_page', 15), 1), 60);
 
-            $paginator = Wishlist::query()
+            $query = Wishlist::query()
                 ->where('customer_id', $customer->id)
                 ->with([
                     'product' => function ($q): void {
                         $q->active()->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media']);
                     },
                 ])
-                ->latest()
-                ->paginate($perPage);
+                ->latest();
 
-            $items = array_values(array_filter(array_map(function (Wishlist $wishlist) {
-                $product = $wishlist->product;
-                if (! $product) {
-                    return null;
-                }
-
-                return [
-                    'wishlist_id' => $wishlist->id,
-                    'added_at' => $wishlist->created_at?->toISOString(),
-                    'product' => [
-                        'id' => $product->id,
-                        'name' => $product->name,
-                        'slug' => $product->slug,
-                        'sku' => $product->sku,
-                        'mrp' => (float) $product->mrp,
-                        'retail_price' => (float) $product->retail_price,
-                        'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
-                        'effective_price' => $product->effectivePrice(),
-                        'stock_quantity' => (int) $product->stock_quantity,
-                        'is_in_stock' => $product->stock_quantity > 0,
-                        'primary_image' => $product->primaryImage?->media?->url,
-                        'brand' => $product->brand ? [
-                            'id' => $product->brand->id,
-                            'name' => $product->brand->name,
-                            'slug' => $product->brand->slug,
-                        ] : null,
-                        'category' => $product->category ? [
-                            'id' => $product->category->id,
-                            'name' => $product->category->name,
-                            'slug' => $product->category->slug,
-                        ] : null,
-                    ],
-                ];
-            }, $paginator->items())));
-
-            return $this->paginatedResponse($paginator, $items, 'Wishlist retrieved successfully.');
+            return $this->paginateAndFormat(
+                $query,
+                $request,
+                fn (Wishlist $wishlist) => $this->formatWishlistItem($wishlist),
+                message: 'Wishlist retrieved successfully.'
+            );
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -212,4 +183,46 @@ class WishlistController extends Controller
             return $this->returnError($e->getMessage());
         }
     }
+
+    /**
+     * Format wishlist item for customer listings.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function formatWishlistItem(Wishlist $wishlist): ?array
+    {
+        $product = $wishlist->product;
+        if (! $product) {
+            return null;
+        }
+
+        return [
+            'wishlist_id' => $wishlist->id,
+            'added_at' => $wishlist->created_at?->toISOString(),
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'sku' => $product->sku,
+                'mrp' => (float) $product->mrp,
+                'retail_price' => (float) $product->retail_price,
+                'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
+                'effective_price' => $product->effectivePrice(),
+                'stock_quantity' => (int) $product->stock_quantity,
+                'is_in_stock' => $product->stock_quantity > 0,
+                'primary_image' => $product->primaryImage?->media?->url,
+                'brand' => $product->brand ? [
+                    'id' => $product->brand->id,
+                    'name' => $product->brand->name,
+                    'slug' => $product->brand->slug,
+                ] : null,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name,
+                    'slug' => $product->category->slug,
+                ] : null,
+            ],
+        ];
+    }
 }
+

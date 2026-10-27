@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Collection;
@@ -16,14 +17,14 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
+    use HandlesUserPagination;
+
     /**
      * Display a listing of active products with search, filtering, and sorting.
      */
     public function index(Request $request)
     {
         try {
-            $perPage = min(max($request->integer('per_page', 15), 1), 100);
-
             $query = Product::query()
                 ->active()
                 ->with([
@@ -115,14 +116,12 @@ class ProductController extends Controller
                 default => $query->latest(),
             };
 
-            $paginator = $query->paginate($perPage);
-
-            $items = array_map(
+            return $this->paginateAndFormat(
+                $query,
+                $request,
                 fn (Product $product) => $this->formatProductSummary($product),
-                $paginator->items()
+                message: 'Products retrieved successfully.'
             );
-
-            return $this->paginatedResponse($paginator, $items, 'Products retrieved successfully.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Collection;
 use App\Models\Product;
 use Exception;
@@ -13,6 +14,8 @@ use Illuminate\Support\Str;
 
 class CollectionController extends Controller
 {
+    use HandlesUserPagination;
+
     /**
      * Display a listing of active collections.
      */
@@ -62,7 +65,7 @@ class CollectionController extends Controller
             $itemsData = [];
 
             if ($type === 'product') {
-                $perPage = min(max($request->integer('per_page', 12), 1), 60);
+                $perPage = $this->resolvePerPage($request);
 
                 $productsPaginator = $collection->products()
                     ->active()
@@ -88,12 +91,7 @@ class CollectionController extends Controller
                 $itemsData = [
                     'type' => 'products',
                     'data' => $products,
-                    'pagination' => [
-                        'total' => $productsPaginator->total(),
-                        'per_page' => $productsPaginator->perPage(),
-                        'current_page' => $productsPaginator->currentPage(),
-                        'last_page' => $productsPaginator->lastPage(),
-                    ],
+                    'pagination' => $this->paginationMeta($productsPaginator),
                 ];
             } elseif ($type === 'brand') {
                 $brands = $collection->brands()->active()->with('logo')->get();

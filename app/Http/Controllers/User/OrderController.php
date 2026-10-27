@@ -6,6 +6,7 @@ namespace App\Http\Controllers\User;
 
 use App\Enums\Order\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -20,6 +21,8 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
+    use HandlesUserPagination;
+
     /**
      * Display a listing of orders placed by the authenticated customer.
      */
@@ -33,8 +36,6 @@ class OrderController extends Controller
                 'status' => ['nullable', Rule::enum(OrderStatus::class)],
                 'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             ]);
-
-            $perPage = (int) ($validated['per_page'] ?? min(max($request->integer('per_page', 10), 1), 50));
 
             $query = Order::query()
                 ->where(function (Builder $q) use ($customer): void {
@@ -52,33 +53,12 @@ class OrderController extends Controller
                 $query->where('status', $statusValue);
             }
 
-            $paginator = $query->paginate($perPage);
-
-            $items = array_map(function (Order $order) {
-                return [
-                    'id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'created_at' => $order->created_at?->toISOString(),
-                    'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
-                    'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
-                    'payment_method' => $order->payment_method?->value ?? $order->payment_method,
-                    'payment_status' => $order->payment_status?->value ?? $order->payment_status,
-                    'items_count' => $order->items->count(),
-                    'subtotal' => (float) $order->subtotal,
-                    'discount_amount' => (float) $order->discount_amount,
-                    'tax' => (float) $order->tax,
-                    'shipping_fee' => (float) $order->shipping_fee,
-                    'total' => (float) $order->total,
-                    'preview_items' => $order->items->take(2)->map(fn ($item) => [
-                        'name' => $item->product_name,
-                        'quantity' => $item->quantity,
-                        'price' => (float) $item->price,
-                        'image_url' => $item->image_url,
-                    ]),
-                ];
-            }, $paginator->items());
-
-            return $this->paginatedResponse($paginator, $items, 'Orders retrieved successfully.');
+            return $this->paginateAndFormat(
+                $query,
+                $request,
+                fn (Order $order) => $this->formatOrderSummary($order),
+                message: 'Orders retrieved successfully.'
+            );
         } catch (ValidationException $e) {
             return $this->returnError($e->errors(), 'Validation failed.', 422);
         } catch (Exception $e) {
@@ -244,4 +224,35 @@ class OrderController extends Controller
             return $this->returnError($e->getMessage());
         }
     }
+
+    /**
+     * Format order summary for listings.
+     *
+     * @return array<string, mixed>
+     */
+    protected function formatOrderSummary(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'created_at' => $order->created_at?->toISOString(),
+            'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
+            'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
+            'payment_method' => $order->payment_method?->value ?? $order->payment_method,
+            'payment_status' => $order->payment_status?->value ?? $order->payment_status,
+            'items_count' => $order->items->count(),
+            'subtotal' => (float) $order->subtotal,
+            'discount_amount' => (float) $order->discount_amount,
+            'tax' => (float) $order->tax,
+            'shipping_fee' => (float) $order->shipping_fee,
+            'total' => (float) $order->total,
+            'preview_items' => $order->items->take(2)->map(fn ($item) => [
+                'name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'price' => (float) $item->price,
+                'image_url' => $item->image_url,
+            ]),
+        ];
+    }
 }
+

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
@@ -14,6 +15,8 @@ use Illuminate\Http\Request;
 
 class SearchController extends Controller
 {
+    use HandlesUserPagination;
+
     /**
      * Search products with filtering, facets, and pagination.
      */
@@ -21,7 +24,6 @@ class SearchController extends Controller
     {
         try {
             $keyword = $request->string('q')->trim()->value();
-            $perPage = min(max($request->integer('per_page', 15), 1), 60);
 
             if ($keyword === '') {
                 return $this->returnError('Search query parameter [q] is required.', 'Search query parameter [q] is required.');
@@ -84,35 +86,12 @@ class SearchController extends Controller
                 default => $query->orderBy('created_at', 'desc'),
             };
 
-            $paginator = $query->paginate($perPage);
-
-            $items = array_map(function (Product $product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'sku' => $product->sku,
-                    'short_description' => $product->short_description,
-                    'brand' => $product->brand ? [
-                        'id' => $product->brand->id,
-                        'name' => $product->brand->name,
-                        'slug' => $product->brand->slug,
-                    ] : null,
-                    'category' => $product->category ? [
-                        'id' => $product->category->id,
-                        'name' => $product->category->name,
-                        'slug' => $product->category->slug,
-                    ] : null,
-                    'retail_price' => (float) $product->retail_price,
-                    'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
-                    'effective_price' => $product->effectivePrice(),
-                    'stock_quantity' => (int) $product->stock_quantity,
-                    'is_in_stock' => $product->stock_quantity > 0,
-                    'primary_image' => $product->primaryImage?->media?->url,
-                ];
-            }, $paginator->items());
-
-            return $this->paginatedResponse($paginator, $items, 'Search results retrieved.');
+            return $this->paginateAndFormat(
+                $query,
+                $request,
+                fn (Product $product) => $this->formatSearchResultItem($product),
+                message: 'Search results retrieved.'
+            );
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -181,4 +160,37 @@ class SearchController extends Controller
             return $this->returnError($e->getMessage());
         }
     }
+
+    /**
+     * Format search result product item for API response.
+     *
+     * @return array<string, mixed>
+     */
+    protected function formatSearchResultItem(Product $product): array
+    {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'sku' => $product->sku,
+            'short_description' => $product->short_description,
+            'brand' => $product->brand ? [
+                'id' => $product->brand->id,
+                'name' => $product->brand->name,
+                'slug' => $product->brand->slug,
+            ] : null,
+            'category' => $product->category ? [
+                'id' => $product->category->id,
+                'name' => $product->category->name,
+                'slug' => $product->category->slug,
+            ] : null,
+            'retail_price' => (float) $product->retail_price,
+            'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
+            'effective_price' => $product->effectivePrice(),
+            'stock_quantity' => (int) $product->stock_quantity,
+            'is_in_stock' => $product->stock_quantity > 0,
+            'primary_image' => $product->primaryImage?->media?->url,
+        ];
+    }
 }
+

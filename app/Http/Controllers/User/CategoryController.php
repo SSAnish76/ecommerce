@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Category;
 use App\Models\Product;
 use Exception;
@@ -13,6 +14,8 @@ use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
+    use HandlesUserPagination;
+
     /**
      * Display a listing of active categories (as tree or flat list).
      */
@@ -69,7 +72,7 @@ class CategoryController extends Controller
                 return $this->returnError('Category not found or inactive.', 'Category not found or inactive.', 404);
             }
 
-            $perPage = min(max($request->integer('per_page', 12), 1), 60);
+            $perPage = $this->resolvePerPage($request);
 
             // Include child category products
             $allCategoryIds = Category::where('parent_id', $category->id)->pluck('id')->push($category->id);
@@ -103,12 +106,7 @@ class CategoryController extends Controller
                 'children' => $category->children->map(fn ($c) => $this->formatCategoryFlat($c)),
                 'products' => [
                     'data' => $products,
-                    'pagination' => [
-                        'total' => $productsPaginator->total(),
-                        'per_page' => $productsPaginator->perPage(),
-                        'current_page' => $productsPaginator->currentPage(),
-                        'last_page' => $productsPaginator->lastPage(),
-                    ],
+                    'pagination' => $this->paginationMeta($productsPaginator),
                 ],
             ];
 
