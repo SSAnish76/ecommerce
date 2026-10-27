@@ -14,27 +14,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
-    /**
-     * Default token duration fallbacks in minutes and days.
-     */
-    public const DEFAULT_ACCESS_TOKEN_EXPIRATION_MINUTES = 60; // 1 hour
-    public const DEFAULT_REFRESH_TOKEN_EXPIRATION_DAYS = 30;   // 30 days
-
-    /**
-     * Get access token expiration in minutes from config / env.
-     */
-    protected function getAccessTokenExpirationMinutes(): int
-    {
-        return (int) config('sanctum.access_token_expiration_minutes', self::DEFAULT_ACCESS_TOKEN_EXPIRATION_MINUTES);
-    }
-
-    /**
-     * Get refresh token expiration in days from config / env.
-     */
-    protected function getRefreshTokenExpirationDays(): int
-    {
-        return (int) config('sanctum.refresh_token_expiration_days', self::DEFAULT_REFRESH_TOKEN_EXPIRATION_DAYS);
-    }
 
     /**
      * Issue access and refresh token pair for a customer.
@@ -43,26 +22,25 @@ class AuthController extends Controller
      */
     protected function generateAuthTokens(Customer $customer, string $deviceName = 'customer-app'): array
     {
-        $accessMinutes = $this->getAccessTokenExpirationMinutes();
-        $refreshDays = $this->getRefreshTokenExpirationDays();
+        $accessMinutes = (int) config('sanctum.access_token_expiration_minutes', 60);
+        $refreshDays = (int) config('sanctum.refresh_token_expiration_days', 30);
 
         $accessExpiresAt = now()->addMinutes($accessMinutes);
         $refreshExpiresAt = now()->addDays($refreshDays);
 
         $accessToken = $customer->createToken(
-            name: $deviceName.'-access-token',
+            name: $deviceName . '-access-token',
             abilities: ['access-api'],
             expiresAt: $accessExpiresAt
         )->plainTextToken;
 
         $refreshToken = $customer->createToken(
-            name: $deviceName.'-refresh-token',
+            name: $deviceName . '-refresh-token',
             abilities: ['issue-access-token'],
             expiresAt: $refreshExpiresAt
         )->plainTextToken;
 
         return [
-            'token' => $accessToken,
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
             'token_type' => 'Bearer',
@@ -95,19 +73,7 @@ class AuthController extends Controller
 
             $tokenData = $this->generateAuthTokens($customer, 'customer-auth-token');
 
-            $data = [
-                'customer' => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'status' => $customer->status,
-                    'created_at' => $customer->created_at?->toISOString(),
-                ],
-                ...$tokenData,
-            ];
-
-            return $this->returnSuccess($data, 'Registration successful!', 201);
+            return $this->returnSuccess($tokenData, 'Registration successful!', 201);
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -128,7 +94,7 @@ class AuthController extends Controller
             /** @var Customer|null $customer */
             $customer = Customer::where('email', strtolower(trim($validated['email'])))->first();
 
-            if (! $customer || ! Hash::check($validated['password'], $customer->password)) {
+            if (!$customer || !Hash::check($validated['password'], $customer->password)) {
                 return $this->returnError(
                     'The provided credentials do not match our records.',
                     'The provided credentials do not match our records.',
@@ -136,7 +102,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (! $customer->isActive()) {
+            if (!$customer->isActive()) {
                 return $this->returnError(
                     'Your account is currently inactive. Please contact support.',
                     'Your account is currently inactive. Please contact support.',
@@ -149,19 +115,7 @@ class AuthController extends Controller
             $deviceName = $validated['device_name'] ?? 'customer-app';
             $tokenData = $this->generateAuthTokens($customer, $deviceName);
 
-            $data = [
-                'customer' => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'status' => $customer->status,
-                    'created_at' => $customer->created_at?->toISOString(),
-                ],
-                ...$tokenData,
-            ];
-
-            return $this->returnSuccess($data, 'Login successful!');
+            return $this->returnSuccess($tokenData, 'Login successful!');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -175,7 +129,7 @@ class AuthController extends Controller
         try {
             $refreshTokenString = $request->input('refresh_token') ?? $request->bearerToken();
 
-            if (! $refreshTokenString) {
+            if (!$refreshTokenString) {
                 return $this->returnError(
                     'Refresh token is required.',
                     'Refresh token is required.',
@@ -186,7 +140,7 @@ class AuthController extends Controller
             /** @var PersonalAccessToken|null $tokenModel */
             $tokenModel = PersonalAccessToken::findToken($refreshTokenString);
 
-            if (! $tokenModel) {
+            if (!$tokenModel) {
                 return $this->returnError(
                     'Invalid refresh token.',
                     'Invalid refresh token.',
@@ -204,7 +158,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (! $tokenModel->can('issue-access-token')) {
+            if (!$tokenModel->can('issue-access-token')) {
                 return $this->returnError(
                     'The provided token is not a valid refresh token.',
                     'Invalid token type.',
@@ -214,7 +168,7 @@ class AuthController extends Controller
 
             $customer = $tokenModel->tokenable;
 
-            if (! ($customer instanceof Customer)) {
+            if (!($customer instanceof Customer)) {
                 return $this->returnError(
                     'Invalid customer token.',
                     'Invalid customer token.',
@@ -222,7 +176,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (! $customer->isActive()) {
+            if (!$customer->isActive()) {
                 return $this->returnError(
                     'Your account is currently inactive. Please contact support.',
                     'Your account is currently inactive.',
@@ -236,19 +190,7 @@ class AuthController extends Controller
             $deviceName = $request->input('device_name') ?? 'customer-app';
             $tokenData = $this->generateAuthTokens($customer, $deviceName);
 
-            $data = [
-                'customer' => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'status' => $customer->status,
-                    'created_at' => $customer->created_at?->toISOString(),
-                ],
-                ...$tokenData,
-            ];
-
-            return $this->returnSuccess($data, 'Token refreshed successfully.');
+            return $this->returnSuccess($tokenData, 'Token refreshed successfully.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -311,14 +253,12 @@ class AuthController extends Controller
             ]);
 
             $data = [
-                'customer' => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'status' => $customer->status,
-                    'updated_at' => $customer->updated_at?->toISOString(),
-                ],
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'status' => $customer->status,
+                'updated_at' => $customer->updated_at?->toISOString(),
             ];
 
             return $this->returnSuccess($data, 'Profile updated successfully.');
@@ -341,7 +281,7 @@ class AuthController extends Controller
                 'password' => ['required', 'string', 'min:8', 'confirmed'],
             ]);
 
-            if (! Hash::check($validated['current_password'], $customer->password)) {
+            if (!Hash::check($validated['current_password'], $customer->password)) {
                 return $this->returnError(
                     ['current_password' => ['The current password provided is incorrect.']],
                     'The current password provided is incorrect.'
