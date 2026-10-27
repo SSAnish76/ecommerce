@@ -546,4 +546,176 @@ class CustomerApiTest extends TestCase
 
         $this->assertEquals($initialVariantStock, $this->variant->fresh()->stock_quantity);
     }
+
+    /**
+     * Test generic JSON structure for unauthenticated requests with 401 code.
+     */
+    public function test_unauthenticated_request_returns_generic_error_structure_with_401(): void
+    {
+        $response = $this->withHeaders(['Accept' => 'application/json'])
+            ->get('/api/user/auth/profile');
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+                'error' => 'Unauthenticated.',
+            ]);
+
+        // Also test with invalid Bearer token
+        $invalidTokenResponse = $this->withHeaders([
+            'Accept' => 'application/json',
+            'Authorization' => 'Bearer 999|invalidTokenStringMock',
+        ])->get('/api/user/auth/profile');
+
+        $invalidTokenResponse->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+                'error' => 'Unauthenticated.',
+            ]);
+    }
+
+    /**
+     * Test login and register return access and refresh tokens with expiration.
+     */
+    public function test_auth_returns_access_and_refresh_tokens_with_expiration(): void
+    {
+        $loginResponse = $this->postJson('/api/user/auth/login', [
+            'email' => 'jane@example.com',
+            'password' => 'password123',
+        ]);
+
+        $loginResponse->assertOk()
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'customer' => ['id', 'name', 'email'],
+                    'token',
+                    'access_token',
+                    'refresh_token',
+                    'token_type',
+                    'expires_in',
+                    'expires_at',
+                ],
+            ]);
+
+        $this->assertEquals('Bearer', $loginResponse->json('data.token_type'));
+        $this->assertGreaterThan(0, $loginResponse->json('data.expires_in'));
+        $this->assertNotEmpty($loginResponse->json('data.refresh_token'));
+    }
+
+    /**
+     * Test refresh token exchange and rotation.
+     */
+    public function test_customer_can_refresh_tokens_using_valid_refresh_token(): void
+    {
+        $loginResponse = $this->postJson('/api/user/auth/login', [
+            'email' => 'jane@example.com',
+            'password' => 'password123',
+        ]);
+
+        $refreshToken = $loginResponse->json('data.refresh_token');
+        $oldAccessToken = $loginResponse->json('data.access_token');
+
+        // Exchange refresh token for new tokens
+        $refreshResponse = $this->postJson('/api/user/auth/refresh', [
+            'refresh_token' => $refreshToken,
+        ]);
+
+        $refreshResponse->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Token refreshed successfully.',
+            ])
+            ->assertJsonStructure([
+                'data' => [
+                    'customer',
+                    'token',
+                    'access_token',
+                    'refresh_token',
+                    'token_type',
+                    'expires_in',
+                    'expires_at',
+                ],
+            ]);
+
+        $newAccessToken = $refreshResponse->json('data.access_token');
+        $newRefreshToken = $refreshResponse->json('data.refresh_token');
+
+        $this->assertNotEquals($refreshToken, $newRefreshToken);
+
+        // Access API with new access token
+        $profileResponse = $this->withHeaders([
+            'Authorization' => "Bearer {$newAccessToken}",
+        ])->getJson('/api/user/auth/profile');
+
+        $profileResponse->assertOk()
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'customer' => [
+                        'email' => 'jane@example.com',
+                    ],
+                ],
+            ]);
+
+        // Old refresh token must be rotated/revoked and unusable
+        $reuseResponse = $this->postJson('/api/user/auth/refresh', [
+            'refresh_token' => $refreshToken,
+        ]);
+
+        $reuseResponse->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    /**
+     * Test using a refresh token on protected resource routes returns 403 forbidden.
+     */
+    public function test_refresh_token_cannot_access_resource_endpoints(): void
+    {
+        $loginResponse = $this->postJson('/api/user/auth/login', [
+            'email' => 'jane@example.com',
+            'password' => 'password123',
+        ]);
+
+        $refreshToken = $loginResponse->json('data.refresh_token');
+
+        $forbiddenResponse = $this->withHeaders([
+            'Authorization' => "Bearer {$refreshToken}",
+        ])->getJson('/api/user/auth/profile');
+
+        $forbiddenResponse->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    /**
+     * Test refresh fails when refresh token is missing or invalid.
+     */
+    public function test_refresh_fails_with_invalid_or_missing_token(): void
+    {
+        // Missing token
+        $missingResponse = $this->postJson('/api/user/auth/refresh', []);
+        $missingResponse->assertStatus(400)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Refresh token is required.',
+            ]);
+
+        // Invalid token
+        $invalidResponse = $this->postJson('/api/user/auth/refresh', [
+            'refresh_token' => '99999|invalidString',
+        ]);
+        $invalidResponse->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Invalid refresh token.',
+            ]);
+    }
 }
+

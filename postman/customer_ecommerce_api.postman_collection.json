@@ -23,6 +23,9 @@
                                     "    if (json.data && json.data.token) {",
                                     "        pm.environment.set(\"auth_token\", json.data.token);",
                                     "    }",
+                                    "    if (json.data && json.data.refresh_token) {",
+                                    "        pm.environment.set(\"refresh_token\", json.data.refresh_token);",
+                                    "    }",
                                     "}"
                                 ]
                             }
@@ -102,6 +105,9 @@
                                     "    if (json.data && json.data.token) {",
                                     "        pm.environment.set(\"auth_token\", json.data.token);",
                                     "    }",
+                                    "    if (json.data && json.data.refresh_token) {",
+                                    "        pm.environment.set(\"refresh_token\", json.data.refresh_token);",
+                                    "    }",
                                     "}"
                                 ]
                             }
@@ -165,6 +171,88 @@
                                 }
                             ],
                             "body": "{\n    \"success\": false,\n    \"message\": \"The provided credentials do not match our records.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Refresh Access Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const json = pm.response.json();",
+                                    "    if (json.data && json.data.access_token) {",
+                                    "        pm.environment.set(\"auth_token\", json.data.access_token);",
+                                    "    }",
+                                    "    if (json.data && json.data.refresh_token) {",
+                                    "        pm.environment.set(\"refresh_token\", json.data.refresh_token);",
+                                    "    }",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/refresh",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "refresh"
+                            ]
+                        },
+                        "description": "Exchange a valid refresh token for a new access token and rotated refresh token."
+                    },
+                    "response": [
+                        {
+                            "name": "200 OK - Token Refreshed",
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": "{\n    \"success\": true,\n    \"message\": \"Token refreshed successfully.\",\n    \"data\": {\n        \"customer\": {\n            \"id\": \"0192a345-6789-7123-8abc-def012345678\",\n            \"name\": \"John Customer\",\n            \"email\": \"john.customer@example.com\"\n        },\n        \"token\": \"3|newAccessTokenSamplePlainText\",\n        \"access_token\": \"3|newAccessTokenSamplePlainText\",\n        \"refresh_token\": \"4|newRefreshTokenSamplePlainText\",\n        \"token_type\": \"Bearer\",\n        \"expires_in\": 3600,\n        \"expires_at\": \"2026-10-27T12:00:00.000Z\"\n    }\n}"
+                        },
+                        {
+                            "name": "401 Unauthorized - Invalid or Expired Refresh Token",
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": "{\n    \"success\": false,\n    \"message\": \"Refresh token has expired. Please log in again.\",\n    \"error\": \"Refresh token has expired.\"\n}"
                         }
                     ]
                 },
@@ -1758,7 +1846,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"use_cart\": true,\n    \"coupon_code\": \"SAVE10\"\n}"
+                            "raw": "{\n    \"use_cart\": true\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/user/checkout/summary",
@@ -1878,7 +1966,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"customer_name\": \"John Customer\",\n    \"customer_email\": \"john.customer@example.com\",\n    \"customer_phone\": \"+15559876543\",\n    \"shipping_address\": \"789 Sunset Blvd, Los Angeles, CA 90028\",\n    \"payment_method\": \"cod\",\n    \"notes\": \"Please leave package by the front door.\",\n    \"coupon_code\": \"SAVE10\",\n    \"use_cart\": true\n}"
+                            "raw": "{\n    \"payment_method\": \"cod\",\n    \"use_cart\": true,\n    \"shipping_address\": \"789 Sunset Blvd, Los Angeles, CA 90028\",\n    \"notes\": \"Please leave package by the front door.\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/user/checkout",
@@ -1919,6 +2007,22 @@
                                 }
                             ],
                             "body": "{\n    \"success\": false,\n    \"message\": \"Insufficient stock for 'Smart Gadget Pro'. Only 1 available.\"\n}"
+                        }
+                    ],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    const json = pm.response.json();",
+                                    "    if (json.data && json.data.order && json.data.order.order_number) {",
+                                    "        pm.environment.set(\"order_number\", json.data.order.order_number);",
+                                    "    }",
+                                    "}"
+                                ]
+                            }
                         }
                     ]
                 }

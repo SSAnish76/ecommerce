@@ -54,6 +54,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Token Expirations
+    |--------------------------------------------------------------------------
+    |
+    | Define custom token expirations for access tokens and refresh tokens.
+    |
+    */
+
+    'access_token_expiration_minutes' => (int) env('ACCESS_TOKEN_EXPIRATION_MINUTES', env('SANCTUM_ACCESS_TOKEN_EXPIRATION_MINUTES', 60)),
+
+    'refresh_token_expiration_days' => (int) env('REFRESH_TOKEN_EXPIRATION_DAYS', env('SANCTUM_REFRESH_TOKEN_EXPIRATION_DAYS', 30)),
+
+    /*
+    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |
