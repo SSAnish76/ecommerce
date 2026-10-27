@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Address\AddressType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -49,6 +50,7 @@ class Address extends Model
     protected function casts(): array
     {
         return [
+            'type' => AddressType::class,
             'is_default' => 'boolean',
         ];
     }

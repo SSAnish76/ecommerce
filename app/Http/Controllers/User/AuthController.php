@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\Customer\CustomerStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use Exception;
@@ -14,7 +15,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
-
     /**
      * Issue access and refresh token pair for a customer.
      *
@@ -67,7 +67,7 @@ class AuthController extends Controller
                 'email' => strtolower(trim($validated['email'])),
                 'phone' => $validated['phone'] ?? null,
                 'password' => Hash::make($validated['password']),
-                'status' => 'active',
+                'status' => CustomerStatus::Active,
                 'last_login_at' => now(),
             ]);
 

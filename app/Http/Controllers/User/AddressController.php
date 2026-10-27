@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\Address\AddressType;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Customer;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AddressController extends Controller
 {
@@ -42,7 +44,7 @@ class AddressController extends Controller
             $customer = $request->user();
 
             $validated = $request->validate([
-                'type' => ['nullable', 'string', 'in:shipping,billing,home,office,other'],
+                'type' => ['nullable', Rule::enum(AddressType::class)],
                 'name' => ['required', 'string', 'max:255'],
                 'phone' => ['nullable', 'string', 'max:50'],
                 'address_line_1' => ['required', 'string', 'max:255'],
@@ -63,7 +65,7 @@ class AddressController extends Controller
 
             $address = Address::create([
                 'customer_id' => $customer->id,
-                'type' => $validated['type'] ?? 'shipping',
+                'type' => $validated['type'] ?? AddressType::Shipping->value,
                 'name' => $validated['name'],
                 'phone' => $validated['phone'] ?? $customer->phone,
                 'address_line_1' => $validated['address_line_1'],
@@ -116,7 +118,7 @@ class AddressController extends Controller
             }
 
             $validated = $request->validate([
-                'type' => ['nullable', 'string', 'in:shipping,billing,home,office,other'],
+                'type' => ['nullable', Rule::enum(AddressType::class)],
                 'name' => ['sometimes', 'required', 'string', 'max:255'],
                 'phone' => ['nullable', 'string', 'max:50'],
                 'address_line_1' => ['sometimes', 'required', 'string', 'max:255'],

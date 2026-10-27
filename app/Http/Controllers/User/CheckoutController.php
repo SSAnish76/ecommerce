@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\Order\PaymentMethod;
+use App\Enums\Order\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Mail\Order\OrderPlacedAdminMail;
 use App\Mail\Order\OrderPlacedCustomerMail;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CheckoutController extends Controller
 {
@@ -238,7 +241,7 @@ class CheckoutController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'address_id' => ['nullable', 'string', 'exists:addresses,id'],
             'shipping_address' => ['nullable', 'string', 'max:1000'],
-            'payment_method' => ['required', 'string', 'in:cod,card,wire,stripe,paypal'],
+            'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
             'notes' => ['nullable', 'string', 'max:500'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'use_cart' => ['nullable', 'boolean'],
@@ -401,7 +404,7 @@ class CheckoutController extends Controller
                     'total' => $total,
                     'status' => 'pending',
                     'payment_method' => $validated['payment_method'],
-                    'payment_status' => 'pending',
+                    'payment_status' => PaymentStatus::Pending->value,
                     'notes' => $validated['notes'] ?? null,
                 ]);
 

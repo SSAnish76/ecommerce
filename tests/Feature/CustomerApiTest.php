@@ -101,8 +101,8 @@ class CustomerApiTest extends TestCase
                 'success',
                 'message',
                 'data' => [
-                    'customer' => ['id', 'name', 'email', 'phone', 'status'],
-                    'token',
+                    'access_token',
+                    'refresh_token',
                     'token_type',
                 ],
             ]);
@@ -127,7 +127,7 @@ class CustomerApiTest extends TestCase
                 'message' => 'Login successful!',
             ])
             ->assertJsonStructure([
-                'data' => ['customer', 'token'],
+                'data' => ['access_token', 'refresh_token', 'token_type'],
             ]);
     }
 
@@ -175,10 +175,8 @@ class CustomerApiTest extends TestCase
             ->assertJson([
                 'success' => true,
                 'data' => [
-                    'customer' => [
-                        'name' => 'Jane Updated',
-                        'email' => 'jane.updated@example.com',
-                    ],
+                    'name' => 'Jane Updated',
+                    'email' => 'jane.updated@example.com',
                 ],
             ]);
 
@@ -591,8 +589,6 @@ class CustomerApiTest extends TestCase
                 'success',
                 'message',
                 'data' => [
-                    'customer' => ['id', 'name', 'email'],
-                    'token',
                     'access_token',
                     'refresh_token',
                     'token_type',
@@ -631,8 +627,6 @@ class CustomerApiTest extends TestCase
             ])
             ->assertJsonStructure([
                 'data' => [
-                    'customer',
-                    'token',
                     'access_token',
                     'refresh_token',
                     'token_type',
