@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\EssentialsController;
 use App\Http\Controllers\User\AddressController;
 use App\Http\Controllers\User\AuthController;
 use App\Http\Controllers\User\CartController;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::prefix('user')->name('api.user.')->group(function (): void {
+    // Public Storefront Essentials
+    Route::get('/essentials', [EssentialsController::class, 'frontend'])->name('essentials');
+
     // Guest Authentication Routes
     Route::prefix('auth')->name('auth.')->group(function (): void {
         Route::post('/register', [AuthController::class, 'register'])->name('register');

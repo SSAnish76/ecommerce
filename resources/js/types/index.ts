@@ -155,8 +155,6 @@ export interface EssentialsConstants {
     timezones: Record<string, string>;
     currencies: Array<{ code: string; symbol: string; name: string }>;
     currencies_map: Record<string, string>;
-    date_formats: Record<string, string>;
-    time_formats: Record<string, string>;
     vital_permissions?: string[];
 }
 

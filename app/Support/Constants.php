@@ -81,34 +81,6 @@ class Constants
     }
 
     /**
-     * Standard date display formatting options.
-     *
-     * @return array<string, string>
-     */
-    public static function dateFormats(): array
-    {
-        return [
-            'Y-m-d' => 'YYYY-MM-DD (2026-10-14)',
-            'm/d/Y' => 'MM/DD/YYYY (10/14/2026)',
-            'd/m/Y' => 'DD/MM/YYYY (14/10/2026)',
-            'M j, Y' => 'Mon D, YYYY (Oct 14, 2026)',
-        ];
-    }
-
-    /**
-     * Standard time display formatting options.
-     *
-     * @return array<string, string>
-     */
-    public static function timeFormats(): array
-    {
-        return [
-            'h:i A' => '12-Hour (02:30 PM)',
-            'H:i' => '24-Hour (14:30)',
-        ];
-    }
-
-    /**
      * Return list of vital system permissions.
      *
      * @return list<string>

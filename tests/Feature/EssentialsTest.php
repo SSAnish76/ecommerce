@@ -15,11 +15,36 @@ class EssentialsTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Test public API essentials endpoint returns all enums and constants.
+     * Helper to create and authenticate a super administrator.
      */
-    public function test_api_essentials_returns_all_enums_and_constants(): void
+    protected function authenticateAdmin(): User
     {
-        $response = $this->getJson('/api/essentials');
+        $this->seed();
+
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => 'Admin User',
+                'password' => Hash::make('password'),
+            ]
+        );
+
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin'], ['is_system' => true]);
+        if ($admin->role_id !== $superAdmin->id) {
+            $admin->assignRole($superAdmin);
+        }
+
+        return $admin;
+    }
+
+    /**
+     * Test admin essentials endpoint returns all enums and constants.
+     */
+    public function test_admin_essentials_returns_all_enums_and_constants(): void
+    {
+        $admin = $this->authenticateAdmin();
+
+        $response = $this->actingAs($admin)->getJson('/admin/essentials');
 
         $response->assertOk()
             ->assertJson([
@@ -59,8 +84,6 @@ class EssentialsTest extends TestCase
                         'timezones',
                         'currencies',
                         'currencies_map',
-                        'date_formats',
-                        'time_formats',
                         'vital_permissions',
                     ],
                 ],
@@ -73,11 +96,13 @@ class EssentialsTest extends TestCase
     }
 
     /**
-     * Test essentials endpoint can filter by specific module.
+     * Test admin essentials endpoint can filter by specific module.
      */
-    public function test_api_essentials_can_filter_by_module(): void
+    public function test_admin_essentials_can_filter_by_module(): void
     {
-        $response = $this->getJson('/api/essentials?module=setting');
+        $admin = $this->authenticateAdmin();
+
+        $response = $this->actingAs($admin)->getJson('/admin/essentials?module=setting');
 
         $response->assertOk()
             ->assertJson([
@@ -101,20 +126,7 @@ class EssentialsTest extends TestCase
      */
     public function test_admin_essentials_accessible_for_authenticated_admin(): void
     {
-        $this->seed();
-
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin User',
-                'password' => Hash::make('password'),
-            ]
-        );
-
-        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin'], ['is_system' => true]);
-        if ($admin->role_id !== $superAdmin->id) {
-            $admin->assignRole($superAdmin);
-        }
+        $admin = $this->authenticateAdmin();
 
         $response = $this->actingAs($admin)->getJson('/admin/essentials');
 
@@ -127,6 +139,8 @@ class EssentialsTest extends TestCase
      */
     public function test_dynamically_discovers_newly_added_enum_files(): void
     {
+        $admin = $this->authenticateAdmin();
+
         $dummyDir = app_path('Enums/Payment');
         $dummyFile = $dummyDir.'/PaymentStatus.php';
 
@@ -152,7 +166,7 @@ PHP;
         file_put_contents($dummyFile, $code);
 
         try {
-            $response = $this->getJson('/api/essentials');
+            $response = $this->actingAs($admin)->getJson('/admin/essentials');
 
             $response->assertOk();
             $this->assertNotNull($response->json('data.modules.payment.payment_status'));
@@ -165,5 +179,81 @@ PHP;
                 rmdir($dummyDir);
             }
         }
+    }
+
+    /**
+     * Test public storefront essentials endpoint returns optimized customer payload.
+     */
+    public function test_user_frontend_essentials_endpoint_returns_storefront_data(): void
+    {
+        $response = $this->getJson('/api/user/essentials');
+
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'store' => [
+                        'name',
+                        'email',
+                        'logo_url',
+                        'favicon_url',
+                    ],
+                    'settings' => [
+                        'currency_code',
+                        'currency_symbol',
+                        'currency_decimals',
+                        'timezone',
+                    ],
+                    'payment_gateways' => [
+                        'cod',
+                        'stripe',
+                        'paypal',
+                        'razorpay',
+                    ],
+                    'enums' => [
+                        'address' => [
+                            'address_type',
+                        ],
+                        'order' => [
+                            'order_status',
+                            'payment_status',
+                            'payment_method',
+                        ],
+                        'coupon' => [
+                            'coupon_type',
+                            'coupon_apply_to',
+                        ],
+                        'product' => [
+                            'stock_visibility',
+                            'discount_type',
+                        ],
+                        'setting' => [
+                            'currency_position',
+                        ],
+                    ],
+                    'constants' => [
+                        'currencies',
+                        'currencies_map',
+                        'timezones',
+                    ],
+                ],
+            ]);
+
+        // Verify that enums contain the options array with 'value' and 'label'
+        $addressTypeOptions = $response->json('data.enums.address.address_type');
+        $this->assertIsArray($addressTypeOptions);
+        $this->assertNotEmpty($addressTypeOptions);
+        $this->assertArrayHasKey('value', $addressTypeOptions[0]);
+        $this->assertArrayHasKey('label', $addressTypeOptions[0]);
+
+        // Security assertions: Admin-only and sensitive secrets must NOT be exposed
+        $this->assertArrayNotHasKey('vital_permissions', $response->json('data.constants'));
+        $this->assertArrayNotHasKey('sms_provider', $response->json('data.enums'));
+        $this->assertArrayNotHasKey('mail_driver', $response->json('data.enums'));
+        $this->assertArrayNotHasKey('secret_key', $response->json('data.payment_gateways.stripe'));
+        $this->assertArrayNotHasKey('client_secret', $response->json('data.payment_gateways.paypal'));
     }
 }

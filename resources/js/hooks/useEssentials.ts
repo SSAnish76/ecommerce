@@ -55,8 +55,6 @@ export function useEssentials() {
             timezones: {},
             currencies: [],
             currencies_map: {},
-            date_formats: {},
-            time_formats: {},
             vital_permissions: [],
         },
         getEnum,
