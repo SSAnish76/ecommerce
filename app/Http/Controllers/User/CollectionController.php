@@ -1,0 +1,134 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Models\Collection;
+use App\Models\Product;
+use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+
+class CollectionController extends Controller
+{
+    /**
+     * Display a listing of active collections.
+     */
+    public function index()
+    {
+        try {
+            $collections = Collection::query()
+                ->active()
+                ->with('image')
+                ->latest()
+                ->get();
+
+            $data = $collections->map(function (Collection $collection) {
+                return [
+                    'id' => $collection->id,
+                    'name' => $collection->name,
+                    'slug' => $collection->slug,
+                    'type' => $collection->type->value ?? (string) $collection->type,
+                    'description' => $collection->description,
+                    'image_url' => $collection->image_url,
+                ];
+            });
+
+            return $this->returnSuccess($data, 'Collections retrieved successfully.');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+
+    /**
+     * Display the specified collection and its assigned items.
+     */
+    public function show(string $slugOrId, Request $request)
+    {
+        try {
+            $query = Collection::query()->active()->with('image');
+
+            $collection = Str::isUuid($slugOrId)
+                ? $query->where('id', $slugOrId)->first()
+                : $query->where('slug', $slugOrId)->first();
+
+            if (! $collection) {
+                return $this->returnError('Collection not found or inactive.', 'Collection not found or inactive.', 404);
+            }
+
+            $type = $collection->type->value ?? (string) $collection->type;
+            $itemsData = [];
+
+            if ($type === 'product') {
+                $perPage = min(max($request->integer('per_page', 12), 1), 60);
+
+                $productsPaginator = $collection->products()
+                    ->active()
+                    ->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media'])
+                    ->paginate($perPage);
+
+                $products = array_map(function (Product $product) {
+                    return [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'slug' => $product->slug,
+                        'sku' => $product->sku,
+                        'mrp' => (float) $product->mrp,
+                        'retail_price' => (float) $product->retail_price,
+                        'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
+                        'effective_price' => $product->effectivePrice(),
+                        'stock_quantity' => (int) $product->stock_quantity,
+                        'is_in_stock' => $product->stock_quantity > 0,
+                        'primary_image' => $product->primaryImage?->media?->url,
+                    ];
+                }, $productsPaginator->items());
+
+                $itemsData = [
+                    'type' => 'products',
+                    'data' => $products,
+                    'pagination' => [
+                        'total' => $productsPaginator->total(),
+                        'per_page' => $productsPaginator->perPage(),
+                        'current_page' => $productsPaginator->currentPage(),
+                        'last_page' => $productsPaginator->lastPage(),
+                    ],
+                ];
+            } elseif ($type === 'brand') {
+                $brands = $collection->brands()->active()->with('logo')->get();
+                $itemsData = [
+                    'type' => 'brands',
+                    'data' => $brands,
+                ];
+            } elseif ($type === 'category') {
+                $categories = $collection->categories()->active()->with('image')->get();
+                $itemsData = [
+                    'type' => 'categories',
+                    'data' => $categories,
+                ];
+            } else {
+                $itemsData = [
+                    'type' => 'custom',
+                    'data' => $collection->custom_items ?? [],
+                ];
+            }
+
+            $data = [
+                'collection' => [
+                    'id' => $collection->id,
+                    'name' => $collection->name,
+                    'slug' => $collection->slug,
+                    'type' => $type,
+                    'description' => $collection->description,
+                    'image_url' => $collection->image_url,
+                ],
+                'items' => $itemsData,
+            ];
+
+            return $this->returnSuccess($data, 'Collection details retrieved successfully.');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+}

@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
@@ -19,6 +20,7 @@ class Order extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'customer_id',
         'order_number',
         'customer_name',
         'customer_email',
@@ -76,6 +78,16 @@ class Order extends Model
             'shipping_fee' => 'decimal:2',
             'total' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Get customer who placed this order.
+     *
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /**

@@ -1,0 +1,237 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+
+class AuthController extends Controller
+{
+    /**
+     * Register a new customer account.
+     */
+    public function register(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'email', 'max:255', 'unique:customers,email'],
+                'phone' => ['nullable', 'string', 'max:50'],
+                'password' => ['required', 'string', 'min:8', 'confirmed'],
+            ]);
+
+            $customer = Customer::create([
+                'name' => $validated['name'],
+                'email' => strtolower(trim($validated['email'])),
+                'phone' => $validated['phone'] ?? null,
+                'password' => Hash::make($validated['password']),
+                'status' => 'active',
+                'last_login_at' => now(),
+            ]);
+
+            $token = $customer->createToken('customer-auth-token')->plainTextToken;
+
+            $data = [
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'status' => $customer->status,
+                    'created_at' => $customer->created_at?->toISOString(),
+                ],
+                'token' => $token,
+                'token_type' => 'Bearer',
+            ];
+
+            return $this->returnSuccess($data, 'Registration successful!', 201);
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+
+    /**
+     * Authenticate customer credentials and return access token.
+     */
+    public function login(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'email' => ['required', 'string', 'email'],
+                'password' => ['required', 'string'],
+                'device_name' => ['nullable', 'string', 'max:100'],
+            ]);
+
+            /** @var Customer|null $customer */
+            $customer = Customer::where('email', strtolower(trim($validated['email'])))->first();
+
+            if (! $customer || ! Hash::check($validated['password'], $customer->password)) {
+                return $this->returnError(
+                    'The provided credentials do not match our records.',
+                    'The provided credentials do not match our records.',
+                    401
+                );
+            }
+
+            if (! $customer->isActive()) {
+                return $this->returnError(
+                    'Your account is currently inactive. Please contact support.',
+                    'Your account is currently inactive. Please contact support.',
+                    403
+                );
+            }
+
+            $customer->update(['last_login_at' => now()]);
+
+            $deviceName = $validated['device_name'] ?? 'customer-app';
+            $token = $customer->createToken($deviceName)->plainTextToken;
+
+            $data = [
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'status' => $customer->status,
+                    'created_at' => $customer->created_at?->toISOString(),
+                ],
+                'token' => $token,
+                'token_type' => 'Bearer',
+            ];
+
+            return $this->returnSuccess($data, 'Login successful!');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+
+    /**
+     * Get the authenticated customer profile.
+     */
+    public function profile(Request $request)
+    {
+        try {
+            /** @var Customer $customer */
+            $customer = $request->user();
+
+            $defaultAddress = $customer->addresses()->where('is_default', true)->first();
+            $ordersCount = $customer->orders()->count();
+            $wishlistCount = $customer->wishlists()->count();
+
+            $data = [
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'status' => $customer->status,
+                    'created_at' => $customer->created_at?->toISOString(),
+                ],
+                'default_address' => $defaultAddress,
+                'counts' => [
+                    'orders' => $ordersCount,
+                    'wishlist' => $wishlistCount,
+                ],
+            ];
+
+            return $this->returnSuccess($data, 'Profile retrieved successfully.');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+
+    /**
+     * Update customer profile details.
+     */
+    public function updateProfile(Request $request)
+    {
+        try {
+            /** @var Customer $customer */
+            $customer = $request->user();
+
+            $validated = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'email', 'max:255', Rule::unique('customers', 'email')->ignore($customer->id)],
+                'phone' => ['nullable', 'string', 'max:50'],
+            ]);
+
+            $customer->update([
+                'name' => $validated['name'],
+                'email' => strtolower(trim($validated['email'])),
+                'phone' => $validated['phone'] ?? null,
+            ]);
+
+            $data = [
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'status' => $customer->status,
+                    'updated_at' => $customer->updated_at?->toISOString(),
+                ],
+            ];
+
+            return $this->returnSuccess($data, 'Profile updated successfully.');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+
+    /**
+     * Update customer password.
+     */
+    public function updatePassword(Request $request)
+    {
+        try {
+            /** @var Customer $customer */
+            $customer = $request->user();
+
+            $validated = $request->validate([
+                'current_password' => ['required', 'string'],
+                'password' => ['required', 'string', 'min:8', 'confirmed'],
+            ]);
+
+            if (! Hash::check($validated['current_password'], $customer->password)) {
+                return $this->returnError(
+                    ['current_password' => ['The current password provided is incorrect.']],
+                    'The current password provided is incorrect.',
+                    422
+                );
+            }
+
+            $customer->update([
+                'password' => Hash::make($validated['password']),
+            ]);
+
+            return $this->returnSuccess([], 'Password updated successfully.');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+
+    /**
+     * Revoke customer current access token (logout).
+     */
+    public function logout(Request $request)
+    {
+        try {
+            /** @var Customer $customer */
+            $customer = $request->user();
+
+            if ($customer && $customer->currentAccessToken()) {
+                $customer->currentAccessToken()->delete();
+            }
+
+            return $this->returnSuccess([], 'Successfully logged out.');
+        } catch (Exception $e) {
+            return $this->returnError($e->getMessage());
+        }
+    }
+}
