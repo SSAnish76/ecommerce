@@ -12,6 +12,7 @@ use App\Events\Order\OrderPlaced;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\CartItem;
+use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -28,7 +29,8 @@ class CheckoutController extends Controller
 {
     public function __construct(
         protected CouponService $couponService
-    ) {}
+    ) {
+    }
 
     /**
      * Preview checkout summary, item calculations, and applicable coupon discount.
@@ -37,23 +39,21 @@ class CheckoutController extends Controller
     {
         /** @var Customer|null $customer */
         $customer = $request->user();
-
-        $validated = $request->validate([
-            'shipping_address_id' => ['nullable', 'string', 'exists:addresses,id'],
-            'shipping_address' => ['nullable'],
-            'billing_address_id' => ['nullable', 'string', 'exists:addresses,id'],
-            'billing_address' => ['nullable'],
-            'billing_same_as_shipping' => ['nullable', 'boolean'],
-            'coupon_code' => ['nullable', 'string', 'max:50'],
-            'use_cart' => ['nullable', 'boolean'],
-            'items' => ['nullable', 'array'],
-            'items.*.product_id' => ['required_with:items', 'string', 'exists:products,id'],
-            'items.*.product_variant_id' => ['nullable', 'string', 'exists:product_variants,id'],
-            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validate($this->checkoutRules());
 
         try {
             $itemsPayload = $this->resolveCheckoutItems($customer, $validated);
+
+            $variantIds = array_values(array_filter(array_column($itemsPayload, 'product_variant_id')));
+            $productIds = array_values(array_unique(array_column($itemsPayload, 'product_id')));
+
+            $variants = !empty($variantIds)
+                ? ProductVariant::whereIn('id', $variantIds)->with(['product.primaryImage.media', 'media'])->get()->keyBy('id')
+                : collect();
+
+            $products = !empty($productIds)
+                ? Product::whereIn('id', $productIds)->with('primaryImage.media')->get()->keyBy('id')
+                : collect();
 
             $subtotal = 0.0;
             $itemsSummary = [];
@@ -65,8 +65,8 @@ class CheckoutController extends Controller
 
                 if ($variantId !== null) {
                     /** @var ProductVariant|null $variant */
-                    $variant = ProductVariant::where('id', $variantId)->with(['product', 'media'])->first();
-                    if (! $variant || ! $variant->is_active) {
+                    $variant = $variants->get($variantId);
+                    if (!$variant || !$variant->is_active) {
                         return $this->returnError(
                             'One or more selected items are no longer active.',
                             'One or more selected items are no longer active.'
@@ -98,8 +98,8 @@ class CheckoutController extends Controller
                     ];
                 } else {
                     /** @var Product|null $product */
-                    $product = Product::where('id', $itemData['product_id'])->with('primaryImage.media')->first();
-                    if (! $product || $product->status->value !== 'active') {
+                    $product = $products->get($itemData['product_id']);
+                    if (!$product || $product->status->value !== 'active') {
                         return $this->returnError(
                             'One or more selected products are no longer active.',
                             'One or more selected products are no longer active.'
@@ -132,55 +132,28 @@ class CheckoutController extends Controller
                 }
             }
 
-            // Coupon Calculation
-            $couponCode = ! empty($validated['coupon_code']) ? strtoupper(trim($validated['coupon_code'])) : null;
-            $discountAmount = 0.0;
-            $couponInfo = null;
-
-            if ($couponCode !== null) {
-                $couponResult = $this->couponService->validate(
-                    $couponCode,
+            try {
+                [$discountAmount, , $couponInfo] = $this->applyCoupon(
+                    $validated['coupon_code'] ?? null,
                     $subtotal,
                     $couponItems,
                     $customer?->email
                 );
-
-                if ($couponResult['valid']) {
-                    $discountAmount = $couponResult['discount'];
-                    $couponInfo = [
-                        'code' => $couponResult['coupon']?->code ?? $couponCode,
-                        'name' => $couponResult['coupon']?->name ?? $couponCode,
-                        'discount' => $discountAmount,
-                        'message' => $couponResult['message'],
-                    ];
-                } else {
-                    return $this->returnError($couponResult['message'], $couponResult['message']);
-                }
+            } catch (\RuntimeException $e) {
+                return $this->returnError($e->getMessage(), $e->getMessage());
             }
 
             $tax = 0.0;
             $shippingFee = 0.0;
             $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
 
-            // Customer and address preview
-            $shippingInput = $validated['shipping_address'] ?? ($request->filled('address_line_1') ? $request->only(['name', 'phone', 'address_line_1', 'address_line_2', 'city', 'state', 'postal_code', 'country']) : null);
-            $shippingAddress = $this->resolveAddress($shippingInput, $validated['shipping_address_id'] ?? null, $customer, AddressType::Shipping);
+            [$shippingAddress, $billingAddress] = $this->resolveCheckoutAddresses($request, $validated, $customer);
 
-            $billingSameAsShipping = (bool) ($validated['billing_same_as_shipping'] ?? true);
-            $billingInput = $validated['billing_address'] ?? null;
-            $billingAddressId = $validated['billing_address_id'] ?? null;
-
-            if ($billingSameAsShipping && empty($billingAddressId) && empty($billingInput)) {
-                $billingAddress = $shippingAddress;
-            } else {
-                $billingAddress = $this->resolveAddress($billingInput, $billingAddressId, $customer, AddressType::Billing) ?? $shippingAddress;
-            }
-
-            $data = [
+            return $this->returnSuccess([
                 'items' => $itemsSummary,
                 'shipping_address' => $shippingAddress,
                 'billing_address' => $billingAddress,
-                'billing_same_as_shipping' => $billingSameAsShipping,
+                'billing_same_as_shipping' => (bool) ($validated['billing_same_as_shipping'] ?? true),
                 'customer' => $customer ? [
                     'name' => $customer->name,
                     'email' => $customer->email,
@@ -194,9 +167,7 @@ class CheckoutController extends Controller
                     'total' => $total,
                 ],
                 'coupon' => $couponInfo,
-            ];
-
-            return $this->returnSuccess($data, 'Checkout summary calculated successfully.');
+            ], 'Checkout summary calculated successfully.');
         } catch (\Throwable $e) {
             return $this->returnError($e->getMessage());
         }
@@ -214,27 +185,23 @@ class CheckoutController extends Controller
                 'items' => ['nullable', 'array'],
             ]);
 
-            $customer = $request->user();
-
             $result = $this->couponService->validate(
                 $validated['code'],
                 (float) $validated['subtotal'],
                 $validated['items'] ?? [],
-                $customer?->email
+                $request->user()?->email
             );
 
-            if (! $result['valid']) {
+            if (!$result['valid']) {
                 return $this->returnError($result['message'], $result['message']);
             }
 
-            $data = [
+            return $this->returnSuccess([
                 'code' => $result['coupon']?->code ?? strtoupper(trim($validated['code'])),
                 'discount' => $result['discount'],
                 'type' => $result['coupon']?->type?->value ?? (string) ($result['coupon']?->type ?? 'fixed'),
                 'value' => (float) ($result['coupon']?->value ?? 0),
-            ];
-
-            return $this->returnSuccess($data, $result['message']);
+            ], $result['message']);
         } catch (\Throwable $e) {
             return $this->returnError($e->getMessage());
         }
@@ -248,71 +215,24 @@ class CheckoutController extends Controller
         /** @var Customer|null $customer */
         $customer = $request->user();
 
-        if (! $customer) {
+        if (!$customer) {
             return $this->returnError('Customer must be logged in to checkout.', 'Customer must be logged in to checkout.', 401);
         }
 
-        $validated = $request->validate([
-            'shipping_address_id' => ['nullable', 'string', 'exists:addresses,id'],
-            'shipping_address' => ['nullable'],
-            'billing_address_id' => ['nullable', 'string', 'exists:addresses,id'],
-            'billing_address' => ['nullable'],
-            'billing_same_as_shipping' => ['nullable', 'boolean'],
-            'save_address' => ['nullable', 'boolean'],
-            'save_billing_address' => ['nullable', 'boolean'],
-            'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'coupon_code' => ['nullable', 'string', 'max:50'],
-            'use_cart' => ['nullable', 'boolean'],
-            'items' => ['nullable', 'array'],
-            'items.*.product_id' => ['required_with:items', 'string', 'exists:products,id'],
-            'items.*.product_variant_id' => ['nullable', 'string', 'exists:product_variants,id'],
-            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validate($this->checkoutRules(true));
 
-        $customerName = $customer->name;
-        $customerEmail = $customer->email;
-        $customerPhone = $customer->phone;
-
-        // Resolve shipping address
-        $shippingInput = $validated['shipping_address'] ?? ($request->filled('address_line_1') ? $request->only(['name', 'phone', 'address_line_1', 'address_line_2', 'city', 'state', 'postal_code', 'country']) : null);
-        $shippingAddress = $this->resolveAddress($shippingInput, $validated['shipping_address_id'] ?? null, $customer, AddressType::Shipping);
+        [$shippingAddress, $billingAddress, $shippingInput, $billingInput] = $this->resolveCheckoutAddresses($request, $validated, $customer);
 
         if (empty($shippingAddress)) {
             return $this->returnError('A valid shipping address is required.', 'A valid shipping address is required.');
         }
 
-        // Save phone to customer profile if provided and customer does not yet have one
-        if (empty($customerPhone) && is_array($shippingInput) && ! empty($shippingInput['phone'])) {
-            $customerPhone = $shippingInput['phone'];
-            $customer->update(['phone' => $customerPhone]);
-        }
-
-        // Save shipping address for future use if requested
-        if (! empty($validated['save_address']) && empty($validated['shipping_address_id']) && ! empty($shippingInput)) {
-            $this->saveAddressForCustomer($customer, $shippingInput, AddressType::Shipping);
-        }
-
-        // Resolve billing address
-        $billingSameAsShipping = (bool) ($validated['billing_same_as_shipping'] ?? true);
-        $billingInput = $validated['billing_address'] ?? null;
-        $billingAddressId = $validated['billing_address_id'] ?? null;
-
-        if ($billingSameAsShipping && empty($billingAddressId) && empty($billingInput)) {
-            $billingAddress = $shippingAddress;
-        } else {
-            $billingAddress = $this->resolveAddress($billingInput, $billingAddressId, $customer, AddressType::Billing) ?? $shippingAddress;
-        }
-
-        // Save billing address for future use if requested
-        if (! empty($validated['save_billing_address']) && empty($billingAddressId) && ! empty($billingInput)) {
-            $this->saveAddressForCustomer($customer, $billingInput, AddressType::Billing);
-        }
+        $this->handleAddressPersistence($customer, $validated, $shippingInput, $billingInput);
 
         try {
             $rawItems = $this->resolveCheckoutItems($customer, $validated);
 
-            $order = DB::transaction(function () use ($rawItems, $validated, $customerName, $customerEmail, $customerPhone, $shippingAddress, $billingAddress, $customer): Order {
+            $order = DB::transaction(function () use ($rawItems, $validated, $shippingAddress, $billingAddress, $customer): Order {
                 $subtotal = 0.0;
                 $processedItems = [];
 
@@ -327,7 +247,7 @@ class CheckoutController extends Controller
                             ->with('product')
                             ->first();
 
-                        if (! $variant || ! $variant->is_active) {
+                        if (!$variant || !$variant->is_active) {
                             throw new \RuntimeException("Variant '{$variantId}' is no longer active or available.");
                         }
 
@@ -353,7 +273,7 @@ class CheckoutController extends Controller
                         $processedItems[] = [
                             'product_id' => $variant->product_id,
                             'product_variant_id' => $variant->id,
-                            'product_name' => $variant->product ? $variant->product->name : $variant->name,
+                            'product_name' => $variant->product?->name ?? $variant->name,
                             'variant_name' => $variant->name,
                             'sku' => $variant->sku,
                             'price' => $unitPrice,
@@ -361,12 +281,16 @@ class CheckoutController extends Controller
                             'subtotal' => $lineSubtotal,
                             'attributes' => $variant->attributes,
                             'image_url' => $variant->image_url,
+                            'category_id' => $variant->product?->category_id,
                         ];
                     } else {
                         /** @var Product|null $product */
-                        $product = Product::where('id', $itemData['product_id'])->lockForUpdate()->first();
+                        $product = Product::where('id', $itemData['product_id'])
+                            ->lockForUpdate()
+                            ->with('primaryImage.media')
+                            ->first();
 
-                        if (! $product || $product->status->value !== 'active') {
+                        if (!$product || $product->status->value !== 'active') {
                             throw new \RuntimeException('Product is no longer available.');
                         }
 
@@ -380,8 +304,6 @@ class CheckoutController extends Controller
                         $lineSubtotal = round($unitPrice * $qty, 2);
                         $subtotal += $lineSubtotal;
 
-                        $primaryImg = $product->images()->where('is_primary', true)->with('media')->first();
-
                         $processedItems[] = [
                             'product_id' => $product->id,
                             'product_variant_id' => null,
@@ -392,48 +314,33 @@ class CheckoutController extends Controller
                             'quantity' => $qty,
                             'subtotal' => $lineSubtotal,
                             'attributes' => null,
-                            'image_url' => $primaryImg?->media?->url,
+                            'image_url' => $product->primaryImage?->media?->url,
+                            'category_id' => $product->category_id,
                         ];
                     }
                 }
 
-                // Coupon Discount Processing
-                $couponCode = ! empty($validated['coupon_code']) ? strtoupper(trim($validated['coupon_code'])) : null;
-                $discountAmount = 0.0;
-                $applicableCoupon = null;
-
-                if ($couponCode !== null) {
-                    $couponResult = $this->couponService->validate(
-                        $couponCode,
-                        $subtotal,
-                        $processedItems,
-                        $customerEmail
-                    );
-
-                    if (! $couponResult['valid']) {
-                        throw new \RuntimeException($couponResult['message']);
-                    }
-
-                    $discountAmount = $couponResult['discount'];
-                    $applicableCoupon = $couponResult['coupon'] ?? null;
-                }
+                [$discountAmount, $applicableCoupon] = $this->applyCoupon(
+                    $validated['coupon_code'] ?? null,
+                    $subtotal,
+                    $processedItems,
+                    $customer->email
+                );
 
                 $tax = 0.0;
                 $shippingFee = 0.0;
                 $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
 
-                $orderNumber = Order::generateOrderNumber();
-
                 $order = Order::create([
                     'customer_id' => $customer->id,
-                    'order_number' => $orderNumber,
-                    'customer_name' => $customerName,
-                    'customer_email' => $customerEmail,
-                    'customer_phone' => $customerPhone,
+                    'order_number' => Order::generateOrderNumber(),
+                    'customer_name' => $customer->name,
+                    'customer_email' => $customer->email,
+                    'customer_phone' => $customer->phone,
                     'shipping_address' => $shippingAddress,
                     'billing_address' => $billingAddress,
                     'subtotal' => $subtotal,
-                    'coupon_code' => $couponCode,
+                    'coupon_code' => !empty($validated['coupon_code']) ? strtoupper(trim($validated['coupon_code'])) : null,
                     'discount_amount' => $discountAmount,
                     'tax' => $tax,
                     'shipping_fee' => $shippingFee,
@@ -445,15 +352,15 @@ class CheckoutController extends Controller
                 ]);
 
                 foreach ($processedItems as $item) {
+                    unset($item['category_id']);
                     $item['order_id'] = $order->id;
                     OrderItem::create($item);
                 }
 
                 if ($applicableCoupon !== null && $discountAmount > 0) {
-                    $this->couponService->recordUsage($applicableCoupon, $order, $discountAmount, $customerEmail);
+                    $this->couponService->recordUsage($applicableCoupon, $order, $discountAmount, $customer->email);
                 }
 
-                // If customer checked out with cart items, clear the cart
                 if ($validated['use_cart'] ?? false || empty($validated['items'])) {
                     CartItem::where('customer_id', $customer->id)->delete();
                 }
@@ -469,7 +376,7 @@ class CheckoutController extends Controller
                 'customer_phone' => $order->customer_phone,
                 'total' => $order->total,
                 'currency' => (string) Setting::get('currency_symbol', '$'),
-                'items' => $order->items->map(fn (OrderItem $item) => [
+                'items' => $order->items->map(fn(OrderItem $item) => [
                     'name' => $item->product_name ?? 'Product',
                     'quantity' => (int) $item->quantity,
                     'price' => (float) $item->price,
@@ -479,14 +386,115 @@ class CheckoutController extends Controller
                 'billing_address' => $order->billing_address,
             ]);
 
-            $data = [
-                'order' => $order,
-            ];
-
-            return $this->returnSuccess($data, "Order #{$order->order_number} placed successfully!", 201);
+            return $this->returnSuccess(['order' => $order], "Order #{$order->order_number} placed successfully!", 201);
         } catch (\Throwable $e) {
             return $this->returnError($e->getMessage());
         }
+    }
+
+    /**
+     * Get shared validation rules for checkout operations.
+     *
+     * @return array<string, mixed>
+     */
+    protected function checkoutRules(bool $isCheckout = false): array
+    {
+        $rules = [
+            'shipping_address_id' => ['nullable', 'string', 'exists:addresses,id'],
+            'shipping_address' => ['nullable'],
+            'billing_address_id' => ['nullable', 'string', 'exists:addresses,id'],
+            'billing_address' => ['nullable'],
+            'billing_same_as_shipping' => ['nullable', 'boolean'],
+            'coupon_code' => ['nullable', 'string', 'max:50'],
+            'use_cart' => ['nullable', 'boolean'],
+            'items' => ['nullable', 'array'],
+            'items.*.product_id' => ['required_with:items', 'string', 'exists:products,id'],
+            'items.*.product_variant_id' => ['nullable', 'string', 'exists:product_variants,id'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
+        ];
+
+        if ($isCheckout) {
+            $rules['save_address'] = ['nullable', 'boolean'];
+            $rules['save_billing_address'] = ['nullable', 'boolean'];
+            $rules['payment_method'] = ['required', Rule::enum(PaymentMethod::class)];
+            $rules['notes'] = ['nullable', 'string', 'max:500'];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Resolve shipping and billing addresses for checkout.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{0: ?string, 1: ?string, 2: mixed, 3: mixed}
+     */
+    protected function resolveCheckoutAddresses(Request $request, array $validated, ?Customer $customer): array
+    {
+        $shippingInput = $validated['shipping_address'] ?? ($request->filled('address_line_1') ? $request->only(['name', 'phone', 'address_line_1', 'address_line_2', 'city', 'state', 'postal_code', 'country']) : null);
+        $shipping = $this->resolveAddress($shippingInput, $validated['shipping_address_id'] ?? null, $customer, AddressType::Shipping);
+
+        $sameAsShipping = (bool) ($validated['billing_same_as_shipping'] ?? true);
+        $billingInput = $validated['billing_address'] ?? null;
+        $billingId = $validated['billing_address_id'] ?? null;
+
+        $billing = ($sameAsShipping && empty($billingId) && empty($billingInput))
+            ? $shipping
+            : ($this->resolveAddress($billingInput, $billingId, $customer, AddressType::Billing) ?? $shipping);
+
+        return [$shipping, $billing, $shippingInput, $billingInput];
+    }
+
+    /**
+     * Persist customer phone and requested saved addresses.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    protected function handleAddressPersistence(Customer $customer, array $validated, mixed $shippingInput, mixed $billingInput): void
+    {
+        if (empty($customer->phone) && is_array($shippingInput) && !empty($shippingInput['phone'])) {
+            $customer->update(['phone' => $shippingInput['phone']]);
+        }
+
+        if (!empty($validated['save_address']) && empty($validated['shipping_address_id']) && !empty($shippingInput)) {
+            $this->saveAddressForCustomer($customer, $shippingInput, AddressType::Shipping);
+        }
+
+        if (!empty($validated['save_billing_address']) && empty($validated['billing_address_id']) && !empty($billingInput)) {
+            $this->saveAddressForCustomer($customer, $billingInput, AddressType::Billing);
+        }
+    }
+
+    /**
+     * Apply and calculate coupon savings.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array{0: float, 1: ?Coupon, 2: ?array<string, mixed>}
+     */
+    protected function applyCoupon(?string $code, float $subtotal, array $items, ?string $email): array
+    {
+        if (empty($code)) {
+            return [0.0, null, null];
+        }
+
+        $code = strtoupper(trim($code));
+        $result = $this->couponService->validate($code, $subtotal, $items, $email);
+
+        if (!$result['valid']) {
+            throw new \RuntimeException($result['message']);
+        }
+
+        $discount = (float) $result['discount'];
+        $coupon = $result['coupon'] ?? null;
+
+        $info = [
+            'code' => $coupon?->code ?? $code,
+            'name' => $coupon?->name ?? $code,
+            'discount' => $discount,
+            'message' => $result['message'],
+        ];
+
+        return [$discount, $coupon, $info];
     }
 
     /**
@@ -497,7 +505,7 @@ class CheckoutController extends Controller
      */
     protected function resolveCheckoutItems(?Customer $customer, array $validated): array
     {
-        if (! empty($validated['items'])) {
+        if (!empty($validated['items'])) {
             return $validated['items'];
         }
 
@@ -507,7 +515,7 @@ class CheckoutController extends Controller
                 throw new \RuntimeException('Your shopping cart is currently empty.');
             }
 
-            return $cartItems->map(fn (CartItem $c) => [
+            return $cartItems->map(fn(CartItem $c) => [
                 'product_id' => $c->product_id,
                 'product_variant_id' => $c->product_variant_id,
                 'quantity' => $c->quantity,
@@ -522,7 +530,6 @@ class CheckoutController extends Controller
      */
     protected function resolveAddress(mixed $addressData, ?string $addressId, ?Customer $customer, AddressType $type = AddressType::Shipping): ?string
     {
-        // 1. If an address ID is provided, fetch from customer's saved addresses
         if ($addressId && $customer) {
             $saved = Address::where('customer_id', $customer->id)->find($addressId);
             if ($saved) {
@@ -530,15 +537,13 @@ class CheckoutController extends Controller
             }
         }
 
-        // 2. If address data (string or array) is provided, format it
-        if (! empty($addressData)) {
+        if (!empty($addressData)) {
             return $this->formatAddress($addressData, $customer);
         }
 
-        // 3. Fallback to customer's default address for the type (or general default)
         if ($customer) {
             $default = Address::where('customer_id', $customer->id)
-                ->where(fn ($q) => $q->where('type', $type)->orWhere('is_default', true))
+                ->where(fn($q) => $q->where('type', $type)->orWhere('is_default', true))
                 ->orderBy('is_default', 'desc')
                 ->first();
 
@@ -564,7 +569,7 @@ class CheckoutController extends Controller
         if (is_array($addressData)) {
             $parts = array_filter([
                 $addressData['name'] ?? $customer?->name,
-                ! empty($addressData['phone'] ?? $customer?->phone) ? 'Tel: ' . ($addressData['phone'] ?? $customer?->phone) : null,
+                !empty($addressData['phone'] ?? $customer?->phone) ? 'Tel: ' . ($addressData['phone'] ?? $customer?->phone) : null,
                 $addressData['address_line_1'] ?? $addressData['address'] ?? null,
                 $addressData['address_line_2'] ?? null,
                 trim(($addressData['city'] ?? '') . ', ' . ($addressData['state'] ?? '') . ' ' . ($addressData['postal_code'] ?? $addressData['zip'] ?? '')),
@@ -590,17 +595,12 @@ class CheckoutController extends Controller
             return null;
         }
 
-        $isStructured = is_array($addressInput);
-        $name = $isStructured ? ($addressInput['name'] ?? $customer->name) : $customer->name;
-        $phone = $isStructured ? ($addressInput['phone'] ?? $customer->phone) : $customer->phone;
-        $line1 = $isStructured ? ($addressInput['address_line_1'] ?? $addressInput['address'] ?? '') : (string) $addressInput;
-        $line2 = $isStructured ? ($addressInput['address_line_2'] ?? null) : null;
-        $city = $isStructured ? ($addressInput['city'] ?? '') : '';
-        $state = $isStructured ? ($addressInput['state'] ?? null) : null;
-        $postalCode = $isStructured ? ($addressInput['postal_code'] ?? $addressInput['zip'] ?? '00000') : '00000';
-        $country = $isStructured ? ($addressInput['country'] ?? 'United States') : 'United States';
+        $data = is_array($addressInput) ? $addressInput : ['address_line_1' => (string) $addressInput];
+        $line1 = $data['address_line_1'] ?? $data['address'] ?? '';
+        $city = $data['city'] ?? '';
+        $country = $data['country'] ?? 'United States';
 
-        if (! $isStructured && str_contains($line1, ',')) {
+        if (!is_array($addressInput) && str_contains($line1, ',')) {
             $segments = array_map('trim', explode(',', $line1));
             if (count($segments) >= 3) {
                 $city = $segments[count($segments) - 2];
@@ -608,12 +608,7 @@ class CheckoutController extends Controller
             }
         }
 
-        if (empty($city)) {
-            $city = 'City';
-        }
-
-        $hasAddresses = Address::where('customer_id', $customer->id)->exists();
-        $isDefault = $makeDefault || ! $hasAddresses;
+        $isDefault = $makeDefault || !Address::where('customer_id', $customer->id)->exists();
 
         if ($isDefault) {
             Address::where('customer_id', $customer->id)
@@ -624,13 +619,13 @@ class CheckoutController extends Controller
         return Address::create([
             'customer_id' => $customer->id,
             'type' => $type,
-            'name' => $name,
-            'phone' => $phone,
+            'name' => $data['name'] ?? $customer->name,
+            'phone' => $data['phone'] ?? $customer->phone,
             'address_line_1' => $line1,
-            'address_line_2' => $line2,
-            'city' => $city,
-            'state' => $state,
-            'postal_code' => $postalCode,
+            'address_line_2' => $data['address_line_2'] ?? null,
+            'city' => $city ?: 'City',
+            'state' => $data['state'] ?? null,
+            'postal_code' => $data['postal_code'] ?? null,
             'country' => $country,
             'is_default' => $isDefault,
         ]);
