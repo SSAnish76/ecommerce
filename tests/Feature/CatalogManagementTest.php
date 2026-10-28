@@ -104,7 +104,7 @@ class CatalogManagementTest extends TestCase
             'retail_price' => 129.99,
             'sale_price' => 99.99,
             'discount_type' => 'percentage',
-            'discount_percentage' => 33.33,
+            'discount_value' => 33.33,
             'stock_quantity' => 50,
             'low_stock_threshold' => 10,
             'has_variants' => true,
@@ -137,8 +137,7 @@ class CatalogManagementTest extends TestCase
             'mrp' => 80.00,
             'retail_price' => 60.00,
             'discount_type' => 'fixed',
-            'discount_amount' => 20.00,
-            'discount_percentage' => 25.00,
+            'discount_value' => 20.00,
             'stock_quantity' => 30,
             'low_stock_threshold' => 5,
             'status' => 'active',
@@ -148,7 +147,7 @@ class CatalogManagementTest extends TestCase
         $this->assertDatabaseHas('products', [
             'sku' => 'MOUSE-WL-FIXED',
             'discount_type' => 'fixed',
-            'discount_amount' => 20.00,
+            'discount_value' => 20.00,
         ]);
     }
 

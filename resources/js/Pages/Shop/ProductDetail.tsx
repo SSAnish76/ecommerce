@@ -185,12 +185,32 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
         return product.mrp ? Number(product.mrp) : null;
     }, [activeVariant, product]);
 
-    const discountPercentage = useMemo(() => {
+    const discountBadge = useMemo<{ label: string; isFixed: boolean } | null>(() => {
+        // For variants, always use the price-vs-mrp calculation
+        if (activeVariant) {
+            if (currentMrp && currentMrp > currentPrice) {
+                const pct = Math.round(((currentMrp - currentPrice) / currentMrp) * 100);
+                return { label: `${pct}% OFF`, isFixed: false };
+            }
+            return null;
+        }
+
+        // For non-variant products, prefer the stored discount fields
+        const discountType = product.discount_type;
+        if (product.discount_value && Number(product.discount_value) > 0) {
+            if (discountType === 'fixed') {
+                return { label: `${currency}${Number(product.discount_value).toFixed(2)} OFF`, isFixed: true };
+            }
+            return { label: `${Number(product.discount_value).toFixed(0)}% OFF`, isFixed: false };
+        }
+
+        // Fallback: calculate from mrp vs price
         if (currentMrp && currentMrp > currentPrice) {
-            return Math.round(((currentMrp - currentPrice) / currentMrp) * 100);
+            const pct = Math.round(((currentMrp - currentPrice) / currentMrp) * 100);
+            return { label: `${pct}% OFF`, isFixed: false };
         }
         return null;
-    }, [currentMrp, currentPrice]);
+    }, [activeVariant, currentMrp, currentPrice, product, currency]);
 
     // Current SKU
     const currentSku = activeVariant?.sku || product.sku;
@@ -449,9 +469,9 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
                             )}
 
                             {/* Discount Badge */}
-                            {discountPercentage && (
+                            {discountBadge && (
                                 <div className="absolute top-4 left-4 bg-rose-500 text-white text-xs font-extrabold px-2.5 py-1 rounded-xl shadow-md">
-                                    {discountPercentage}% OFF
+                                    {discountBadge.label}
                                 </div>
                             )}
 
@@ -528,9 +548,9 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
                                         {currency}{currentMrp.toFixed(2)}
                                     </span>
                                 )}
-                                {discountPercentage && (
+                                {discountBadge && (
                                     <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                        Save {discountPercentage}%
+                                        Save {discountBadge.label}
                                     </span>
                                 )}
                             </div>

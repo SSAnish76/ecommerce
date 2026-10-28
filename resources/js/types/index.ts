@@ -342,8 +342,8 @@ export interface Product {
     retail_price: number | string;
     sale_price?: number | string | null;
     discount_type?: 'percentage' | 'fixed' | string | null;
-    discount_amount?: number | string | null;
-    discount_percentage?: number | string | null;
+    discount_value?: number | string | null;
+    discount_label?: string | null;
     stock_quantity: number;
     low_stock_threshold: number;
     stock_visibility: string;

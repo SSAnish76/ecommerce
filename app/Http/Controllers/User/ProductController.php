@@ -53,9 +53,9 @@ class ProductController extends Controller
 
             // Collection filter (by ID or Slug)
             if ($collectionId = $request->input('collection_id')) {
-                $query->whereHas('collections', fn ($q) => $q->where('collections.id', $collectionId));
+                $query->whereHas('collections', fn($q) => $q->where('collections.id', $collectionId));
             } elseif ($collectionSlug = $request->input('collection')) {
-                $query->whereHas('collections', fn ($q) => $q->where('collections.slug', $collectionSlug));
+                $query->whereHas('collections', fn($q) => $q->where('collections.slug', $collectionSlug));
             }
 
             // Price range filter
@@ -115,7 +115,7 @@ class ProductController extends Controller
             return $this->paginateAndFormat(
                 $query,
                 $request,
-                fn (Product $product) => $this->formatProductSummary($product),
+                fn(Product $product) => $this->formatProductSummary($product),
                 message: 'Products retrieved successfully.'
             );
         } catch (Exception $e) {
@@ -136,7 +136,7 @@ class ProductController extends Controller
                     'category:id,name,slug',
                     'images.media',
                     'attributes' => function ($q): void {
-                        $q->active()->with(['values' => fn ($vq) => $vq->active()->orderBy('sort_order')]);
+                        $q->active()->with(['values' => fn($vq) => $vq->active()->orderBy('sort_order')]);
                     },
                     'attributeValues',
                     'variants' => function ($q): void {
@@ -146,7 +146,7 @@ class ProductController extends Controller
 
             $product = $query->whereSlugOrId($slugOrId)->first();
 
-            if (! $product) {
+            if (!$product) {
                 return $this->returnError(null, 'Product not found or unavailable.', 404);
             }
 
@@ -164,7 +164,7 @@ class ProductController extends Controller
         try {
             $product = Product::whereSlugOrId($slugOrId)->first();
 
-            if (! $product) {
+            if (!$product) {
                 return $this->returnError(null, 'Product not found.', 404);
             }
 
@@ -183,7 +183,7 @@ class ProductController extends Controller
                 ->limit(6)
                 ->get();
 
-            $items = $relatedProducts->map(fn (Product $p) => $this->formatProductSummary($p));
+            $items = $relatedProducts->map(fn(Product $p) => $this->formatProductSummary($p));
 
             return $this->returnSuccess($items, 'Related products retrieved successfully.');
         } catch (Exception $e) {
@@ -218,7 +218,7 @@ class ProductController extends Controller
             'retail_price' => (float) $product->retail_price,
             'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
             'effective_price' => $product->effectivePrice(),
-            'discount_percentage' => (float) $product->discount_percentage,
+            'discount_label' => $product->discountLabel(),
             'has_variants' => (bool) $product->has_variants,
             'stock_quantity' => (int) $product->stock_quantity,
             'is_in_stock' => $product->stock_quantity > 0,
@@ -234,14 +234,14 @@ class ProductController extends Controller
      */
     protected function formatProductDetail(Product $product): array
     {
-        $galleryImages = $product->images->map(fn ($img) => [
+        $galleryImages = $product->images->map(fn($img) => [
             'id' => $img->id,
             'url' => $img->media?->url,
             'is_primary' => (bool) $img->is_primary,
             'sort_order' => (int) $img->sort_order,
         ]);
 
-        $variants = $product->variants->map(fn ($variant) => [
+        $variants = $product->variants->map(fn($variant) => [
             'id' => $variant->id,
             'name' => $variant->name,
             'sku' => $variant->sku,
@@ -263,12 +263,12 @@ class ProductController extends Controller
             'delivery_radius_km' => $product->delivery_radius_km !== null ? (float) $product->delivery_radius_km : null,
             'images' => $galleryImages,
             'variants' => $variants,
-            'attributes' => $product->attributes->map(fn ($attr) => [
+            'attributes' => $product->attributes->map(fn($attr) => [
                 'id' => $attr->id,
                 'name' => $attr->name,
                 'code' => $attr->code,
                 'type' => $attr->type?->value ?? (string) $attr->type,
-                'values' => $attr->values->map(fn ($v) => [
+                'values' => $attr->values->map(fn($v) => [
                     'id' => $v->id,
                     'value' => $v->value,
                     'color_code' => $v->color_code,

@@ -42,8 +42,7 @@ class Product extends Model
         'retail_price',
         'sale_price',
         'discount_type',
-        'discount_amount',
-        'discount_percentage',
+        'discount_value',
         'stock_quantity',
         'low_stock_threshold',
         'stock_visibility',
@@ -68,8 +67,7 @@ class Product extends Model
             'retail_price' => 'decimal:2',
             'sale_price' => 'decimal:2',
             'discount_type' => DiscountType::class,
-            'discount_amount' => 'decimal:2',
-            'discount_percentage' => 'decimal:2',
+            'discount_value' => 'decimal:2',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
             'has_variants' => 'boolean',
@@ -235,5 +233,33 @@ class Product extends Model
     public function isOutOfStock(): bool
     {
         return $this->stock_quantity <= 0;
+    }
+
+    /**
+     * Get user-friendly formatted discount label string for front-end.
+     * E.g.: "15% OFF", "₹100 OFF", or null if no discount.
+     */
+    public function discountLabel(?string $currencySymbol = null): ?string
+    {
+        $value = (float) $this->discount_value;
+
+        if ($value > 0) {
+            $formatted = $value == (int) $value ? (string) (int) $value : (string) round($value, 2);
+
+            return $this->discount_type === DiscountType::Fixed
+                ? ($currencySymbol ? "{$currencySymbol}{$formatted} OFF" : "{$formatted} OFF")
+                : "{$formatted}% OFF";
+        }
+
+        $mrp = (float) $this->mrp;
+        $effectivePrice = $this->effectivePrice();
+
+        if ($mrp > $effectivePrice && $mrp > 0) {
+            $percentage = round((($mrp - $effectivePrice) / $mrp) * 100);
+
+            return $percentage > 0 ? "{$percentage}% OFF" : null;
+        }
+
+        return null;
     }
 }

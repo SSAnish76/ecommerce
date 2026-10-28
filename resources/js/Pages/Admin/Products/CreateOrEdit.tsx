@@ -133,8 +133,7 @@ export default function CreateOrEditProductPage({
         retail_price: product?.retail_price ?? 0,
         sale_price: product?.sale_price ?? '',
         discount_type: product?.discount_type || 'percentage',
-        discount_amount: product?.discount_amount ?? '',
-        discount_percentage: product?.discount_percentage ?? '',
+        discount_value: product?.discount_value ?? '',
         stock_quantity: product?.stock_quantity ?? 0,
         low_stock_threshold: product?.low_stock_threshold ?? 5,
         stock_visibility: product?.stock_visibility || 'badge',
@@ -571,60 +570,56 @@ export default function CreateOrEditProductPage({
     const handleRetailPriceChange = (val: number) => {
         form.setData((prev) => {
             const mrp = Number(prev.mrp);
-            let discount = prev.discount_percentage;
-            let discountAmt = prev.discount_amount;
+            let discountVal = prev.discount_value;
             if (mrp > 0 && val > 0 && mrp > val) {
-                discount = Number((((mrp - val) / mrp) * 100).toFixed(2));
-                discountAmt = Number((mrp - val).toFixed(2));
+                if (prev.discount_type === 'fixed') {
+                    discountVal = Number((mrp - val).toFixed(2));
+                } else {
+                    discountVal = Number((((mrp - val) / mrp) * 100).toFixed(2));
+                }
             } else if (val >= mrp) {
-                discount = '';
-                discountAmt = '';
+                discountVal = '';
             }
-            return { ...prev, retail_price: val, discount_percentage: discount, discount_amount: discountAmt };
+            return { ...prev, retail_price: val, discount_value: discountVal };
         });
     };
 
     const handleMrpChange = (val: number) => {
         form.setData((prev) => {
             const retail = Number(prev.retail_price);
-            let discount = prev.discount_percentage;
-            let discountAmt = prev.discount_amount;
+            let discountVal = prev.discount_value;
             if (val > 0 && retail > 0 && val > retail) {
-                discount = Number((((val - retail) / val) * 100).toFixed(2));
-                discountAmt = Number((val - retail).toFixed(2));
+                if (prev.discount_type === 'fixed') {
+                    discountVal = Number((val - retail).toFixed(2));
+                } else {
+                    discountVal = Number((((val - retail) / val) * 100).toFixed(2));
+                }
             } else if (retail >= val) {
-                discount = '';
-                discountAmt = '';
+                discountVal = '';
             }
-            return { ...prev, mrp: val, discount_percentage: discount, discount_amount: discountAmt };
+            return { ...prev, mrp: val, discount_value: discountVal };
         });
     };
 
-    const handleDiscountValueChange = (val: string) => {
+    /**
+     * When discount type changes, convert current discount value if appropriate.
+     */
+    const handleDiscountTypeChange = (newType: string) => {
         form.setData((prev) => {
             const mrp = Number(prev.mrp);
-            const isFixed = prev.discount_type === 'fixed';
-            if (val === '') {
-                return { ...prev, discount_percentage: '', discount_amount: '' };
-            }
-            const num = Number(val);
-            if (isNaN(num)) return prev;
+            let discountVal = prev.discount_value;
 
-            if (isFixed) {
-                const pct = mrp > 0 ? Number(((num / mrp) * 100).toFixed(2)) : '';
-                return {
-                    ...prev,
-                    discount_amount: num,
-                    discount_percentage: pct,
-                };
-            } else {
-                const amt = mrp > 0 ? Number(((mrp * num) / 100).toFixed(2)) : '';
-                return {
-                    ...prev,
-                    discount_percentage: num,
-                    discount_amount: amt,
-                };
+            if (discountVal !== '' && Number(discountVal) > 0 && mrp > 0) {
+                if (newType === 'fixed' && prev.discount_type === 'percentage') {
+                    // convert % to fixed amount
+                    discountVal = Number(((mrp * Number(discountVal)) / 100).toFixed(2));
+                } else if (newType === 'percentage' && prev.discount_type === 'fixed') {
+                    // convert fixed amount to %
+                    discountVal = Number(((Number(discountVal) / mrp) * 100).toFixed(2));
+                }
             }
+
+            return { ...prev, discount_type: newType, discount_value: discountVal };
         });
     };
 
@@ -961,7 +956,12 @@ export default function CreateOrEditProductPage({
                                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto">
                                         <Sparkles className="w-3.5 h-3.5" />
                                         <span>
-                                            Customer Saves {currency}{savingsAmount.toFixed(2)} ({form.data.discount_percentage}%)
+                                            Customer Saves {currency}{savingsAmount.toFixed(2)}
+                                            {form.data.discount_value !== '' && Number(form.data.discount_value) > 0
+                                                ? form.data.discount_type === 'fixed'
+                                                    ? ` (${currency}${Number(form.data.discount_value).toFixed(2)} OFF)`
+                                                    : ` (${Number(form.data.discount_value)}% OFF)`
+                                                : ''}
                                         </span>
                                     </div>
                                 )}
@@ -1003,18 +1003,18 @@ export default function CreateOrEditProductPage({
                                 <Select
                                     label="Discount Type"
                                     value={form.data.discount_type || 'percentage'}
-                                    onChange={(e) => form.setData('discount_type', e.target.value)}
+                                    onChange={(e) => handleDiscountTypeChange(e.target.value)}
                                     options={discountTypes}
                                     error={form.errors.discount_type}
                                 />
 
                                 <Input
-                                    label={form.data.discount_type === 'fixed' ? `Discount Amount (${currency})` : 'Discount %'}
+                                    label={form.data.discount_type === 'fixed' ? `Discount Amount (${currency})` : 'Discount Percentage (%)'}
                                     type="number"
                                     step={form.data.discount_type === 'fixed' ? '0.01' : '0.1'}
-                                    value={String(form.data.discount_type === 'fixed' ? (form.data.discount_amount ?? '') : (form.data.discount_percentage ?? ''))}
-                                    onChange={(e) => handleDiscountValueChange(e.target.value)}
-                                    error={form.data.discount_type === 'fixed' ? form.errors.discount_amount : form.errors.discount_percentage}
+                                    value={String(form.data.discount_value ?? '')}
+                                    onChange={(e) => form.setData('discount_value', e.target.value === '' ? '' : Number(e.target.value))}
+                                    error={form.errors.discount_value}
                                     placeholder={form.data.discount_type === 'fixed' ? '0.00' : '0.0'}
                                 />
 
