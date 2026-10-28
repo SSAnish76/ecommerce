@@ -271,6 +271,7 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
     // Cart actions
     const addToCart = (buyNow = false) => {
         if (isOutOfStock) return;
+        if (hasVariants && !activeVariant) return;
 
         const cartItemId = activeVariant
             ? `${product.id}-${activeVariant.id}`
@@ -686,7 +687,7 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
                                 {/* Add to Cart Button */}
                                 <button
                                     type="button"
-                                    disabled={isOutOfStock}
+                                    disabled={isOutOfStock || (hasVariants && !activeVariant)}
                                     onClick={() => addToCart(false)}
                                     className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                                 >
@@ -697,7 +698,7 @@ export default function ProductDetailPage({ product, relatedProducts = [] }: Pro
                                 {/* Buy Now Button */}
                                 <button
                                     type="button"
-                                    disabled={isOutOfStock}
+                                    disabled={isOutOfStock || (hasVariants && !activeVariant)}
                                     onClick={() => addToCart(true)}
                                     className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                 >

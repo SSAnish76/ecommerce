@@ -27,6 +27,7 @@ class CustomerApiTest extends TestCase
 
     protected Customer $customer;
     protected Product $product;
+    protected Product $variantProduct;
     protected ProductVariant $variant;
     protected Category $category;
     protected Brand $brand;
@@ -66,13 +67,29 @@ class CustomerApiTest extends TestCase
             'retail_price' => 199.99,
             'sale_price' => 149.99,
             'stock_quantity' => 20,
+            'has_variants' => false,
+            'status' => ProductStatus::Active,
+        ]);
+
+        $this->variantProduct = Product::create([
+            'name' => 'Smart Phone Pro',
+            'slug' => 'smart-phone-pro',
+            'sku' => 'SPP-001',
+            'short_description' => 'A wonderful smart phone.',
+            'description' => 'Full specifications and details for smart phone.',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'retail_price' => 299.99,
+            'sale_price' => 249.99,
+            'stock_quantity' => 20,
+            'has_variants' => true,
             'status' => ProductStatus::Active,
         ]);
 
         $this->variant = ProductVariant::create([
-            'product_id' => $this->product->id,
+            'product_id' => $this->variantProduct->id,
             'name' => 'Midnight Black / 128GB',
-            'sku' => 'SGP-001-BLK-128',
+            'sku' => 'SPP-001-BLK-128',
             'price' => 219.99,
             'sale_price' => 169.99,
             'stock_quantity' => 10,
@@ -333,6 +350,34 @@ class CustomerApiTest extends TestCase
     {
         Sanctum::actingAs($this->customer);
 
+        // Attempting to add product with variants without variant id should fail
+        $variantRequiredResponse = $this->postJson('/api/user/cart', [
+            'product_id' => $this->variantProduct->id,
+            'quantity' => 1,
+        ]);
+        $variantRequiredResponse->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'This product has variants. Please select a variant to add to cart.',
+            ]);
+
+        // Attempting to add standard product with mismatched variant id should fail in validation
+        $standardWithVariantResponse = $this->postJson('/api/user/cart', [
+            'product_id' => $this->product->id,
+            'product_variant_id' => $this->variant->id,
+            'quantity' => 1,
+        ]);
+        $standardWithVariantResponse->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'error' => [
+                    'product_variant_id' => [
+                        'Selected variant is not valid for this product or unavailable.',
+                    ],
+                ],
+            ]);
+
         // Add standard product
         $addResponse = $this->postJson('/api/user/cart', [
             'product_id' => $this->product->id,
@@ -355,7 +400,7 @@ class CustomerApiTest extends TestCase
 
         // Add variant item
         $addVariantResponse = $this->postJson('/api/user/cart', [
-            'product_id' => $this->product->id,
+            'product_id' => $this->variantProduct->id,
             'product_variant_id' => $this->variant->id,
             'quantity' => 1,
         ]);
@@ -504,7 +549,7 @@ class CustomerApiTest extends TestCase
             'payment_method' => 'cod',
             'items' => [
                 [
-                    'product_id' => $this->product->id,
+                    'product_id' => $this->variantProduct->id,
                     'product_variant_id' => $this->variant->id,
                     'quantity' => 2,
                 ],
