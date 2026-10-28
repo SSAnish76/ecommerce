@@ -141,4 +141,39 @@ class Order extends Model
     {
         return $this->status === OrderStatus::Completed || $this->status === OrderStatus::Completed->value;
     }
+
+    /**
+     * Generate sequential unique order number based on configured settings.
+     */
+    public static function generateOrderNumber(): string
+    {
+        $prefix = (string) Setting::get('order_prefix', 'ORD-');
+        $startNumber = (int) Setting::get('order_number_start', 1001);
+
+        $existingOrderNumbers = static::query()
+            ->where('order_number', 'LIKE', "{$prefix}%")
+            ->pluck('order_number');
+
+        $maxNumber = $startNumber - 1;
+
+        foreach ($existingOrderNumbers as $numStr) {
+            $suffix = substr($numStr, strlen($prefix));
+            if (is_numeric($suffix)) {
+                $val = (int) $suffix;
+                if ($val > $maxNumber) {
+                    $maxNumber = $val;
+                }
+            }
+        }
+
+        $nextNumber = max($startNumber, $maxNumber + 1);
+        $candidate = $prefix . $nextNumber;
+
+        while (static::query()->where('order_number', $candidate)->exists()) {
+            $nextNumber++;
+            $candidate = $prefix . $nextNumber;
+        }
+
+        return $candidate;
+    }
 }

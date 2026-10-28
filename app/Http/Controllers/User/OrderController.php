@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Enums\Order\OrderStatus;
+use App\Events\Order\OrderCancelled;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Customer;
@@ -212,6 +213,16 @@ class OrderController extends Controller
                     'notes' => trim(($order->notes ? "{$order->notes}\n" : '') . "Cancellation Reason: {$reason}"),
                 ]);
             });
+
+            // Dispatch cancellation event for customer and admin notifications
+            OrderCancelled::dispatch([
+                'order_number' => $order->order_number,
+                'customer_name' => $order->customer_name,
+                'customer_email' => $order->customer_email,
+                'customer_phone' => $order->customer_phone,
+                'total' => $order->total,
+                'refund_status' => is_string($order->payment_status) ? $order->payment_status : $order->payment_status?->value,
+            ], $reason);
 
             $data = [
                 'order_number' => $order->order_number,

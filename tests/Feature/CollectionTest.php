@@ -39,7 +39,7 @@ class CollectionTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
-            ->component('Admin/Collections')
+            ->component('Admin/Collections/Index')
             ->has('collections.data', 1)
         );
     }

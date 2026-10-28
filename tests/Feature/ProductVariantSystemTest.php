@@ -245,7 +245,7 @@ class ProductVariantSystemTest extends TestCase
         // Assert order and order item created
         $order = Order::where('customer_email', 'jane@example.com')->firstOrFail();
         $this->assertEquals(135.00, (float) $order->total_amount);
-        $this->assertEquals('pending', $order->status);
+        $this->assertEquals('pending', $order->status->value);
 
         $this->assertDatabaseHas('order_items', [
             'order_id' => $order->id,
@@ -338,7 +338,7 @@ class ProductVariantSystemTest extends TestCase
         ]);
 
         $response->assertSessionHas('success');
-        $this->assertEquals('cancelled', $order->fresh()->status);
+        $this->assertEquals('cancelled', $order->fresh()->status->value);
 
         // Restocked: variant 5 + 2 = 7; product 10 + 2 = 12
         $this->assertEquals(7, $variant->fresh()->stock_quantity);

@@ -14,6 +14,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Setting;
 use App\Models\Wishlist;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -543,6 +544,45 @@ class CustomerApiTest extends TestCase
             ]);
 
         $this->assertEquals($initialVariantStock, $this->variant->fresh()->stock_quantity);
+    }
+
+    /**
+     * Test checkout generates sequential order number based on configured settings.
+     */
+    public function test_checkout_generates_sequential_order_number_from_settings(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        Setting::set('order_prefix', 'INV-', 'orders', 'string');
+        Setting::set('order_number_start', 7500, 'orders', 'integer');
+
+        $response1 = $this->postJson('/api/user/checkout', [
+            'shipping_address' => '123 Test St, Boston, MA',
+            'payment_method' => 'cod',
+            'items' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response1->assertCreated();
+        $this->assertSame('INV-7500', $response1->json('data.order.order_number'));
+
+        $response2 = $this->postJson('/api/user/checkout', [
+            'shipping_address' => '123 Test St, Boston, MA',
+            'payment_method' => 'cod',
+            'items' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response2->assertCreated();
+        $this->assertSame('INV-7501', $response2->json('data.order.order_number'));
     }
 
     /**

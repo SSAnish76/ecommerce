@@ -7,9 +7,8 @@ namespace App\Http\Controllers\User;
 use App\Enums\Order\OrderStatus;
 use App\Enums\Order\PaymentMethod;
 use App\Enums\Order\PaymentStatus;
+use App\Events\Order\OrderPlaced;
 use App\Http\Controllers\Controller;
-use App\Mail\Order\OrderPlacedAdminMail;
-use App\Mail\Order\OrderPlacedCustomerMail;
 use App\Models\Address;
 use App\Models\CartItem;
 use App\Models\Customer;
@@ -22,8 +21,6 @@ use App\Services\CouponService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -388,7 +385,7 @@ class CheckoutController extends Controller
                 $shippingFee = 0.0;
                 $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
 
-                $orderNumber = 'ORD-'.strtoupper(Str::random(8));
+                $orderNumber = Order::generateOrderNumber();
 
                 $order = Order::create([
                     'customer_id' => $customer?->id,
@@ -426,27 +423,22 @@ class CheckoutController extends Controller
                 return $order->load('items');
             });
 
-            // Dispatch customer and admin notifications safely
-            try {
-                Mail::to($order->customer_email)->send(new OrderPlacedCustomerMail([
-                    'order_number' => $order->order_number,
-                    'customer_name' => $order->customer_name,
-                    'total' => $order->total,
-                ]));
-            } catch (\Throwable $e) {
-                Log::info("Customer order confirmation mail failed: {$e->getMessage()}");
-            }
-
-            try {
-                $adminEmail = Setting::get('admin_notification_email', 'admin@example.com');
-                Mail::to($adminEmail)->send(new OrderPlacedAdminMail([
-                    'order_number' => $order->order_number,
-                    'customer_name' => $order->customer_name,
-                    'total' => $order->total,
-                ]));
-            } catch (\Throwable $e) {
-                Log::info("Admin order alert mail failed: {$e->getMessage()}");
-            }
+            // Dispatch order placed event for customer and admin notifications
+            OrderPlaced::dispatch([
+                'order_number' => $order->order_number,
+                'customer_name' => $order->customer_name,
+                'customer_email' => $order->customer_email,
+                'customer_phone' => $order->customer_phone,
+                'total' => $order->total,
+                'currency' => (string) Setting::get('currency_symbol', '$'),
+                'items' => $order->items->map(fn (OrderItem $item) => [
+                    'name' => $item->product_name ?? 'Product',
+                    'quantity' => (int) $item->quantity,
+                    'price' => (float) $item->price,
+                ])->values()->all(),
+                'payment_method' => is_string($order->payment_method) ? $order->payment_method : $order->payment_method?->value,
+                'shipping_address' => $order->shipping_address,
+            ]);
 
             $data = [
                 'order' => $order,
