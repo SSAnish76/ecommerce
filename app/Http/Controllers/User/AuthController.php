@@ -96,7 +96,7 @@ class AuthController extends Controller
 
             if (!$customer || !Hash::check($validated['password'], $customer->password)) {
                 return $this->returnError(
-                    'The provided credentials do not match our records.',
+                    null,
                     'The provided credentials do not match our records.',
                     401
                 );
@@ -104,7 +104,7 @@ class AuthController extends Controller
 
             if (!$customer->isActive()) {
                 return $this->returnError(
-                    'Your account is currently inactive. Please contact support.',
+                    null,
                     'Your account is currently inactive. Please contact support.',
                     403
                 );
@@ -131,7 +131,7 @@ class AuthController extends Controller
 
             if (!$refreshTokenString) {
                 return $this->returnError(
-                    'Refresh token is required.',
+                    null,
                     'Refresh token is required.',
                     400
                 );
@@ -142,7 +142,7 @@ class AuthController extends Controller
 
             if (!$tokenModel) {
                 return $this->returnError(
-                    'Invalid refresh token.',
+                    null,
                     'Invalid refresh token.',
                     401
                 );
@@ -152,16 +152,16 @@ class AuthController extends Controller
                 $tokenModel->delete();
 
                 return $this->returnError(
+                    null,
                     'Refresh token has expired. Please log in again.',
-                    'Refresh token has expired.',
                     401
                 );
             }
 
             if (!$tokenModel->can('issue-access-token')) {
                 return $this->returnError(
+                    null,
                     'The provided token is not a valid refresh token.',
-                    'Invalid token type.',
                     401
                 );
             }
@@ -170,7 +170,7 @@ class AuthController extends Controller
 
             if (!($customer instanceof Customer)) {
                 return $this->returnError(
-                    'Invalid customer token.',
+                    null,
                     'Invalid customer token.',
                     401
                 );
@@ -178,8 +178,8 @@ class AuthController extends Controller
 
             if (!$customer->isActive()) {
                 return $this->returnError(
+                    null,
                     'Your account is currently inactive. Please contact support.',
-                    'Your account is currently inactive.',
                     403
                 );
             }

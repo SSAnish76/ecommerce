@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Collection;
@@ -17,8 +16,6 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    use HandlesUserPagination;
-
     /**
      * Display a listing of active products with search, filtering, and sorting.
      */
@@ -153,7 +150,7 @@ class ProductController extends Controller
                 : $query->where('slug', $slugOrId)->first();
 
             if (! $product) {
-                return $this->returnError('Product not found or unavailable.', 'Product not found or unavailable.', 404);
+                return $this->returnError(null, 'Product not found or unavailable.', 404);
             }
 
             return $this->returnSuccess($this->formatProductDetail($product), 'Product details retrieved successfully.');
@@ -173,7 +170,7 @@ class ProductController extends Controller
                 : Product::where('slug', $slugOrId)->first();
 
             if (! $product) {
-                return $this->returnError('Product not found.', 'Product not found.', 404);
+                return $this->returnError(null, 'Product not found.', 404);
             }
 
             $relatedProducts = Product::query()

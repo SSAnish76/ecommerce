@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
@@ -15,8 +14,6 @@ use Illuminate\Http\Request;
 
 class SearchController extends Controller
 {
-    use HandlesUserPagination;
-
     /**
      * Search products with filtering, facets, and pagination.
      */
@@ -26,7 +23,7 @@ class SearchController extends Controller
             $keyword = $request->string('q')->trim()->value();
 
             if ($keyword === '') {
-                return $this->returnError('Search query parameter [q] is required.', 'Search query parameter [q] is required.');
+                return $this->returnError(null, 'Search query parameter [q] is required.');
             }
 
             $query = Product::query()

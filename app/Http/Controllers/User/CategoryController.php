@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Category;
 use App\Models\Product;
 use Exception;
@@ -14,8 +13,6 @@ use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
-    use HandlesUserPagination;
-
     /**
      * Display a listing of active categories (as tree or flat list).
      */
@@ -69,7 +66,7 @@ class CategoryController extends Controller
                 : $query->where('slug', $slugOrId)->first();
 
             if (! $category) {
-                return $this->returnError('Category not found or inactive.', 'Category not found or inactive.', 404);
+                return $this->returnError(null, 'Category not found or inactive.', 404);
             }
 
             $perPage = $this->resolvePerPage($request);

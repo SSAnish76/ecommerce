@@ -94,7 +94,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError('Address not found.', 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.', 404);
             }
 
             return $this->returnSuccess($address, 'Address retrieved successfully.');
@@ -114,7 +114,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError('Address not found.', 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.', 404);
             }
 
             $validated = $request->validate([
@@ -153,7 +153,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError('Address not found.', 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.', 404);
             }
 
             $wasDefault = $address->is_default;
@@ -184,7 +184,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError('Address not found.', 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.', 404);
             }
 
             Address::where('customer_id', $customer->id)->update(['is_default' => false]);

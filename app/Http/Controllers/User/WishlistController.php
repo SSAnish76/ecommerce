@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Wishlist;
@@ -14,8 +13,6 @@ use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
-    use HandlesUserPagination;
-
     /**
      * Display a listing of products in customer wishlist.
      */
@@ -60,7 +57,7 @@ class WishlistController extends Controller
 
             $product = Product::active()->where('id', $validated['product_id'])->first();
             if (! $product) {
-                return $this->returnError('Product not found or unavailable.', 'Product not found or unavailable.', 404);
+                return $this->returnError(null, 'Product not found or unavailable.', 404);
             }
 
             $wishlist = Wishlist::firstOrCreate([
@@ -96,7 +93,7 @@ class WishlistController extends Controller
                 ->delete();
 
             if ($deleted === 0) {
-                return $this->returnError('Product was not in your wishlist.', 'Product was not in your wishlist.', 404);
+                return $this->returnError(null, 'Product was not in your wishlist.', 404);
             }
 
             $data = [
@@ -140,7 +137,7 @@ class WishlistController extends Controller
 
             $product = Product::active()->where('id', $validated['product_id'])->first();
             if (! $product) {
-                return $this->returnError('Product not found or unavailable.', 'Product not found or unavailable.', 404);
+                return $this->returnError(null, 'Product not found or unavailable.', 404);
             }
 
             $created = Wishlist::create([

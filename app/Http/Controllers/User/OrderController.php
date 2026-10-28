@@ -7,7 +7,6 @@ namespace App\Http\Controllers\User;
 use App\Enums\Order\OrderStatus;
 use App\Events\Order\OrderCancelled;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -22,8 +21,6 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
-    use HandlesUserPagination;
-
     /**
      * Display a listing of orders placed by the authenticated customer.
      */
@@ -99,12 +96,12 @@ class OrderController extends Controller
                 : $query->where('order_number', $orderNumberOrId)->first();
 
             if (! $order) {
-                return $this->returnError('Order not found.', 'Order not found.', 404);
+                return $this->returnError(null, 'Order not found.', 404);
             }
 
             // Authorization check
             if ($order->customer_id !== $customer->id && strtolower($order->customer_email) !== strtolower($customer->email)) {
-                return $this->returnError('Unauthorized to view this order.', 'Unauthorized to view this order.', 403);
+                return $this->returnError(null, 'Unauthorized to view this order.', 403);
             }
 
             $data = [
@@ -163,16 +160,16 @@ class OrderController extends Controller
                 : Order::where('order_number', $orderNumberOrId)->with('items')->first();
 
             if (! $order) {
-                return $this->returnError('Order not found.', 'Order not found.', 404);
+                return $this->returnError(null, 'Order not found.', 404);
             }
 
             // Authorization check
             if ($order->customer_id !== $customer->id && strtolower($order->customer_email) !== strtolower($customer->email)) {
-                return $this->returnError('Unauthorized to cancel this order.', 'Unauthorized to cancel this order.', 403);
+                return $this->returnError(null, 'Unauthorized to cancel this order.', 403);
             }
 
             if ($order->isCancelled() || $order->status === OrderStatus::Cancelled || $order->status === OrderStatus::Cancelled->value) {
-                return $this->returnError('This order has already been cancelled.', 'This order has already been cancelled.');
+                return $this->returnError(null, 'This order has already been cancelled.');
             }
 
             $cancellableStatuses = [OrderStatus::Pending, OrderStatus::Processing];
@@ -182,8 +179,9 @@ class OrderController extends Controller
             if (! $isCancellable) {
                 $statusVal = $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status;
                 return $this->returnError(
+                    null,
                     "Order cannot be cancelled in '{$statusVal}' status.",
-                    "Order cannot be cancelled in '{$statusVal}' status."
+                    422
                 );
             }
 

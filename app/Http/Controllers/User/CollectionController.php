@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\User\Concerns\HandlesUserPagination;
 use App\Models\Collection;
 use App\Models\Product;
 use Exception;
@@ -14,8 +13,6 @@ use Illuminate\Support\Str;
 
 class CollectionController extends Controller
 {
-    use HandlesUserPagination;
-
     /**
      * Display a listing of active collections.
      */
@@ -58,7 +55,7 @@ class CollectionController extends Controller
                 : $query->where('slug', $slugOrId)->first();
 
             if (! $collection) {
-                return $this->returnError('Collection not found or inactive.', 'Collection not found or inactive.', 404);
+                return $this->returnError(null, 'Collection not found or inactive.', 404);
             }
 
             $type = $collection->type->value ?? (string) $collection->type;

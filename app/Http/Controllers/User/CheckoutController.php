@@ -68,7 +68,7 @@ class CheckoutController extends Controller
                     $variant = $variants->get($variantId);
                     if (!$variant || !$variant->is_active) {
                         return $this->returnError(
-                            'One or more selected items are no longer active.',
+                            null,
                             'One or more selected items are no longer active.'
                         );
                     }
@@ -101,7 +101,7 @@ class CheckoutController extends Controller
                     $product = $products->get($itemData['product_id']);
                     if (!$product || $product->status->value !== 'active') {
                         return $this->returnError(
-                            'One or more selected products are no longer active.',
+                            null,
                             'One or more selected products are no longer active.'
                         );
                     }
@@ -140,7 +140,7 @@ class CheckoutController extends Controller
                     $customer?->email
                 );
             } catch (\RuntimeException $e) {
-                return $this->returnError($e->getMessage(), $e->getMessage());
+                return $this->returnError(null, $e->getMessage());
             }
 
             $tax = 0.0;
@@ -193,7 +193,7 @@ class CheckoutController extends Controller
             );
 
             if (!$result['valid']) {
-                return $this->returnError($result['message'], $result['message']);
+                return $this->returnError(null, $result['message']);
             }
 
             return $this->returnSuccess([
@@ -216,7 +216,7 @@ class CheckoutController extends Controller
         $customer = $request->user();
 
         if (!$customer) {
-            return $this->returnError('Customer must be logged in to checkout.', 'Customer must be logged in to checkout.', 401);
+            return $this->returnError(null, 'Customer must be logged in to checkout.', 401);
         }
 
         $validated = $request->validate($this->checkoutRules(true));
@@ -224,7 +224,7 @@ class CheckoutController extends Controller
         [$shippingAddress, $billingAddress, $shippingInput, $billingInput] = $this->resolveCheckoutAddresses($request, $validated, $customer);
 
         if (empty($shippingAddress)) {
-            return $this->returnError('A valid shipping address is required.', 'A valid shipping address is required.');
+            return $this->returnError(null, 'A valid shipping address is required.');
         }
 
         $this->handleAddressPersistence($customer, $validated, $shippingInput, $billingInput);
@@ -599,12 +599,17 @@ class CheckoutController extends Controller
         $line1 = $data['address_line_1'] ?? $data['address'] ?? '';
         $city = $data['city'] ?? '';
         $country = $data['country'] ?? 'United States';
+        $postalCode = $data['postal_code'] ?? $data['zip'] ?? null;
 
         if (!is_array($addressInput) && str_contains($line1, ',')) {
             $segments = array_map('trim', explode(',', $line1));
             if (count($segments) >= 3) {
                 $city = $segments[count($segments) - 2];
                 $country = $segments[count($segments) - 1];
+                $parts = explode(' ', trim($country));
+                if (count($parts) >= 2) {
+                    $postalCode = end($parts);
+                }
             }
         }
 
@@ -625,7 +630,7 @@ class CheckoutController extends Controller
             'address_line_2' => $data['address_line_2'] ?? null,
             'city' => $city ?: 'City',
             'state' => $data['state'] ?? null,
-            'postal_code' => $data['postal_code'] ?? null,
+            'postal_code' => $postalCode ?: '00000',
             'country' => $country,
             'is_default' => $isDefault,
         ]);

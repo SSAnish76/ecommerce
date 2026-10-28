@@ -53,7 +53,7 @@ class CartController extends Controller
             /** @var Product|null $product */
             $product = Product::active()->where('id', $productId)->first();
             if (! $product) {
-                return $this->returnError('Selected product is not available.', 'Selected product is not available.', 404);
+                return $this->returnError(null, 'Selected product is not available.', 404);
             }
 
             if ($variantId !== null) {
@@ -65,7 +65,7 @@ class CartController extends Controller
 
                 if (! $variant) {
                     return $this->returnError(
-                        'Selected variant is not valid for this product or unavailable.',
+                        null,
                         'Selected variant is not valid for this product or unavailable.'
                     );
                 }
@@ -89,7 +89,7 @@ class CartController extends Controller
 
             if ($targetQuantity > $availableStock) {
                 return $this->returnError(
-                    "Insufficient stock for '{$itemName}'. Only {$availableStock} available.",
+                    null,
                     "Insufficient stock for '{$itemName}'. Only {$availableStock} available."
                 );
             }
@@ -139,7 +139,7 @@ class CartController extends Controller
             /** @var CartItem|null $cartItem */
             $cartItem = CartItem::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $cartItem) {
-                return $this->returnError('Cart item not found.', 'Cart item not found.', 404);
+                return $this->returnError(null, 'Cart item not found.', 404);
             }
 
             $newQty = (int) $validated['quantity'];
@@ -151,7 +151,7 @@ class CartController extends Controller
                     $stock = $variant ? $variant->stock_quantity : 0;
 
                     return $this->returnError(
-                        "Insufficient stock for variant. Only {$stock} available.",
+                        null,
                         "Insufficient stock for variant. Only {$stock} available."
                     );
                 }
@@ -161,7 +161,7 @@ class CartController extends Controller
                     $stock = $product ? $product->stock_quantity : 0;
 
                     return $this->returnError(
-                        "Insufficient stock for product. Only {$stock} available.",
+                        null,
                         "Insufficient stock for product. Only {$stock} available."
                     );
                 }
@@ -188,7 +188,7 @@ class CartController extends Controller
 
             $cartItem = CartItem::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $cartItem) {
-                return $this->returnError('Cart item not found.', 'Cart item not found.', 404);
+                return $this->returnError(null, 'Cart item not found.', 404);
             }
 
             $cartItem->delete();
