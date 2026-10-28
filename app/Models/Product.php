@@ -8,6 +8,7 @@ use App\Enums\Product\DiscountType;
 use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
+use App\Traits\FindsBySlugOrId;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
-    use HasFactory, HasUuids;
+    use FindsBySlugOrId, HasFactory, HasUuids;
 
     /**
      * The attributes that are mass assignable.

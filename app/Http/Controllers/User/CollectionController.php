@@ -9,7 +9,6 @@ use App\Models\Collection;
 use App\Models\Product;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class CollectionController extends Controller
 {
@@ -50,9 +49,7 @@ class CollectionController extends Controller
         try {
             $query = Collection::query()->active()->with('image');
 
-            $collection = Str::isUuid($slugOrId)
-                ? $query->where('id', $slugOrId)->first()
-                : $query->where('slug', $slugOrId)->first();
+            $collection = $query->whereSlugOrId($slugOrId)->first();
 
             if (! $collection) {
                 return $this->returnError(null, 'Collection not found or inactive.', 404);

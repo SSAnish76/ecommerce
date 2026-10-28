@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\Collection\CollectionType;
+use App\Traits\FindsBySlugOrId;
 use Database\Factories\CollectionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -17,7 +18,7 @@ use Illuminate\Support\Str;
 class Collection extends Model
 {
     /** @use HasFactory<CollectionFactory> */
-    use HasFactory, HasUuids;
+    use FindsBySlugOrId, HasFactory, HasUuids;
 
     /**
      * The "booted" method of the model.

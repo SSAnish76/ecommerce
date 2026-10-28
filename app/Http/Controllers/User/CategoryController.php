@@ -9,7 +9,6 @@ use App\Models\Category;
 use App\Models\Product;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
@@ -61,9 +60,7 @@ class CategoryController extends Controller
                 ->with(['image', 'parent', 'children' => fn ($q) => $q->active()->with('image')])
                 ->withCount(['products' => fn ($q) => $q->active()]);
 
-            $category = Str::isUuid($slugOrId)
-                ? $query->where('id', $slugOrId)->first()
-                : $query->where('slug', $slugOrId)->first();
+            $category = $query->whereSlugOrId($slugOrId)->first();
 
             if (! $category) {
                 return $this->returnError(null, 'Category not found or inactive.', 404);

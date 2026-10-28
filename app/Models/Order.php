@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\Order\OrderStatus;
 use App\Enums\Order\PaymentMethod;
 use App\Enums\Order\PaymentStatus;
+use App\Traits\FindsBySlugOrId;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    use HasFactory, HasUuids;
+    use FindsBySlugOrId, HasFactory, HasUuids;
 
     /**
      * The attributes that are mass assignable.

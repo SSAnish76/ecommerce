@@ -12,7 +12,6 @@ use App\Models\Product;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -145,9 +144,7 @@ class ProductController extends Controller
                     },
                 ]);
 
-            $product = Str::isUuid($slugOrId)
-                ? $query->where('id', $slugOrId)->first()
-                : $query->where('slug', $slugOrId)->first();
+            $product = $query->whereSlugOrId($slugOrId)->first();
 
             if (! $product) {
                 return $this->returnError(null, 'Product not found or unavailable.', 404);
@@ -165,9 +162,7 @@ class ProductController extends Controller
     public function related(string $slugOrId)
     {
         try {
-            $product = Str::isUuid($slugOrId)
-                ? Product::where('id', $slugOrId)->first()
-                : Product::where('slug', $slugOrId)->first();
+            $product = Product::whereSlugOrId($slugOrId)->first();
 
             if (! $product) {
                 return $this->returnError(null, 'Product not found.', 404);

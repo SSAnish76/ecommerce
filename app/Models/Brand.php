@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\FindsBySlugOrId;
 use Database\Factories\BrandFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Brand extends Model
 {
     /** @use HasFactory<BrandFactory> */
-    use HasFactory, HasUuids;
+    use FindsBySlugOrId, HasFactory, HasUuids;
 
     /**
      * The attributes that are mass assignable.

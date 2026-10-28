@@ -15,7 +15,6 @@ use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -91,9 +90,7 @@ class OrderController extends Controller
                 'items.variant:id,name,sku',
             ]);
 
-            $order = Str::isUuid($orderNumberOrId)
-                ? $query->where('id', $orderNumberOrId)->first()
-                : $query->where('order_number', $orderNumberOrId)->first();
+            $order = $query->whereSlugOrId($orderNumberOrId, 'order_number')->first();
 
             if (! $order) {
                 return $this->returnError(null, 'Order not found.', 404);
@@ -155,9 +152,7 @@ class OrderController extends Controller
             /** @var Customer $customer */
             $customer = $request->user();
 
-            $order = Str::isUuid($orderNumberOrId)
-                ? Order::where('id', $orderNumberOrId)->with('items')->first()
-                : Order::where('order_number', $orderNumberOrId)->with('items')->first();
+            $order = Order::with('items')->whereSlugOrId($orderNumberOrId, 'order_number')->first();
 
             if (! $order) {
                 return $this->returnError(null, 'Order not found.', 404);
