@@ -572,7 +572,7 @@ class CheckoutController extends Controller
                 !empty($addressData['phone'] ?? $customer?->phone) ? 'Tel: ' . ($addressData['phone'] ?? $customer?->phone) : null,
                 $addressData['address_line_1'] ?? $addressData['address'] ?? null,
                 $addressData['address_line_2'] ?? null,
-                trim(($addressData['city'] ?? '') . ', ' . ($addressData['state'] ?? '') . ' ' . ($addressData['postal_code'] ?? $addressData['zip'] ?? '')),
+                trim(($addressData['city'] ?? '') . ', ' . ($addressData['state'] ?? '') . ' ' . ($addressData['postal_code'] ?? '')),
                 $addressData['country'] ?? null,
             ]);
 

@@ -73,7 +73,7 @@ class AddressController extends Controller
                 'city' => $validated['city'],
                 'state' => $validated['state'] ?? null,
                 'postal_code' => $validated['postal_code'],
-                'country' => $validated['country'] ?? 'United States',
+                'country' => $validated['country'] ?? null,
                 'is_default' => (bool) $isDefault,
             ]);
 
