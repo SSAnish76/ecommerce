@@ -29,6 +29,7 @@ class Order extends Model
         'customer_email',
         'customer_phone',
         'shipping_address',
+        'billing_address',
         'subtotal',
         'coupon_code',
         'discount_amount',

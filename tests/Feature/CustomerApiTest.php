@@ -464,9 +464,13 @@ class CustomerApiTest extends TestCase
             'quantity' => 2,
         ]);
 
-        // Summary without coupon
+        // Summary with address input and use_cart
         $summaryResponse = $this->postJson('/api/user/checkout/summary', [
             'use_cart' => true,
+            'address_line_1' => '100 Broadway',
+            'city' => 'New York',
+            'postal_code' => '10001',
+            'billing_same_as_shipping' => true,
         ]);
 
         $summaryResponse->assertOk()
@@ -479,6 +483,9 @@ class CustomerApiTest extends TestCase
                     ],
                 ],
             ]);
+
+        $this->assertStringContainsString('100 Broadway', $summaryResponse->json('data.shipping_address'));
+        $this->assertStringContainsString('100 Broadway', $summaryResponse->json('data.billing_address'));
     }
 
     /**
@@ -583,6 +590,80 @@ class CustomerApiTest extends TestCase
 
         $response2->assertCreated();
         $this->assertSame('INV-7501', $response2->json('data.order.order_number'));
+    }
+
+    /**
+     * Test checkout saves address for future use and supports separate billing address.
+     */
+    public function test_checkout_saves_address_for_future_use_and_supports_billing_address(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        // 1. Checkout with new address and save_address = true, and separate billing address
+        $response = $this->postJson('/api/user/checkout', [
+            'address_line_1' => '456 Elm St',
+            'city' => 'Seattle',
+            'state' => 'WA',
+            'postal_code' => '98101',
+            'country' => 'United States',
+            'phone' => '+15559998888',
+            'save_address' => true,
+            'billing_same_as_shipping' => false,
+            'billing_address' => '789 Commercial Blvd, Chicago, IL 60601',
+            'save_billing_address' => true,
+            'payment_method' => 'cod',
+            'items' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $orderData = $response->json('data.order');
+        $this->assertStringContainsString('456 Elm St', $orderData['shipping_address']);
+        $this->assertStringContainsString('789 Commercial Blvd', $orderData['billing_address']);
+        $this->assertSame($this->customer->name, $orderData['customer_name']);
+        $this->assertSame($this->customer->email, $orderData['customer_email']);
+
+        // Assert address saved to addresses table for future use
+        $this->assertDatabaseHas('addresses', [
+            'customer_id' => $this->customer->id,
+            'address_line_1' => '456 Elm St',
+            'city' => 'Seattle',
+            'postal_code' => '98101',
+            'type' => 'shipping',
+            'is_default' => true,
+        ]);
+
+        $this->assertDatabaseHas('addresses', [
+            'customer_id' => $this->customer->id,
+            'type' => 'billing',
+        ]);
+
+        // 2. Subsequent checkout using the saved address via shipping_address_id
+        $savedAddress = Address::where('customer_id', $this->customer->id)->where('type', 'shipping')->firstOrFail();
+
+        $subsequentResponse = $this->postJson('/api/user/checkout', [
+            'shipping_address_id' => $savedAddress->id,
+            'payment_method' => 'cod',
+            'items' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $subsequentResponse->assertCreated();
+        $this->assertSame($savedAddress->formatted_address, $subsequentResponse->json('data.order.shipping_address'));
+        // Billing defaults to shipping when billing_same_as_shipping is not specified
+        $this->assertSame($savedAddress->formatted_address, $subsequentResponse->json('data.order.billing_address'));
     }
 
     /**

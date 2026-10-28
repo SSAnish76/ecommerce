@@ -114,6 +114,7 @@ class OrderController extends Controller
                 'customer_email' => $order->customer_email,
                 'customer_phone' => $order->customer_phone,
                 'shipping_address' => $order->shipping_address,
+                'billing_address' => $order->billing_address ?? $order->shipping_address,
                 'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
                 'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
                 'payment_method' => $order->payment_method?->value ?? $order->payment_method,
