@@ -13,6 +13,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -44,10 +45,20 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
+                $message = 'Unauthenticated.';
+                $bearerToken = $request->bearerToken();
+
+                if ($bearerToken) {
+                    $tokenModel = PersonalAccessToken::findToken($bearerToken);
+                    if ($tokenModel && $tokenModel->expires_at && $tokenModel->expires_at->isPast()) {
+                        $message = 'Access token has expired.';
+                    }
+                }
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthenticated.',
-                    'error' => 'Unauthenticated.',
+                    'message' => $message,
+                    'error' => $message,
                 ], 401);
             }
         });

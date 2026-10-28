@@ -738,6 +738,25 @@ class CustomerApiTest extends TestCase
                 'message' => 'Unauthenticated.',
                 'error' => 'Unauthenticated.',
             ]);
+
+        // Test with expired Bearer token
+        $expiredToken = $this->customer->createToken(
+            name: 'test-expired-token',
+            abilities: ['access-api'],
+            expiresAt: now()->subMinute()
+        )->plainTextToken;
+
+        $expiredTokenResponse = $this->withHeaders([
+            'Accept' => 'application/json',
+            'Authorization' => 'Bearer '.$expiredToken,
+        ])->get('/api/user/auth/profile');
+
+        $expiredTokenResponse->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Access token has expired.',
+                'error' => 'Access token has expired.',
+            ]);
     }
 
     /**
