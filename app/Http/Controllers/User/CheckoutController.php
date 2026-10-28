@@ -80,7 +80,7 @@ class CheckoutController extends Controller
                     $itemsSummary[] = [
                         'product_id' => $variant->product_id,
                         'product_variant_id' => $variant->id,
-                        'name' => "{$variant->product?->name} - {$variant->name}",
+                        'name' => $variant->displayName($variant->product),
                         'sku' => $variant->sku,
                         'unit_price' => $unitPrice,
                         'quantity' => $qty,

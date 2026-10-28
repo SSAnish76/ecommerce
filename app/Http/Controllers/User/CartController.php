@@ -71,7 +71,7 @@ class CartController extends Controller
                 }
 
                 $availableStock = (int) $variant->stock_quantity;
-                $itemName = "{$product->name} - {$variant->name}";
+                $itemName = $variant->displayName($product);
             } else {
                 $variant = null;
                 $availableStock = (int) $product->stock_quantity;
@@ -262,7 +262,7 @@ class CartController extends Controller
 
             if ($variant) {
                 $unitPrice = $variant->effectivePrice();
-                $name = "{$product->name} - {$variant->name}";
+                $name = $variant->displayName($product);
                 $sku = $variant->sku;
                 $imageUrl = $variant->image_url ?: $product->primaryImage?->media?->url;
                 $availableStock = (int) $variant->stock_quantity;

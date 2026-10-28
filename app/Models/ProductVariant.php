@@ -116,6 +116,14 @@ class ProductVariant extends Model
     }
 
     /**
+     * Get the full display name combining the parent product name and this variant name.
+     */
+    public function displayName(Product $product): string
+    {
+        return "{$product->name} - {$this->name}";
+    }
+
+    /**
      * Calculate effective selling price.
      */
     public function effectivePrice(): float
