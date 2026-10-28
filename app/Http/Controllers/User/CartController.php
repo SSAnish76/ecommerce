@@ -52,7 +52,7 @@ class CartController extends Controller
 
             /** @var Product|null $product */
             $product = Product::active()->where('id', $productId)->first();
-            if (! $product) {
+            if (!$product) {
                 return $this->returnError(null, 'Selected product is not available.', 404);
             }
 
@@ -63,7 +63,7 @@ class CartController extends Controller
                     ->where('product_id', $product->id)
                     ->first();
 
-                if (! $variant) {
+                if (!$variant) {
                     return $this->returnError(
                         null,
                         'Selected variant is not valid for this product or unavailable.'
@@ -81,8 +81,8 @@ class CartController extends Controller
             // Find existing cart item for same product and variant
             $cartItem = CartItem::where('customer_id', $customer->id)
                 ->where('product_id', $productId)
-                ->when($variantId !== null, fn ($q) => $q->where('product_variant_id', $variantId))
-                ->when($variantId === null, fn ($q) => $q->whereNull('product_variant_id'))
+                ->when($variantId !== null, fn($q) => $q->where('product_variant_id', $variantId))
+                ->when($variantId === null, fn($q) => $q->whereNull('product_variant_id'))
                 ->first();
 
             $targetQuantity = $cartItem ? ($cartItem->quantity + $qtyToAdd) : $qtyToAdd;
@@ -138,7 +138,7 @@ class CartController extends Controller
 
             /** @var CartItem|null $cartItem */
             $cartItem = CartItem::where('customer_id', $customer->id)->where('id', $id)->first();
-            if (! $cartItem) {
+            if (!$cartItem) {
                 return $this->returnError(null, 'Cart item not found.', 404);
             }
 
@@ -147,7 +147,7 @@ class CartController extends Controller
             // Check stock
             if ($cartItem->product_variant_id) {
                 $variant = ProductVariant::active()->where('id', $cartItem->product_variant_id)->first();
-                if (! $variant || $variant->stock_quantity < $newQty) {
+                if (!$variant || $variant->stock_quantity < $newQty) {
                     $stock = $variant ? $variant->stock_quantity : 0;
 
                     return $this->returnError(
@@ -157,7 +157,7 @@ class CartController extends Controller
                 }
             } else {
                 $product = Product::active()->where('id', $cartItem->product_id)->first();
-                if (! $product || $product->stock_quantity < $newQty) {
+                if (!$product || $product->stock_quantity < $newQty) {
                     $stock = $product ? $product->stock_quantity : 0;
 
                     return $this->returnError(
@@ -187,7 +187,7 @@ class CartController extends Controller
             $customer = $request->user();
 
             $cartItem = CartItem::where('customer_id', $customer->id)->where('id', $id)->first();
-            if (! $cartItem) {
+            if (!$cartItem) {
                 return $this->returnError(null, 'Cart item not found.', 404);
             }
 
@@ -253,7 +253,7 @@ class CartController extends Controller
 
         foreach ($items as $item) {
             $product = $item->product;
-            if (! $product) {
+            if (!$product) {
                 continue;
             }
 
