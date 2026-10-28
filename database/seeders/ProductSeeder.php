@@ -4,104 +4,60 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Product\DiscountType;
 use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
+use App\Models\Attribute;
+use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\MediaFile;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use Database\Seeders\Concerns\SeedsProductMedia;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
+    use SeedsProductMedia;
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        $apple = Brand::where('name', 'Apple')->first();
-        $samsung = Brand::where('name', 'Samsung')->first();
+        // 1. Ensure prerequisite base catalog seeders have run if executed in isolation
+        if (Brand::count() === 0 || Attribute::count() === 0 || Category::count() === 0) {
+            $this->call([
+                BrandSeeder::class,
+                CategorySeeder::class,
+                AttributeSeeder::class,
+            ]);
+        }
+
+        // 2. Remove legacy duplicate placeholder product if present
+        $legacyIphone = Product::where('sku', 'APL-IP16PM-256')->first();
+        if ($legacyIphone) {
+            $legacyIphone->variants()->delete();
+            $legacyIphone->images()->delete();
+            $legacyIphone->delete();
+        }
+
+        // 2. Seed Computers and Mobile Phones
+        $this->call([
+            ComputerProductSeeder::class,
+            MobilePhoneProductSeeder::class,
+        ]);
+
+        // 3. Audio & Footwear Catalog Products
         $sony = Brand::where('name', 'Sony')->first();
         $nike = Brand::where('name', 'Nike')->first();
 
-        $smartphones = Category::where('name', 'Smartphones & Accessories')->first();
         $audio = Category::where('name', 'Audio & Headphones')->first();
         $shoes = Category::where('name', 'Footwear & Sneakers')->first();
 
-        // 1. iPhone 16 Pro Max
-        $iphone = Product::updateOrCreate(
-            ['sku' => 'APL-IP16PM-256'],
-            [
-                'name' => 'Apple iPhone 16 Pro Max 256GB',
-                'slug' => 'apple-iphone-16-pro-max-256gb',
-                'short_description' => 'The ultimate iPhone with Titanium frame and A18 Pro Bionic chipset.',
-                'description' => 'Experience next-generation photography with 48MP Fusion Camera, Apple Intelligence built-in, and 4K 120 fps Dolby Vision video recording.',
-                'specifications' => [
-                    'Display' => '6.9-inch Super Retina XDR OLED 120Hz',
-                    'Processor' => 'Apple A18 Pro (3nm)',
-                    'Storage' => '256GB NVMe',
-                    'Battery Life' => 'Up to 33 hours video playback',
-                    'Warranty' => '1 Year Apple Worldwide Warranty',
-                ],
-                'brand_id' => $apple?->id,
-                'category_id' => $smartphones?->id,
-                'mrp' => 1449.00,
-                'retail_price' => 1399.00,
-                'sale_price' => 1349.00,
-                'discount_percentage' => 6.90,
-                'stock_quantity' => 45,
-                'low_stock_threshold' => 10,
-                'stock_visibility' => StockVisibility::Badge,
-                'has_variants' => true,
-                'status' => ProductStatus::Active,
-                'location_availability_type' => LocationAvailabilityType::All,
-                'return_policy' => '15-day hassle-free replacement or return for sealed devices.',
-                'refund_policy' => 'Refund processed to original payment method within 5 working days.',
-            ]
-        );
-
-        $iphoneMedia = MediaFile::firstOrCreate(
-            ['filename' => 'iphone-16-pro-max.jpg'],
-            [
-                'disk' => 'public',
-                'directory' => 'media/products',
-                'original_name' => 'iphone-16-pro-max.jpg',
-                'mime_type' => 'image/jpeg',
-                'extension' => 'jpg',
-                'size' => 102400,
-                'collection' => 'products',
-            ]
-        );
-
-        ProductImage::updateOrCreate(
-            ['product_id' => $iphone->id, 'sort_order' => 1],
-            ['media_id' => $iphoneMedia->id, 'alt_text' => 'iPhone 16 Pro Max Natural Titanium', 'is_primary' => true]
-        );
-
-        // iPhone Variants
-        $colors = ['Natural Titanium', 'Black Titanium', 'Desert Titanium'];
-        foreach ($colors as $c) {
-            ProductVariant::updateOrCreate(
-                ['sku' => 'APL-IP16PM-'.strtoupper(substr(Str::slug($c), 0, 3))],
-                [
-                    'product_id' => $iphone->id,
-                    'name' => "iPhone 16 Pro Max - {$c}",
-                    'attributes' => ['Color' => $c, 'Storage' => '256GB'],
-                    'mrp' => 1449.00,
-                    'price' => 1399.00,
-                    'sale_price' => 1349.00,
-                    'stock_quantity' => 15,
-                    'low_stock_threshold' => 5,
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        // 2. Sony WH-1000XM5
+        // Sony WH-1000XM5
         $sonyHeadphones = Product::updateOrCreate(
             ['sku' => 'SNY-WH1000XM5-BLK'],
             [
@@ -120,7 +76,9 @@ class ProductSeeder extends Seeder
                 'mrp' => 399.99,
                 'retail_price' => 349.99,
                 'sale_price' => 299.99,
+                'discount_type' => DiscountType::Percentage,
                 'discount_percentage' => 25.00,
+                'discount_amount' => 50.00,
                 'stock_quantity' => 28,
                 'low_stock_threshold' => 8,
                 'stock_visibility' => StockVisibility::Badge,
@@ -132,17 +90,11 @@ class ProductSeeder extends Seeder
             ]
         );
 
-        $sonyMedia = MediaFile::firstOrCreate(
-            ['filename' => 'sony-wh-1000xm5.jpg'],
-            [
-                'disk' => 'public',
-                'directory' => 'media/products',
-                'original_name' => 'sony-wh-1000xm5.jpg',
-                'mime_type' => 'image/jpeg',
-                'extension' => 'jpg',
-                'size' => 102400,
-                'collection' => 'products',
-            ]
+        $sonyMedia = $this->ensureProductMedia(
+            filename: 'sony-wh-1000xm5.jpg',
+            title: 'Sony WH-1000XM5',
+            brandName: 'Sony',
+            hexBg: '#1e293b'
         );
 
         ProductImage::updateOrCreate(
@@ -150,7 +102,9 @@ class ProductSeeder extends Seeder
             ['media_id' => $sonyMedia->id, 'alt_text' => 'Sony WH-1000XM5 Headphones', 'is_primary' => true]
         );
 
-        // 3. Nike Air Max Alpha
+        // Nike Air Max Alpha Trainer 5
+        $attrSize = Attribute::where('code', 'size')->first();
+
         $nikeShoes = Product::updateOrCreate(
             ['sku' => 'NKE-AMALPHA-TR5'],
             [
@@ -169,7 +123,7 @@ class ProductSeeder extends Seeder
                 'retail_price' => 85.00,
                 'sale_price' => null,
                 'discount_percentage' => null,
-                'stock_quantity' => 4, // low stock!
+                'stock_quantity' => 5,
                 'low_stock_threshold' => 10,
                 'stock_visibility' => StockVisibility::Badge,
                 'has_variants' => true,
@@ -181,17 +135,11 @@ class ProductSeeder extends Seeder
             ]
         );
 
-        $nikeMedia = MediaFile::firstOrCreate(
-            ['filename' => 'nike-air-max-alpha.jpg'],
-            [
-                'disk' => 'public',
-                'directory' => 'media/products',
-                'original_name' => 'nike-air-max-alpha.jpg',
-                'mime_type' => 'image/jpeg',
-                'extension' => 'jpg',
-                'size' => 102400,
-                'collection' => 'products',
-            ]
+        $nikeMedia = $this->ensureProductMedia(
+            filename: 'nike-air-max-alpha.jpg',
+            title: 'Nike Air Max Alpha',
+            brandName: 'Nike',
+            hexBg: '#dc2626'
         );
 
         ProductImage::updateOrCreate(
@@ -199,22 +147,54 @@ class ProductSeeder extends Seeder
             ['media_id' => $nikeMedia->id, 'alt_text' => 'Nike Air Max Red Shoes', 'is_primary' => true]
         );
 
-        // Shoe variants (Sizes)
-        foreach (['US 9', 'US 10', 'US 11'] as $size) {
-            ProductVariant::updateOrCreate(
+        // Sync shoe size attributes
+        if ($attrSize) {
+            $nikeShoes->attributes()->sync([$attrSize->id => ['sort_order' => 1]]);
+        }
+
+        $shoeSizes = [
+            'US 9' => 2,
+            'US 10' => 2,
+            'US 11' => 1,
+        ];
+
+        $shoeAttrValueSync = [];
+        $totalShoeStock = 0;
+
+        foreach ($shoeSizes as $size => $stock) {
+            $valModel = AttributeValue::where('attribute_id', $attrSize?->id)
+                ->where('value', $size)
+                ->first();
+
+            if ($valModel && $attrSize) {
+                $shoeAttrValueSync[$valModel->id] = ['attribute_id' => $attrSize->id];
+            }
+
+            $variant = ProductVariant::updateOrCreate(
                 ['sku' => 'NKE-AMALPHA-'.str_replace(' ', '', $size)],
                 [
                     'product_id' => $nikeShoes->id,
                     'name' => "Nike Air Max Alpha - {$size}",
-                    'attributes' => ['Size' => $size, 'Color' => 'Gym Red / Black'],
+                    'attributes' => ['Size' => $size],
                     'mrp' => 95.00,
                     'price' => 85.00,
                     'sale_price' => null,
-                    'stock_quantity' => $size === 'US 11' ? 1 : 2,
+                    'stock_quantity' => $stock,
                     'low_stock_threshold' => 5,
                     'is_active' => true,
+                    'media_id' => $nikeMedia->id,
+                    'image_path' => $nikeMedia->url,
                 ]
             );
+
+            if ($valModel) {
+                $variant->attributeValues()->sync([$valModel->id]);
+            }
+
+            $totalShoeStock += $stock;
         }
+
+        $nikeShoes->attributeValues()->sync($shoeAttrValueSync);
+        $nikeShoes->update(['stock_quantity' => $totalShoeStock]);
     }
 }
