@@ -18,16 +18,8 @@ abstract class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
 
-    public $error;
-
-    /**
-     * Default number of items per page.
-     */
     protected int $defaultPerPage = 15;
 
-    /**
-     * Maximum allowed items per page.
-     */
     protected int $maxPerPage = 60;
 
     /**
@@ -35,12 +27,7 @@ abstract class Controller extends BaseController
      */
     public function resolvePerPage(Request $request, ?int $default = null, ?int $max = null, int $min = 1): int
     {
-        $defaultLimit = $default ?? $this->defaultPerPage;
-        $maxLimit = $max ?? $this->maxPerPage;
-
-        $perPage = $request->integer('per_page', $defaultLimit);
-
-        return min(max($perPage, $min), $maxLimit);
+        return min(max($request->integer('per_page', $default ?? $this->defaultPerPage), $min), $max ?? $this->maxPerPage);
     }
 
     /**
@@ -60,7 +47,7 @@ abstract class Controller extends BaseController
     }
 
     /**
-     * Execute pagination on query and format items with optional transformer, returning standard response.
+     * Execute pagination on query and format items with optional transformer.
      *
      * @param  Builder|Relation  $query
      * @param  (callable(mixed): mixed)|null  $transformer
@@ -71,30 +58,24 @@ abstract class Controller extends BaseController
         ?callable $transformer = null,
         string $message = 'Success'
     ): JsonResponse {
-        $perPage = $this->resolvePerPage($request);
-        $paginator = $query->paginate($perPage);
+        $paginator = $query->paginate($this->resolvePerPage($request));
 
-        if ($transformer !== null) {
-            $items = array_values(array_filter(
-                array_map($transformer, $paginator->items()),
-                fn ($item) => $item !== null
-            ));
-        } else {
-            $items = $paginator->items();
-        }
+        $items = $transformer !== null
+            ? array_values(array_filter(array_map($transformer, $paginator->items()), fn ($item): bool => $item !== null))
+            : $paginator->items();
 
         return $this->paginatedResponse($paginator, $items, $message);
     }
 
     /**
-     * Standardized error response matching asign-api pattern.
+     * Standardized error response.
      */
-    public function returnError($errors = false, $message = 'Error', $code = 400)
+    public function returnError(mixed $errors = null, string $message = 'Error', int $code = 400): JsonResponse
     {
         if ($message === 'Error') {
-            if (function_exists('trans') && Lang::has('messages.Error')) {
-                $message = trans('messages.Error');
-            } elseif (is_string($errors) && !empty($errors)) {
+            if (Lang::has('messages.Error')) {
+                $message = __('messages.Error');
+            } elseif (is_string($errors) && $errors !== '') {
                 $message = $errors;
                 $errors = null;
             }
@@ -102,25 +83,20 @@ abstract class Controller extends BaseController
             $errors = null;
         }
 
-        $response = [
+        return response()->json([
             'success' => false,
             'message' => $message,
-        ];
-
-        if ($errors !== null && $errors !== false && $errors !== '') {
-            $response['error'] = $errors;
-        }
-
-        return response()->json($response, $code);
+            ...($errors !== null && $errors !== false && $errors !== '' ? ['error' => $errors] : []),
+        ], $code);
     }
 
     /**
-     * Standardized success response matching asign-api pattern.
+     * Standardized success response.
      */
-    public function returnSuccess($data = [], $message = 'Success', $code = 200)
+    public function returnSuccess(mixed $data = [], string $message = 'Success', int $code = 200): JsonResponse
     {
-        if ($message === 'Success' && function_exists('trans') && Lang::has('messages.Success')) {
-            $message = trans('messages.Success');
+        if ($message === 'Success' && Lang::has('messages.Success')) {
+            $message = __('messages.Success');
         }
 
         return response()->json([
@@ -131,40 +107,34 @@ abstract class Controller extends BaseController
     }
 
     /**
-     * Paginated response helper.
+     * Standardized paginated response.
      */
-    public function paginatedResponse(LengthAwarePaginator $paginator, mixed $items = null, string $message = 'Success')
+    public function paginatedResponse(LengthAwarePaginator $paginator, mixed $items = null, string $message = 'Success'): JsonResponse
     {
         return response()->json([
             'success' => true,
             'message' => $message,
             'data' => $items ?? $paginator->items(),
-            'pagination' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'has_more' => $paginator->hasMorePages(),
-            ],
+            'pagination' => $this->paginationMeta($paginator),
         ]);
     }
 
     /**
-     * Backward-compatible alias for successResponse.
+     * Compatibility alias for success responses.
      */
-    public function successResponse(mixed $data = null, string $message = 'Success', int $statusCode = 200, array $extra = [])
+    public function successResponse(mixed $data = null, string $message = 'Success', int $statusCode = 200, array $extra = []): JsonResponse
     {
-        if (!empty($extra)) {
-            $data = is_array($data) ? array_merge($data, $extra) : ['items' => $data, ...$extra];
-        }
-
-        return $this->returnSuccess($data, $message, $statusCode);
+        return $this->returnSuccess(
+            $extra !== [] ? (is_array($data) ? [...$data, ...$extra] : ['items' => $data, ...$extra]) : $data,
+            $message,
+            $statusCode
+        );
     }
 
     /**
-     * Backward-compatible alias for errorResponse.
+     * Compatibility alias for error responses.
      */
-    public function errorResponse(string $message = 'Error', int $statusCode = 400, mixed $errors = null)
+    public function errorResponse(string $message = 'Error', int $statusCode = 400, mixed $errors = null): JsonResponse
     {
         return $this->returnError($errors, $message, $statusCode);
     }
