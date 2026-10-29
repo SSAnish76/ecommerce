@@ -201,6 +201,29 @@ class Store extends Model
     }
 
     /**
+     * Get customer-facing storefront profile data.
+     *
+     * @return array<string, mixed>
+     */
+    public function toStorefrontArray(): array
+    {
+        return [
+            'name' => $this->name,
+            'legal_name' => $this->legal_name,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'city' => $this->city,
+            'state' => $this->state,
+            'postal_code' => $this->postal_code,
+            'country' => $this->country,
+            'logo_url' => $this->logo_url,
+            'favicon_url' => $this->favicon_url,
+            'description' => $this->description,
+            'website_url' => $this->website_url,
+        ];
+    }
+
+    /**
      * Clear cached store profile and shared branding data.
      */
     public static function clearCache(): void

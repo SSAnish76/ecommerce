@@ -44,12 +44,28 @@ class Setting extends Model
         'type',
         'label',
         'description',
+        'is_public',
     ];
 
     /**
      * Cache key for settings.
      */
     public const CACHE_KEY = 'app_settings_all';
+
+    /**
+     * Cache key for public storefront settings.
+     */
+    public const PUBLIC_CACHE_KEY = 'app_settings_public';
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_public' => 'boolean',
+        ];
+    }
 
     /**
      * Encrypt a sensitive credential string with 'enc:' prefix.
@@ -200,22 +216,26 @@ class Setting extends Model
         $default = [
             'stripe' => [
                 'enabled' => true,
+                'name' => 'Credit / Debit Card (Stripe)',
                 'publishable_key' => 'pk_test_sample_stripe_publishable_key',
                 'secret_key' => 'sk_test_sample_stripe_secret_key',
                 'webhook_secret' => 'whsec_sample_webhook_secret',
             ],
             'paypal' => [
                 'enabled' => true,
+                'name' => 'PayPal',
                 'mode' => 'sandbox',
                 'client_id' => 'sample_paypal_client_id',
                 'client_secret' => 'sample_paypal_client_secret',
             ],
             'cod' => [
                 'enabled' => true,
+                'name' => 'Cash on Delivery',
                 'instructions' => 'Pay cash to delivery courier on arrival.',
             ],
             'razorpay' => [
                 'enabled' => false,
+                'name' => 'Razorpay',
                 'key_id' => 'rzp_test_sample_key_id',
                 'key_secret' => 'sample_razorpay_secret_key',
                 'webhook_secret' => 'sample_razorpay_webhook_secret',
@@ -227,12 +247,17 @@ class Setting extends Model
 
         $configured = $all['payment_settings'] ?? null;
         if (is_array($configured)) {
-            return [
-                'stripe' => array_merge($default['stripe'], $configured['stripe'] ?? []),
-                'paypal' => array_merge($default['paypal'], $configured['paypal'] ?? []),
-                'cod' => array_merge($default['cod'], $configured['cod'] ?? []),
-                'razorpay' => array_merge($default['razorpay'], $configured['razorpay'] ?? []),
-            ];
+            $result = [];
+            foreach ($default as $key => $def) {
+                $result[$key] = array_merge($def, $configured[$key] ?? []);
+            }
+            foreach ($configured as $key => $conf) {
+                if (! isset($result[$key]) && is_array($conf)) {
+                    $result[$key] = $conf;
+                }
+            }
+
+            return $result;
         }
 
         return $default;
@@ -295,18 +320,21 @@ class Setting extends Model
             ],
             'fedex' => [
                 'enabled' => false,
+                'name' => 'FedEx',
                 'account_number' => '',
                 'api_key' => '',
                 'api_secret' => '',
             ],
             'ups' => [
                 'enabled' => false,
+                'name' => 'UPS',
                 'account_number' => '',
                 'api_key' => '',
                 'api_secret' => '',
             ],
             'dhl' => [
                 'enabled' => false,
+                'name' => 'DHL Express',
                 'account_number' => '',
                 'api_key' => '',
                 'api_secret' => '',
@@ -318,12 +346,17 @@ class Setting extends Model
 
         $configured = $all['shipping_settings'] ?? null;
         if (is_array($configured)) {
-            return [
-                'carrier' => array_merge($default['carrier'], $configured['carrier'] ?? []),
-                'fedex' => array_merge($default['fedex'], $configured['fedex'] ?? []),
-                'ups' => array_merge($default['ups'], $configured['ups'] ?? []),
-                'dhl' => array_merge($default['dhl'], $configured['dhl'] ?? []),
-            ];
+            $result = [];
+            foreach ($default as $key => $def) {
+                $result[$key] = array_merge($def, $configured[$key] ?? []);
+            }
+            foreach ($configured as $key => $conf) {
+                if (! isset($result[$key]) && is_array($conf)) {
+                    $result[$key] = $conf;
+                }
+            }
+
+            return $result;
         }
 
         return $default;
@@ -569,10 +602,42 @@ class Setting extends Model
     }
 
     /**
+     * Get all public settings as key => cast value pairs for customer/storefront use.
+     *
+     * @return array<string, mixed>
+     */
+    public static function getPublicSettings(): array
+    {
+        return Cache::remember(self::PUBLIC_CACHE_KEY, 3600, function (): array {
+            $settings = static::query()->where('is_public', true)->get();
+            $result = [];
+
+            foreach ($settings as $setting) {
+                $result[$setting->key] = $setting->getCastValue();
+            }
+
+            // Ensure core storefront fallback defaults when running in unseeded or fresh environment
+            $result['currency_code'] ??= 'USD';
+            $result['currency_symbol'] ??= '$';
+            $result['currency_decimals'] ??= 2;
+            $result['currency_position'] ??= 'left';
+            $result['timezone'] ??= (string) config('app.timezone', 'UTC');
+            $result['allow_customer_cancellation'] ??= true;
+            $result['enable_customer_reviews'] ??= true;
+            $result['low_stock_threshold'] ??= 5;
+            $result['out_of_stock_visibility'] ??= 'badge';
+
+            return $result;
+        });
+    }
+
+    /**
      * Clear settings cache.
      */
     public static function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::PUBLIC_CACHE_KEY);
+        Cache::forget('app_essentials_data');
     }
 }

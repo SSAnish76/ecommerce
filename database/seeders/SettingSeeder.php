@@ -23,6 +23,7 @@ class SettingSeeder extends Seeder
                 'type' => 'string',
                 'label' => 'Default Store Currency Code',
                 'description' => 'Standard ISO 4217 3-letter currency code (e.g. USD, EUR, INR)',
+                'is_public' => true,
             ],
             [
                 'key' => 'currency_symbol',
@@ -31,6 +32,7 @@ class SettingSeeder extends Seeder
                 'type' => 'string',
                 'label' => 'Currency Symbol',
                 'description' => 'Visual currency symbol displayed in product prices',
+                'is_public' => true,
             ],
             [
                 'key' => 'currency_decimals',
@@ -39,6 +41,16 @@ class SettingSeeder extends Seeder
                 'type' => 'integer',
                 'label' => 'Currency Decimals',
                 'description' => 'Number of decimal digits shown in prices (e.g. 2 for 99.99, 0 for 100)',
+                'is_public' => true,
+            ],
+            [
+                'key' => 'currency_position',
+                'value' => 'left',
+                'group' => 'localization',
+                'type' => 'string',
+                'label' => 'Currency Symbol Position',
+                'description' => 'Placement of currency symbol: left ($10) or right (10$)',
+                'is_public' => true,
             ],
             [
                 'key' => 'timezone',
@@ -47,6 +59,7 @@ class SettingSeeder extends Seeder
                 'type' => 'string',
                 'label' => 'System Timezone',
                 'description' => 'Timezone used for order timestamps, audit logs, and reports',
+                'is_public' => true,
             ],
             [
                 'key' => 'force_two_factor_all_admins',
@@ -89,6 +102,7 @@ class SettingSeeder extends Seeder
                 'type' => 'boolean',
                 'label' => 'Allow Customer Cancellation',
                 'description' => 'Allow customers to cancel orders before processing begins',
+                'is_public' => true,
             ],
 
             // ================= 3. Products & Inventory =================
@@ -99,6 +113,7 @@ class SettingSeeder extends Seeder
                 'type' => 'integer',
                 'label' => 'Low Stock Alert Threshold',
                 'description' => 'Units remaining when low-stock warning badges & emails trigger',
+                'is_public' => true,
             ],
             [
                 'key' => 'out_of_stock_visibility',
@@ -107,6 +122,7 @@ class SettingSeeder extends Seeder
                 'type' => 'string',
                 'label' => 'Out of Stock Behavior',
                 'description' => 'How out-of-stock items are treated: hide (Hide), badge (Show Sold Out), backorder (Allow backorder)',
+                'is_public' => true,
             ],
             [
                 'key' => 'enable_customer_reviews',
@@ -115,6 +131,7 @@ class SettingSeeder extends Seeder
                 'type' => 'boolean',
                 'label' => 'Customer Product Reviews',
                 'description' => 'Enable verified buyer reviews and star ratings on product pages',
+                'is_public' => true,
             ],
             [
                 'key' => 'auto_approve_reviews',
@@ -131,22 +148,26 @@ class SettingSeeder extends Seeder
                 'value' => json_encode([
                     'stripe' => [
                         'enabled' => true,
+                        'name' => 'Credit / Debit Card (Stripe)',
                         'publishable_key' => 'pk_test_sample_stripe_publishable_key',
                         'secret_key' => Setting::encryptSensitive('sk_test_sample_stripe_secret_key'),
                         'webhook_secret' => Setting::encryptSensitive('whsec_sample_webhook_secret'),
                     ],
                     'paypal' => [
                         'enabled' => true,
+                        'name' => 'PayPal',
                         'mode' => 'sandbox',
                         'client_id' => 'sample_paypal_client_id',
                         'client_secret' => Setting::encryptSensitive('sample_paypal_client_secret'),
                     ],
                     'cod' => [
                         'enabled' => true,
+                        'name' => 'Cash on Delivery',
                         'instructions' => 'Pay cash to delivery courier on parcel arrival.',
                     ],
                     'razorpay' => [
                         'enabled' => false,
+                        'name' => 'Razorpay',
                         'key_id' => 'rzp_test_sample_key_id',
                         'key_secret' => Setting::encryptSensitive('sample_razorpay_secret_key'),
                         'webhook_secret' => Setting::encryptSensitive('sample_razorpay_webhook_secret'),
@@ -190,18 +211,21 @@ class SettingSeeder extends Seeder
                     ],
                     'fedex' => [
                         'enabled' => false,
+                        'name' => 'FedEx',
                         'account_number' => '',
                         'api_key' => '',
                         'api_secret' => Setting::encryptSensitive(''),
                     ],
                     'ups' => [
                         'enabled' => false,
+                        'name' => 'UPS',
                         'account_number' => '',
                         'api_key' => '',
                         'api_secret' => Setting::encryptSensitive(''),
                     ],
                     'dhl' => [
                         'enabled' => false,
+                        'name' => 'DHL Express',
                         'account_number' => '',
                         'api_key' => '',
                         'api_secret' => Setting::encryptSensitive(''),
@@ -429,6 +453,32 @@ class SettingSeeder extends Seeder
                 'label' => 'Admin Alert Target Users',
                 'description' => 'Specific staff user IDs to receive admin email notifications',
             ],
+
+            // ================= 9. Storefront Frontend Registry =================
+            [
+                'key' => 'frontend_enums',
+                'value' => json_encode([
+                    'address' => ['address_type'],
+                    'order' => ['order_status', 'payment_status', 'payment_method'],
+                    'coupon' => ['coupon_type', 'coupon_apply_to'],
+                    'product' => ['stock_visibility', 'discount_type'],
+                    'setting' => ['currency_position'],
+                ], JSON_THROW_ON_ERROR),
+                'group' => 'system',
+                'type' => 'json',
+                'label' => 'Storefront Exposed Enums',
+                'description' => 'Registry mapping of domain modules to exposed enum options on customer-facing storefront',
+                'is_public' => false,
+            ],
+            [
+                'key' => 'frontend_constants',
+                'value' => json_encode(['currencies', 'currencies_map', 'timezones'], JSON_THROW_ON_ERROR),
+                'group' => 'system',
+                'type' => 'json',
+                'label' => 'Storefront Exposed Constants',
+                'description' => 'List of system constants exposed to public storefront endpoints',
+                'is_public' => false,
+            ],
         ];
 
         foreach ($defaultSettings as $setting) {
@@ -440,7 +490,6 @@ class SettingSeeder extends Seeder
 
         // Purge any obsolete keys that may exist
         Setting::whereIn('key', [
-            'currency_position',
             'session_lifetime_minutes',
             'max_login_attempts',
             'lockout_duration_minutes',

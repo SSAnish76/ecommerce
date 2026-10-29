@@ -259,4 +259,89 @@ PHP;
         // Disabled gateways are not exposed for display purpose
         $this->assertArrayNotHasKey('razorpay', $response->json('data.payment_gateways'));
     }
+
+    /**
+     * Test newly added public setting in database automatically appears in storefront essentials without code change.
+     */
+    public function test_user_frontend_automatically_includes_new_public_setting_added_in_database(): void
+    {
+        \App\Models\Setting::create([
+            'key' => 'announcement_bar_text',
+            'value' => 'Get 20% discount on your first order!',
+            'group' => 'storefront',
+            'type' => 'string',
+            'is_public' => true,
+        ]);
+        \App\Models\Setting::clearCache();
+
+        $response = $this->getJson('/api/user/essentials');
+
+        $response->assertOk()
+            ->assertJsonPath('data.settings.announcement_bar_text', 'Get 20% discount on your first order!');
+    }
+
+    /**
+     * Test newly added payment gateway in database automatically appears in storefront essentials with secrets masked.
+     */
+    public function test_user_frontend_automatically_reflects_new_payment_gateway_added_in_database(): void
+    {
+        $existing = \App\Models\Setting::getPaymentSettings();
+        $existing['apple_pay'] = [
+            'enabled' => true,
+            'name' => 'Apple Pay Express',
+            'merchant_id' => 'merchant.com.mystore',
+            'merchant_secret' => 'enc:super_secret_credentials',
+        ];
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'payment_settings'],
+            [
+                'value' => json_encode($existing),
+                'type' => 'json',
+                'group' => 'payment',
+                'is_public' => false,
+            ]
+        );
+        \App\Models\Setting::clearCache();
+
+        $response = $this->getJson('/api/user/essentials');
+
+        $response->assertOk()
+            ->assertJsonPath('data.payment_gateways.apple_pay.name', 'Apple Pay Express')
+            ->assertJsonPath('data.payment_gateways.apple_pay.merchant_id', 'merchant.com.mystore');
+
+        $this->assertArrayNotHasKey('merchant_secret', $response->json('data.payment_gateways.apple_pay'));
+    }
+
+    /**
+     * Test newly configured enum in database automatically appears in storefront essentials without code change.
+     */
+    public function test_user_frontend_automatically_reflects_new_enum_configured_in_database(): void
+    {
+        $frontendEnums = [
+            'address' => ['address_type'],
+            'order' => ['order_status'],
+            'store' => ['store_status'],
+        ];
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'frontend_enums'],
+            [
+                'value' => json_encode($frontendEnums),
+                'type' => 'json',
+                'group' => 'system',
+                'is_public' => false,
+            ]
+        );
+        \App\Models\Setting::clearCache();
+
+        $response = $this->getJson('/api/user/essentials');
+
+        $response->assertOk();
+        $storeStatusOptions = $response->json('data.enums.store.store_status');
+        $this->assertIsArray($storeStatusOptions);
+        $this->assertNotEmpty($storeStatusOptions);
+        $this->assertArrayHasKey('value', $storeStatusOptions[0]);
+        $this->assertArrayHasKey('label', $storeStatusOptions[0]);
+    }
 }

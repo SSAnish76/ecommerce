@@ -4,21 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\Address\AddressType;
-use App\Enums\Coupon\CouponApplyTo;
-use App\Enums\Coupon\CouponType;
-use App\Enums\Order\OrderStatus;
-use App\Enums\Order\PaymentMethod;
-use App\Enums\Order\PaymentStatus;
-use App\Enums\Product\DiscountType;
-use App\Enums\Product\StockVisibility;
-use App\Enums\Setting\CurrencyPosition;
 use App\Models\Setting;
 use App\Models\Store;
 use App\Services\EnumRegistryService;
 use App\Support\Constants;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class EssentialsController extends Controller
 {
@@ -62,117 +54,107 @@ class EssentialsController extends Controller
     }
 
     /**
-     * Return customer-facing and storefront essentials (public settings, store branding, payment methods, enums, and constants).
+     * Return customer-facing and storefront essentials dynamically resolved from database configurations.
      */
     public function frontend(Request $request): JsonResponse
     {
-        // 1. Resolve storefront domain modules & formatted enums
-        $enums = [
-            'address' => [
-                'address_type' => $this->enumRegistry->formatEnum(AddressType::class)['options'],
-            ],
-            'order' => [
-                'order_status' => $this->enumRegistry->formatEnum(OrderStatus::class)['options'],
-                'payment_status' => $this->enumRegistry->formatEnum(PaymentStatus::class)['options'],
-                'payment_method' => $this->enumRegistry->formatEnum(PaymentMethod::class)['options'],
-            ],
-            'coupon' => [
-                'coupon_type' => $this->enumRegistry->formatEnum(CouponType::class)['options'],
-                'coupon_apply_to' => $this->enumRegistry->formatEnum(CouponApplyTo::class)['options'],
-            ],
-            'product' => [
-                'stock_visibility' => $this->enumRegistry->formatEnum(StockVisibility::class)['options'],
-                'discount_type' => $this->enumRegistry->formatEnum(DiscountType::class)['options'],
-            ],
-            'setting' => [
-                'currency_position' => $this->enumRegistry->formatEnum(CurrencyPosition::class)['options'],
-            ],
-        ];
+        // 1. Resolve storefront domain modules & formatted enums dynamically from DB configuration
+        $frontendEnumConfig = Setting::get('frontend_enums', [
+            'address' => ['address_type'],
+            'order' => ['order_status', 'payment_status', 'payment_method'],
+            'coupon' => ['coupon_type', 'coupon_apply_to'],
+            'product' => ['stock_visibility', 'discount_type'],
+            'setting' => ['currency_position'],
+        ]);
 
-        // 4. Store singleton profile branding
-        $store = Store::current();
-        $storeData = [
-            'name' => $store->name,
-            'legal_name' => $store->legal_name,
-            'email' => $store->email,
-            'phone' => $store->phone,
-            'city' => $store->city,
-            'state' => $store->state,
-            'postal_code' => $store->postal_code,
-            'country' => $store->country,
-            'logo_url' => $store->logo_url,
-            'favicon_url' => $store->favicon_url,
-            'description' => $store->description,
-            'website_url' => $store->website_url,
-        ];
+        $discoveredEnums = $this->enumRegistry->discover();
+        $enums = [];
 
-        // 5. Storefront commerce settings (fetched efficiently in one cached query)
-        $allSettings = Setting::getAllKeyValues();
-        $settings = [
-            'currency_code' => (string) ($allSettings['currency_code'] ?? 'USD'),
-            'currency_symbol' => (string) ($allSettings['currency_symbol'] ?? '$'),
-            'currency_decimals' => (int) ($allSettings['currency_decimals'] ?? 2),
-            'currency_position' => (string) ($allSettings['currency_position'] ?? 'left'),
-            'timezone' => (string) ($allSettings['timezone'] ?? config('app.timezone', 'UTC')),
-            'allow_customer_cancellation' => (bool) ($allSettings['allow_customer_cancellation'] ?? true),
-            'enable_customer_reviews' => (bool) ($allSettings['enable_customer_reviews'] ?? true),
-            'low_stock_threshold' => (int) ($allSettings['low_stock_threshold'] ?? 5),
-            'out_of_stock_visibility' => (string) ($allSettings['out_of_stock_visibility'] ?? 'show'),
-        ];
+        if (is_array($frontendEnumConfig)) {
+            foreach ($frontendEnumConfig as $module => $enumKeys) {
+                if (! is_array($enumKeys)) {
+                    continue;
+                }
+                foreach ($enumKeys as $enumKey) {
+                    if (isset($discoveredEnums[$module][$enumKey]['options'])) {
+                        $enums[$module][$enumKey] = $discoveredEnums[$module][$enumKey]['options'];
+                    }
+                }
+            }
+        }
 
-        // 6. Public payment gateway configurations (only enabled gateways for display purpose)
+        // 2. Store singleton profile branding
+        $storeData = Store::current()->toStorefrontArray();
+
+        // 3. Storefront commerce settings (dynamically fetched from DB where is_public is true)
+        $settings = Setting::getPublicSettings();
+
+        // 4. Public payment gateway configurations (dynamically loaded from DB, enabled gateways only, secrets stripped)
         $rawPayments = Setting::getPaymentSettings();
-        $allGateways = [
-            'cod' => [
-                'enabled' => (bool) ($rawPayments['cod']['enabled'] ?? true),
-                'name' => 'Cash on Delivery',
-                'instructions' => (string) ($rawPayments['cod']['instructions'] ?? 'Pay cash upon delivery.'),
-            ],
-            'stripe' => [
-                'enabled' => (bool) ($rawPayments['stripe']['enabled'] ?? false),
-                'name' => 'Credit / Debit Card (Stripe)',
-                'publishable_key' => (string) ($rawPayments['stripe']['publishable_key'] ?? ''),
-            ],
-            'paypal' => [
-                'enabled' => (bool) ($rawPayments['paypal']['enabled'] ?? false),
-                'name' => 'PayPal',
-                'mode' => (string) ($rawPayments['paypal']['mode'] ?? 'sandbox'),
-                'client_id' => (string) ($rawPayments['paypal']['client_id'] ?? ''),
-            ],
-            'razorpay' => [
-                'enabled' => (bool) ($rawPayments['razorpay']['enabled'] ?? false),
-                'name' => 'Razorpay',
-                'key_id' => (string) ($rawPayments['razorpay']['key_id'] ?? ''),
-            ],
-        ];
+        $paymentGateways = [];
 
-        $paymentGateways = array_filter($allGateways, fn (array $gateway): bool => (bool) $gateway['enabled']);
+        foreach ($rawPayments as $code => $gatewayConfig) {
+            if (! is_array($gatewayConfig) || empty($gatewayConfig['enabled'])) {
+                continue;
+            }
 
-        // 7. Public shipping carrier configurations (only enabled carriers for display purpose)
+            $publicGateway = [
+                'name' => (string) ($gatewayConfig['name'] ?? Str::headline((string) $code)),
+            ];
+
+            foreach ($gatewayConfig as $key => $val) {
+                $keyStr = (string) $key;
+                if (Setting::isSensitiveKey($keyStr) || str_contains(strtolower($keyStr), 'secret')) {
+                    continue;
+                }
+                $publicGateway[$keyStr] = $val;
+            }
+
+            $paymentGateways[$code] = $publicGateway;
+        }
+
+        // 5. Public shipping carrier configurations (dynamically loaded from DB, enabled carriers only)
         $rawShipping = Setting::getShippingSettings();
-        $allShipping = [
-            'fedex' => [
-                'enabled' => (bool) ($rawShipping['fedex']['enabled'] ?? ($rawShipping['carrier']['provider'] === 'fedex')),
-                'name' => 'FedEx',
-            ],
-            'ups' => [
-                'enabled' => (bool) ($rawShipping['ups']['enabled'] ?? ($rawShipping['carrier']['provider'] === 'ups')),
-                'name' => 'UPS',
-            ],
-            'dhl' => [
-                'enabled' => (bool) ($rawShipping['dhl']['enabled'] ?? ($rawShipping['carrier']['provider'] === 'dhl')),
-                'name' => 'DHL Express',
-            ],
-        ];
+        $shipping = [];
 
-        $shipping = array_filter($allShipping, fn (array $carrier): bool => (bool) $carrier['enabled']);
+        foreach ($rawShipping as $code => $carrierConfig) {
+            if ($code === 'carrier' || ! is_array($carrierConfig)) {
+                continue;
+            }
 
-        // 8. Public constants (currencies, timezones)
-        $constants = [
-            'currencies' => Constants::currencies(),
-            'currencies_map' => Constants::currenciesMap(),
-            'timezones' => Constants::timezones(),
-        ];
+            $isEnabled = (bool) ($carrierConfig['enabled'] ?? ($rawShipping['carrier']['provider'] === $code));
+            if (! $isEnabled) {
+                continue;
+            }
+
+            $publicCarrier = [
+                'name' => (string) ($carrierConfig['name'] ?? Str::headline((string) $code)),
+            ];
+
+            foreach ($carrierConfig as $key => $val) {
+                $keyStr = (string) $key;
+                if (Setting::isSensitiveKey($keyStr) || in_array($keyStr, ['account_number', 'api_key', 'api_secret'], true)) {
+                    continue;
+                }
+                $publicCarrier[$keyStr] = $val;
+            }
+
+            $shipping[$code] = $publicCarrier;
+        }
+
+        // 6. Public constants (dynamically resolved from DB configuration)
+        $frontendConstantKeys = (array) (Setting::get('frontend_constants') ?? ['currencies', 'currencies_map', 'timezones']);
+        $constants = [];
+
+        foreach ($frontendConstantKeys as $constantKey) {
+            if (! is_string($constantKey)) {
+                continue;
+            }
+            $method = Str::camel($constantKey);
+            if (method_exists(Constants::class, $method)) {
+                $constants[$constantKey] = Constants::$method();
+            }
+        }
 
         return response()->json([
             'success' => true,
