@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -203,15 +204,39 @@ class ProductController extends Controller
 
         $allowsBackorder = $product->allowsBackorder();
 
-        // 1. Clean variants list - only variants with stock or allowing backorders based on stock policy
-        $variants = $product->variants
-            ->filter(function ($variant) use ($allowsBackorder): bool {
+        // 1. Available in-stock variants (or allowing backorders based on stock policy)
+        $availableVariants = $product->variants
+            ->filter(function (ProductVariant $variant) use ($allowsBackorder): bool {
                 if (! (bool) $variant->is_active) {
                     return false;
                 }
 
                 return $variant->stock_quantity > 0 || $allowsBackorder;
-            })
+            });
+
+        // Collect attribute value IDs and values present across available in-stock variants
+        $availableValueIdsMap = [];
+        $availableValuesMap = [];
+
+        foreach ($availableVariants as $variant) {
+            $attrs = $variant->getAttribute('attributes');
+            if (is_string($attrs)) {
+                $attrs = json_decode($attrs, true);
+            }
+            if (is_array($attrs)) {
+                foreach ($attrs as $val) {
+                    $availableValuesMap[(string) $val] = true;
+                }
+            }
+            if ($variant->relationLoaded('attributeValues')) {
+                foreach ($variant->attributeValues as $av) {
+                    $availableValueIdsMap[$av->id] = true;
+                    $availableValuesMap[(string) $av->value] = true;
+                }
+            }
+        }
+
+        $variants = $availableVariants
             ->map(function ($variant): array {
                 $attrs = $variant->getAttribute('attributes');
                 if (is_string($attrs)) {
@@ -233,34 +258,14 @@ class ProductController extends Controller
                 ];
             })->values();
 
-        // 2. Clean and simple attributes list (options for frontend buttons)
+        // 2. Clean attributes list - only values present in the available in-stock variants
         $attributes = [];
 
         if ($product->attributes->isNotEmpty()) {
-            $productValIds = $product->relationLoaded('attributeValues')
-                ? $product->attributeValues->pluck('id')->flip()->all()
-                : [];
-
-            // Values present across this product's variants
-            $variantValuesMap = [];
-            foreach ($variants as $v) {
-                foreach ($v['attributes'] as $val) {
-                    $variantValuesMap[(string) $val] = true;
-                }
-            }
-
             foreach ($product->attributes as $attr) {
-                // Only include values that actually belong to this specific product or its variants
                 $values = $attr->values
-                    ->filter(function ($v) use ($productValIds, $variantValuesMap): bool {
-                        if (! empty($productValIds)) {
-                            return isset($productValIds[$v->id]);
-                        }
-                        if (! empty($variantValuesMap)) {
-                            return isset($variantValuesMap[(string) $v->value]);
-                        }
-
-                        return false;
+                    ->filter(function ($v) use ($availableValueIdsMap, $availableValuesMap): bool {
+                        return isset($availableValueIdsMap[$v->id]) || isset($availableValuesMap[(string) $v->value]);
                     })
                     ->values()
                     ->map(fn ($v): array => [
