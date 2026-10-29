@@ -12,7 +12,6 @@ use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -277,25 +276,6 @@ class ProductController extends Controller
                         'values' => $values,
                     ];
                 }
-            }
-        } else {
-            // Fallback: extract attributes directly from variants if no relational attributes
-            $grouped = [];
-            foreach ($variants as $v) {
-                foreach ($v['attributes'] as $name => $val) {
-                    $grouped[$name][$val] = true;
-                }
-            }
-            foreach ($grouped as $name => $vals) {
-                $attributes[] = [
-                    'name' => (string) $name,
-                    'type' => 'button',
-                    'values' => collect(array_keys($vals))->map(fn ($val): array => [
-                        'id' => (string) $val,
-                        'value' => (string) $val,
-                        'color_code' => null,
-                    ])->all(),
-                ];
             }
         }
 
