@@ -2,18 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Gateways;
 
 use App\Models\Order;
+use App\Services\Payments\DTOs\PaymentResult;
 
-class CodPaymentGateway extends AbstractPaymentGateway
+class BankTransferPaymentGateway extends AbstractPaymentGateway
 {
     /**
      * Get the unique key identifier for this payment gateway.
      */
     public function name(): string
     {
-        return 'cod';
+        return 'wire';
     }
 
     /**
@@ -21,7 +22,7 @@ class CodPaymentGateway extends AbstractPaymentGateway
      */
     public function label(): string
     {
-        return 'Cash on Delivery (COD)';
+        return 'Bank Wire Transfer';
     }
 
     /**
@@ -32,20 +33,20 @@ class CodPaymentGateway extends AbstractPaymentGateway
     public function charge(Order $order, array $options = []): PaymentResult
     {
         if (! $this->isEnabled()) {
-            return PaymentResult::failed('Cash on Delivery is currently disabled.');
+            return PaymentResult::failed('Bank Wire Transfer is currently disabled.');
         }
 
-        $this->log('info', "Created Cash on Delivery payment for order {$order->order_number}", [
+        $this->log('info', "Created Bank Transfer order for #{$order->order_number}", [
             'order_id' => $order->id,
             'amount' => $order->total_amount,
         ]);
 
         return PaymentResult::pending(
-            transactionId: 'cod_'.$order->order_number,
-            message: 'Cash on Delivery order confirmed. Payment will be collected upon parcel delivery.',
+            transactionId: 'wire_'.$order->order_number,
+            message: 'Bank transfer instructions generated. Please transfer funds to the merchant account.',
             data: [
                 'order_id' => $order->id,
-                'instructions' => $this->config()['instructions'] ?? 'Pay cash to delivery courier upon arrival.',
+                'bank_details' => $this->config()['bank_details'] ?? 'Account details available in invoice.',
             ]
         );
     }
@@ -57,9 +58,9 @@ class CodPaymentGateway extends AbstractPaymentGateway
     {
         return new PaymentResult(
             success: true,
-            transactionId: 'cod_refund_'.$order->order_number,
+            transactionId: 'wire_refund_'.$order->order_number,
             status: 'refunded',
-            message: 'Cash on Delivery refund recorded for manual customer settlement.',
+            message: 'Bank transfer refund recorded for offline execution.',
             data: [
                 'order_id' => $order->id,
                 'refund_amount' => $amount ?? $order->total_amount,
@@ -77,7 +78,7 @@ class CodPaymentGateway extends AbstractPaymentGateway
     {
         return PaymentResult::pending(
             transactionId: $transactionId,
-            message: 'Cash on Delivery status is determined upon courier delivery.',
+            message: 'Bank transfers require manual accounting verification.',
             data: $payload
         );
     }
@@ -91,7 +92,7 @@ class CodPaymentGateway extends AbstractPaymentGateway
     public function handleWebhook(array $payload, array $headers = []): PaymentResult
     {
         return PaymentResult::pending(
-            message: 'COD does not require asynchronous webhooks.',
+            message: 'Wire transfer does not utilize webhooks.',
             data: $payload
         );
     }

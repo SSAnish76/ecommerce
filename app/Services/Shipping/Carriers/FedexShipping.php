@@ -2,20 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\Carriers;
 
 use App\Models\Address;
 use App\Models\Order;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use Throwable;
 
-class DhlShipping extends AbstractShippingCarrier
+class FedexShipping extends AbstractShippingCarrier
 {
     /**
      * Get the unique key identifier for this shipping carrier.
      */
     public function name(): string
     {
-        return 'dhl';
+        return 'fedex';
     }
 
     /**
@@ -23,7 +25,7 @@ class DhlShipping extends AbstractShippingCarrier
      */
     public function label(): string
     {
-        return 'DHL Express';
+        return 'FedEx';
     }
 
     /**
@@ -38,22 +40,22 @@ class DhlShipping extends AbstractShippingCarrier
         }
 
         try {
-            $destinationCountry = $address?->country ?? 'US';
-            $baseCost = 28.00;
+            $destinationPostalCode = $address?->postal_code ?? '00000';
+            $baseCost = 15.00;
 
             return ShippingRateResult::available(
                 cost: $baseCost,
                 carrier: $this->name(),
-                serviceName: 'DHL Express Worldwide',
-                estimatedDays: 1,
+                serviceName: 'FedEx Ground Delivery',
+                estimatedDays: 2,
                 currency: 'USD',
                 data: [
                     'account_number' => $this->config()['account_number'] ?? '',
-                    'destination_country' => $destinationCountry,
+                    'destination_zip' => $destinationPostalCode,
                 ]
             );
         } catch (Throwable $e) {
-            $this->log('error', "DHL rate calculation error: {$e->getMessage()}");
+            $this->log('error', "FedEx rate quote error: {$e->getMessage()}");
 
             return ShippingRateResult::unavailable($this->name(), $this->label(), $e->getMessage());
         }
@@ -67,14 +69,14 @@ class DhlShipping extends AbstractShippingCarrier
     public function createShipment(Order $order, array $options = []): ShipmentResult
     {
         if (! $this->isEnabled()) {
-            return ShipmentResult::failed('DHL Express carrier is currently disabled.', $this->name());
+            return ShipmentResult::failed('FedEx carrier is currently disabled.', $this->name());
         }
 
         try {
-            $trackingNumber = 'DHL'.random_int(100000000, 999999999);
-            $labelUrl = "https://dhl.com/airwaybills/{$trackingNumber}.pdf";
+            $trackingNumber = '79'.random_int(1000000000, 9999999999);
+            $labelUrl = "https://fedex.com/labels/{$trackingNumber}.pdf";
 
-            $this->log('info', "Created DHL shipment for order {$order->order_number}", [
+            $this->log('info', "Created FedEx shipment for order {$order->order_number}", [
                 'order_id' => $order->id,
                 'tracking_number' => $trackingNumber,
             ]);
@@ -84,13 +86,13 @@ class DhlShipping extends AbstractShippingCarrier
                 carrier: $this->name(),
                 labelUrl: $labelUrl,
                 status: 'label_created',
-                message: 'DHL Express airway bill generated.',
+                message: 'FedEx shipping label created successfully.',
                 data: [
                     'order_id' => $order->id,
                 ]
             );
         } catch (Throwable $e) {
-            $this->log('error', "DHL shipment booking error: {$e->getMessage()}");
+            $this->log('error', "FedEx shipment creation error: {$e->getMessage()}");
 
             return ShipmentResult::failed($e->getMessage(), $this->name());
         }
@@ -113,12 +115,12 @@ class DhlShipping extends AbstractShippingCarrier
             'tracking_number' => $trackingNumber,
             'carrier' => $this->name(),
             'status' => 'in_transit',
-            'estimated_delivery' => now()->addDays(1)->toIso8601String(),
+            'estimated_delivery' => now()->addDays(2)->toIso8601String(),
             'checkpoints' => [
                 [
-                    'status' => 'Processed at DHL Leipzig Hub',
+                    'status' => 'Picked up by courier',
                     'timestamp' => now()->toIso8601String(),
-                    'location' => 'Leipzig, Germany',
+                    'location' => 'Memphis, TN Hub',
                 ],
             ],
         ];
@@ -129,7 +131,7 @@ class DhlShipping extends AbstractShippingCarrier
      */
     public function cancelShipment(string $trackingNumber): bool
     {
-        $this->log('info', "Cancelled DHL parcel {$trackingNumber}");
+        $this->log('info', "Cancelled FedEx parcel {$trackingNumber}");
 
         return true;
     }

@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Gateways;
 
 use App\Models\Order;
+use App\Services\Payments\DTOs\PaymentResult;
 use Throwable;
 
 class RazorpayPaymentGateway extends AbstractPaymentGateway
@@ -105,7 +106,6 @@ class RazorpayPaymentGateway extends AbstractPaymentGateway
      */
     public function verifyPayment(string $transactionId, array $payload = []): PaymentResult
     {
-        $signature = $payload['razorpay_signature'] ?? null;
         $paymentId = $payload['razorpay_payment_id'] ?? $transactionId;
 
         return PaymentResult::success(

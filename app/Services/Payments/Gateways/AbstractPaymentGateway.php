@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Gateways;
 
 use App\Models\Setting;
+use App\Services\Payments\Contracts\PaymentGatewayInterface;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 abstract class AbstractPaymentGateway implements PaymentGatewayInterface
 {
@@ -23,7 +25,7 @@ abstract class AbstractPaymentGateway implements PaymentGatewayInterface
             $config = $allPaymentSettings[$this->name()] ?? [];
 
             return is_array($config) ? $config : [];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [];
         }
     }
@@ -50,3 +52,4 @@ abstract class AbstractPaymentGateway implements PaymentGatewayInterface
         ], $context));
     }
 }
+

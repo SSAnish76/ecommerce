@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\Contracts;
 
 use App\Models\Address;
 use App\Models\Order;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 
 interface ShippingCarrierInterface
 {

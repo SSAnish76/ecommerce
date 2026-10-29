@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Gateways;
 
 use App\Models\Order;
+use App\Services\Payments\DTOs\PaymentResult;
 use Throwable;
 
 class PaypalPaymentGateway extends AbstractPaymentGateway

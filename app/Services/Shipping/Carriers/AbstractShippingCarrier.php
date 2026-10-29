@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\Carriers;
 
 use App\Models\Setting;
+use App\Services\Shipping\Contracts\ShippingCarrierInterface;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 abstract class AbstractShippingCarrier implements ShippingCarrierInterface
 {
@@ -23,7 +25,7 @@ abstract class AbstractShippingCarrier implements ShippingCarrierInterface
             $config = $allShippingSettings[$this->name()] ?? [];
 
             return is_array($config) ? $config : [];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [];
         }
     }
@@ -50,3 +52,4 @@ abstract class AbstractShippingCarrier implements ShippingCarrierInterface
         ], $context));
     }
 }
+

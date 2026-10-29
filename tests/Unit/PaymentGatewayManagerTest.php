@@ -7,9 +7,9 @@ namespace Tests\Unit;
 use App\Facades\PaymentGateway;
 use App\Models\Order;
 use App\Services\PaymentGatewayManager;
-use App\Services\Payments\PaymentGatewayInterface;
-use App\Services\Payments\PaymentResult;
-use App\Services\Payments\StripePaymentGateway;
+use App\Services\Payments\Contracts\PaymentGatewayInterface;
+use App\Services\Payments\DTOs\PaymentResult;
+use App\Services\Payments\Gateways\StripePaymentGateway;
 use Tests\TestCase;
 
 class PaymentGatewayManagerTest extends TestCase
@@ -46,7 +46,6 @@ class PaymentGatewayManagerTest extends TestCase
         /** @var PaymentGatewayManager $manager */
         $manager = app(PaymentGatewayManager::class);
 
-        // Simulate a new payment gateway added by a developer or plugin
         $customGateway = new class implements PaymentGatewayInterface
         {
             public function name(): string
@@ -106,4 +105,3 @@ class PaymentGatewayManagerTest extends TestCase
         $this->assertInstanceOf(PaymentGatewayInterface::class, PaymentGateway::gateway('stripe'));
     }
 }
-

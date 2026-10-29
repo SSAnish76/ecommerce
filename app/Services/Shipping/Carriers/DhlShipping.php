@@ -2,20 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\Carriers;
 
 use App\Models\Address;
 use App\Models\Order;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use Throwable;
 
-class UpsShipping extends AbstractShippingCarrier
+class DhlShipping extends AbstractShippingCarrier
 {
     /**
      * Get the unique key identifier for this shipping carrier.
      */
     public function name(): string
     {
-        return 'ups';
+        return 'dhl';
     }
 
     /**
@@ -23,7 +25,7 @@ class UpsShipping extends AbstractShippingCarrier
      */
     public function label(): string
     {
-        return 'UPS';
+        return 'DHL Express';
     }
 
     /**
@@ -38,22 +40,22 @@ class UpsShipping extends AbstractShippingCarrier
         }
 
         try {
-            $destinationPostalCode = $address?->postal_code ?? '00000';
-            $baseCost = 14.50;
+            $destinationCountry = $address?->country ?? 'US';
+            $baseCost = 28.00;
 
             return ShippingRateResult::available(
                 cost: $baseCost,
                 carrier: $this->name(),
-                serviceName: 'UPS Ground',
-                estimatedDays: 2,
+                serviceName: 'DHL Express Worldwide',
+                estimatedDays: 1,
                 currency: 'USD',
                 data: [
                     'account_number' => $this->config()['account_number'] ?? '',
-                    'destination_zip' => $destinationPostalCode,
+                    'destination_country' => $destinationCountry,
                 ]
             );
         } catch (Throwable $e) {
-            $this->log('error', "UPS rate calculation error: {$e->getMessage()}");
+            $this->log('error', "DHL rate calculation error: {$e->getMessage()}");
 
             return ShippingRateResult::unavailable($this->name(), $this->label(), $e->getMessage());
         }
@@ -67,14 +69,14 @@ class UpsShipping extends AbstractShippingCarrier
     public function createShipment(Order $order, array $options = []): ShipmentResult
     {
         if (! $this->isEnabled()) {
-            return ShipmentResult::failed('UPS carrier is currently disabled.', $this->name());
+            return ShipmentResult::failed('DHL Express carrier is currently disabled.', $this->name());
         }
 
         try {
-            $trackingNumber = '1Z'.strtoupper(substr(md5(uniqid()), 0, 16));
-            $labelUrl = "https://ups.com/labels/{$trackingNumber}.pdf";
+            $trackingNumber = 'DHL'.random_int(100000000, 999999999);
+            $labelUrl = "https://dhl.com/airwaybills/{$trackingNumber}.pdf";
 
-            $this->log('info', "Created UPS shipment for order {$order->order_number}", [
+            $this->log('info', "Created DHL shipment for order {$order->order_number}", [
                 'order_id' => $order->id,
                 'tracking_number' => $trackingNumber,
             ]);
@@ -84,13 +86,13 @@ class UpsShipping extends AbstractShippingCarrier
                 carrier: $this->name(),
                 labelUrl: $labelUrl,
                 status: 'label_created',
-                message: 'UPS shipping label created successfully.',
+                message: 'DHL Express airway bill generated.',
                 data: [
                     'order_id' => $order->id,
                 ]
             );
         } catch (Throwable $e) {
-            $this->log('error', "UPS shipment booking error: {$e->getMessage()}");
+            $this->log('error', "DHL shipment booking error: {$e->getMessage()}");
 
             return ShipmentResult::failed($e->getMessage(), $this->name());
         }
@@ -113,12 +115,12 @@ class UpsShipping extends AbstractShippingCarrier
             'tracking_number' => $trackingNumber,
             'carrier' => $this->name(),
             'status' => 'in_transit',
-            'estimated_delivery' => now()->addDays(2)->toIso8601String(),
+            'estimated_delivery' => now()->addDays(1)->toIso8601String(),
             'checkpoints' => [
                 [
-                    'status' => 'Origin Scan',
+                    'status' => 'Processed at DHL Leipzig Hub',
                     'timestamp' => now()->toIso8601String(),
-                    'location' => 'Louisville, KY Hub',
+                    'location' => 'Leipzig, Germany',
                 ],
             ],
         ];
@@ -129,7 +131,7 @@ class UpsShipping extends AbstractShippingCarrier
      */
     public function cancelShipment(string $trackingNumber): bool
     {
-        $this->log('info', "Cancelled UPS parcel {$trackingNumber}");
+        $this->log('info', "Cancelled DHL parcel {$trackingNumber}");
 
         return true;
     }

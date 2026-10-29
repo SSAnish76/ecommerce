@@ -6,8 +6,8 @@ namespace App\Services;
 
 use App\Models\Address;
 use App\Models\Order;
-use App\Services\Shipping\ShippingCarrierInterface;
-use App\Services\Shipping\ShippingRateResult;
+use App\Services\Shipping\Contracts\ShippingCarrierInterface;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
@@ -32,13 +32,13 @@ class ShippingManager
     }
 
     /**
-     * Auto-discover all shipping carrier classes in App\Services\Shipping.
+     * Auto-discover all shipping carrier classes in App\Services\Shipping\Carriers.
      * Any new carrier class implementing ShippingCarrierInterface added to this directory
      * is automatically registered without modifying existing code.
      */
     public function discoverCarriers(): void
     {
-        $directory = app_path('Services/Shipping');
+        $directory = app_path('Services/Shipping/Carriers');
 
         if (! File::isDirectory($directory)) {
             return;
@@ -47,7 +47,7 @@ class ShippingManager
         $files = File::files($directory);
 
         foreach ($files as $file) {
-            $className = 'App\\Services\\Shipping\\'.$file->getFilenameWithoutExtension();
+            $className = 'App\\Services\\Shipping\\Carriers\\'.$file->getFilenameWithoutExtension();
 
             if (! class_exists($className)) {
                 continue;
@@ -156,7 +156,6 @@ class ShippingManager
      */
     public function __call(string $method, array $arguments): ShippingCarrierInterface
     {
-        // Support snake_case or camelCase lookup
         $snake = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $method) ?? $method);
 
         if ($this->has($method)) {
@@ -170,4 +169,3 @@ class ShippingManager
         throw new InvalidArgumentException("Method or shipping carrier [{$method}] does not exist.");
     }
 }
-

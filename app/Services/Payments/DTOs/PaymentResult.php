@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\DTOs;
 
 class PaymentResult
 {
@@ -40,7 +40,7 @@ class PaymentResult
     }
 
     /**
-     * Create a pending payment result (e.g. for Cash on Delivery, Bank Transfer, or Async processing).
+     * Create a pending payment result.
      *
      * @param array<string, mixed> $data
      */
@@ -59,7 +59,7 @@ class PaymentResult
     }
 
     /**
-     * Create a redirect payment result (e.g. Stripe Checkout, PayPal approval URL).
+     * Create a redirect payment result.
      *
      * @param array<string, mixed> $data
      */

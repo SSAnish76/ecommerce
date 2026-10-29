@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\DTOs;
 
 class ShipmentResult
 {

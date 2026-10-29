@@ -2,20 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\Carriers;
 
 use App\Models\Address;
 use App\Models\Order;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use Throwable;
 
-class FedexShipping extends AbstractShippingCarrier
+class UpsShipping extends AbstractShippingCarrier
 {
     /**
      * Get the unique key identifier for this shipping carrier.
      */
     public function name(): string
     {
-        return 'fedex';
+        return 'ups';
     }
 
     /**
@@ -23,7 +25,7 @@ class FedexShipping extends AbstractShippingCarrier
      */
     public function label(): string
     {
-        return 'FedEx';
+        return 'UPS';
     }
 
     /**
@@ -38,14 +40,13 @@ class FedexShipping extends AbstractShippingCarrier
         }
 
         try {
-            // Live rate estimation logic or API call using account credentials
             $destinationPostalCode = $address?->postal_code ?? '00000';
-            $baseCost = 15.00;
+            $baseCost = 14.50;
 
             return ShippingRateResult::available(
                 cost: $baseCost,
                 carrier: $this->name(),
-                serviceName: 'FedEx Ground Delivery',
+                serviceName: 'UPS Ground',
                 estimatedDays: 2,
                 currency: 'USD',
                 data: [
@@ -54,7 +55,7 @@ class FedexShipping extends AbstractShippingCarrier
                 ]
             );
         } catch (Throwable $e) {
-            $this->log('error', "FedEx rate quote error: {$e->getMessage()}");
+            $this->log('error', "UPS rate calculation error: {$e->getMessage()}");
 
             return ShippingRateResult::unavailable($this->name(), $this->label(), $e->getMessage());
         }
@@ -68,14 +69,14 @@ class FedexShipping extends AbstractShippingCarrier
     public function createShipment(Order $order, array $options = []): ShipmentResult
     {
         if (! $this->isEnabled()) {
-            return ShipmentResult::failed('FedEx carrier is currently disabled.', $this->name());
+            return ShipmentResult::failed('UPS carrier is currently disabled.', $this->name());
         }
 
         try {
-            $trackingNumber = '79'.random_int(1000000000, 9999999999);
-            $labelUrl = "https://fedex.com/labels/{$trackingNumber}.pdf";
+            $trackingNumber = '1Z'.strtoupper(substr(md5(uniqid()), 0, 16));
+            $labelUrl = "https://ups.com/labels/{$trackingNumber}.pdf";
 
-            $this->log('info', "Created FedEx shipment for order {$order->order_number}", [
+            $this->log('info', "Created UPS shipment for order {$order->order_number}", [
                 'order_id' => $order->id,
                 'tracking_number' => $trackingNumber,
             ]);
@@ -85,13 +86,13 @@ class FedexShipping extends AbstractShippingCarrier
                 carrier: $this->name(),
                 labelUrl: $labelUrl,
                 status: 'label_created',
-                message: 'FedEx shipping label created successfully.',
+                message: 'UPS shipping label created successfully.',
                 data: [
                     'order_id' => $order->id,
                 ]
             );
         } catch (Throwable $e) {
-            $this->log('error', "FedEx shipment creation error: {$e->getMessage()}");
+            $this->log('error', "UPS shipment booking error: {$e->getMessage()}");
 
             return ShipmentResult::failed($e->getMessage(), $this->name());
         }
@@ -117,9 +118,9 @@ class FedexShipping extends AbstractShippingCarrier
             'estimated_delivery' => now()->addDays(2)->toIso8601String(),
             'checkpoints' => [
                 [
-                    'status' => 'Picked up by courier',
+                    'status' => 'Origin Scan',
                     'timestamp' => now()->toIso8601String(),
-                    'location' => 'Memphis, TN Hub',
+                    'location' => 'Louisville, KY Hub',
                 ],
             ],
         ];
@@ -130,7 +131,7 @@ class FedexShipping extends AbstractShippingCarrier
      */
     public function cancelShipment(string $trackingNumber): bool
     {
-        $this->log('info', "Cancelled FedEx parcel {$trackingNumber}");
+        $this->log('info', "Cancelled UPS parcel {$trackingNumber}");
 
         return true;
     }

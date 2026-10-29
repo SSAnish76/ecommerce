@@ -7,11 +7,11 @@ namespace Tests\Unit;
 use App\Models\Address;
 use App\Models\Order;
 use App\Services\PaymentGatewayManager;
-use App\Services\Payments\AbstractPaymentGateway;
-use App\Services\Payments\PaymentResult;
-use App\Services\Shipping\AbstractShippingCarrier;
-use App\Services\Shipping\ShipmentResult;
-use App\Services\Shipping\ShippingRateResult;
+use App\Services\Payments\DTOs\PaymentResult;
+use App\Services\Payments\Gateways\AbstractPaymentGateway;
+use App\Services\Shipping\Carriers\AbstractShippingCarrier;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use App\Services\ShippingManager;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
@@ -20,16 +20,17 @@ class AutoDiscoveryTest extends TestCase
 {
     public function test_payment_gateway_is_auto_discovered_simply_by_adding_a_file(): void
     {
-        $gatewayFilePath = app_path('Services/Payments/FutureAutoDiscoverGateway.php');
+        $gatewayFilePath = app_path('Services/Payments/Gateways/FutureAutoDiscoverGateway.php');
 
         $gatewayCode = <<<'PHP'
 <?php
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Gateways;
 
 use App\Models\Order;
+use App\Services\Payments\DTOs\PaymentResult;
 
 class FutureAutoDiscoverGateway extends AbstractPaymentGateway
 {
@@ -91,17 +92,19 @@ PHP;
 
     public function test_shipping_carrier_is_auto_discovered_simply_by_adding_a_file(): void
     {
-        $carrierFilePath = app_path('Services/Shipping/FutureAutoDiscoverShipping.php');
+        $carrierFilePath = app_path('Services/Shipping/Carriers/FutureAutoDiscoverShipping.php');
 
         $carrierCode = <<<'PHP'
 <?php
 
 declare(strict_types=1);
 
-namespace App\Services\Shipping;
+namespace App\Services\Shipping\Carriers;
 
 use App\Models\Address;
 use App\Models\Order;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 
 class FutureAutoDiscoverShipping extends AbstractShippingCarrier
 {
@@ -167,4 +170,3 @@ PHP;
         }
     }
 }
-

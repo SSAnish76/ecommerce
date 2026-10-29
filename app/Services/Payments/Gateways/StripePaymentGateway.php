@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Payments;
+namespace App\Services\Payments\Gateways;
 
 use App\Models\Order;
+use App\Services\Payments\DTOs\PaymentResult;
 use Throwable;
 
 class StripePaymentGateway extends AbstractPaymentGateway
@@ -42,8 +43,6 @@ class StripePaymentGateway extends AbstractPaymentGateway
                 'amount' => $order->total_amount,
             ]);
 
-            // In production, integrate Stripe SDK / PaymentIntent
-            // $intent = \Stripe\PaymentIntent::create([...]);
             $paymentMethodToken = $options['payment_method_id'] ?? $options['token'] ?? null;
             $transactionId = 'ch_stripe_'.uniqid('', true);
 

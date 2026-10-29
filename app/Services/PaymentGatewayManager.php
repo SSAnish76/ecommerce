@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Services\Payments\PaymentGatewayInterface;
+use App\Services\Payments\Contracts\PaymentGatewayInterface;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
@@ -29,13 +29,13 @@ class PaymentGatewayManager
     }
 
     /**
-     * Auto-discover all payment gateway classes in App\Services\Payments.
+     * Auto-discover all payment gateway classes in App\Services\Payments\Gateways.
      * Any new class implementing PaymentGatewayInterface added to this directory
-     * is automatically loaded without touching this code.
+     * is automatically registered without touching this or any other code.
      */
     public function discoverGateways(): void
     {
-        $directory = app_path('Services/Payments');
+        $directory = app_path('Services/Payments/Gateways');
 
         if (! File::isDirectory($directory)) {
             return;
@@ -44,7 +44,7 @@ class PaymentGatewayManager
         $files = File::files($directory);
 
         foreach ($files as $file) {
-            $className = 'App\\Services\\Payments\\'.$file->getFilenameWithoutExtension();
+            $className = 'App\\Services\\Payments\\Gateways\\'.$file->getFilenameWithoutExtension();
 
             if (! class_exists($className)) {
                 continue;
@@ -94,7 +94,6 @@ class PaymentGatewayManager
     public function driver(?string $name = null): PaymentGatewayInterface
     {
         if ($name === null) {
-            // Default to first enabled gateway or 'stripe'
             $available = $this->available();
             if (! empty($available)) {
                 return reset($available);
@@ -161,4 +160,3 @@ class PaymentGatewayManager
         throw new InvalidArgumentException("Method or payment gateway [{$method}] does not exist.");
     }
 }
-

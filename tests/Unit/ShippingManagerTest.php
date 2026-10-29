@@ -6,10 +6,10 @@ namespace Tests\Unit;
 
 use App\Facades\Shipping;
 use App\Models\Order;
-use App\Services\Shipping\FlatRateShipping;
-use App\Services\Shipping\ShipmentResult;
-use App\Services\Shipping\ShippingCarrierInterface;
-use App\Services\Shipping\ShippingRateResult;
+use App\Services\Shipping\Carriers\FlatRateShipping;
+use App\Services\Shipping\Contracts\ShippingCarrierInterface;
+use App\Services\Shipping\DTOs\ShipmentResult;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use App\Services\ShippingManager;
 use Tests\TestCase;
 
@@ -60,7 +60,6 @@ class ShippingManagerTest extends TestCase
         /** @var ShippingManager $manager */
         $manager = app(ShippingManager::class);
 
-        // Simulate a new custom courier carrier added via a new class or plugin
         $customCarrier = new class implements ShippingCarrierInterface
         {
             public function name(): string
@@ -126,4 +125,3 @@ class ShippingManagerTest extends TestCase
         $this->assertInstanceOf(ShippingCarrierInterface::class, Shipping::carrier('flat_rate'));
     }
 }
-
