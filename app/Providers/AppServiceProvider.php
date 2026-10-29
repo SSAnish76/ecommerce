@@ -14,6 +14,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(\App\Services\NotificationDispatcher::class);
         $this->app->singleton(\App\Services\FileStorageService::class);
+        $this->app->singleton(\App\Services\PaymentGatewayManager::class);
+        $this->app->singleton(\App\Services\ShippingManager::class);
     }
 
     /**
