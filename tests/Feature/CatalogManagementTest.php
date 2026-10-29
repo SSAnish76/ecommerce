@@ -339,4 +339,33 @@ class CatalogManagementTest extends TestCase
         $this->assertNotNull($product->images[0]->url);
         $this->assertTrue($product->images->where('is_primary', true)->count() >= 1);
     }
+
+    public function test_product_cannot_have_selling_price_greater_than_mrp(): void
+    {
+        $response = $this->actingAs($this->adminUser)->post('/admin/products', [
+            'name' => 'Invalid Price Product',
+            'sku' => 'INVALID-PRICE-01',
+            'mrp' => 400.00,
+            'retail_price' => 401.00,
+            'stock_quantity' => 10,
+            'low_stock_threshold' => 2,
+        ]);
+
+        $response->assertSessionHasErrors(['retail_price']);
+    }
+
+    public function test_product_cannot_have_sale_price_greater_than_selling_price(): void
+    {
+        $response = $this->actingAs($this->adminUser)->post('/admin/products', [
+            'name' => 'Invalid Sale Price Product',
+            'sku' => 'INVALID-SALE-01',
+            'mrp' => 400.00,
+            'retail_price' => 350.00,
+            'sale_price' => 380.00,
+            'stock_quantity' => 10,
+            'low_stock_threshold' => 2,
+        ]);
+
+        $response->assertSessionHasErrors(['sale_price']);
+    }
 }

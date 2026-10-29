@@ -127,8 +127,8 @@ class ProductController extends Controller
             'brand_id' => ['nullable', 'string', 'exists:brands,id'],
             'category_id' => ['nullable', 'string', 'exists:categories,id'],
             'mrp' => ['required', 'numeric', 'min:0'],
-            'retail_price' => ['required', 'numeric', 'min:0'],
-            'sale_price' => ['nullable', 'numeric', 'min:0'],
+            'retail_price' => ['required', 'numeric', 'min:0', 'lte:mrp'],
+            'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:retail_price'],
             'discount_type' => ['nullable', 'string', Rule::enum(DiscountType::class)],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'stock_quantity' => ['required', 'integer', 'min:0'],
@@ -163,6 +163,9 @@ class ProductController extends Controller
             'variants.*.media_id' => ['nullable', 'string', 'exists:media_files,id'],
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
+        ], [
+            'retail_price.lte' => 'The selling price cannot be greater than the MRP / list price.',
+            'sale_price.lte' => 'The sale price cannot be greater than the selling price.',
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
@@ -323,8 +326,8 @@ class ProductController extends Controller
             'brand_id' => ['nullable', 'string', 'exists:brands,id'],
             'category_id' => ['nullable', 'string', 'exists:categories,id'],
             'mrp' => ['required', 'numeric', 'min:0'],
-            'retail_price' => ['required', 'numeric', 'min:0'],
-            'sale_price' => ['nullable', 'numeric', 'min:0'],
+            'retail_price' => ['required', 'numeric', 'min:0', 'lte:mrp'],
+            'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:retail_price'],
             'discount_type' => ['nullable', 'string', Rule::enum(DiscountType::class)],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'stock_quantity' => ['required', 'integer', 'min:0'],
@@ -359,6 +362,9 @@ class ProductController extends Controller
             'variants.*.media_id' => ['nullable', 'string', 'exists:media_files,id'],
             'variants.*.attribute_value_ids' => ['nullable', 'array'],
             'variants.*.attribute_value_ids.*' => ['string', 'exists:attribute_values,id'],
+        ], [
+            'retail_price.lte' => 'The selling price cannot be greater than the MRP / list price.',
+            'sale_price.lte' => 'The sale price cannot be greater than the selling price.',
         ]);
 
         $slug = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);

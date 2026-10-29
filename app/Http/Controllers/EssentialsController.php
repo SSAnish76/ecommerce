@@ -59,15 +59,14 @@ class EssentialsController extends Controller
     public function frontend(Request $request): JsonResponse
     {
         // 1. Resolve storefront domain modules & formatted enums dynamically by module
-
-        $frontendEnumConfig = ['address', 'order', 'setting' => ['currency_position']];
+        $frontendEnumConfig = ['address', 'order', 'coupon', 'product', 'setting' => ['currency_position']];
 
         $discoveredEnums = $this->enumRegistry->discover();
         $enums = [];
 
         foreach ($frontendEnumConfig as $key => $value) {
             $moduleName = is_int($key) ? trim((string) $value) : trim((string) $key);
-            if (!isset($discoveredEnums[$moduleName])) {
+            if (! isset($discoveredEnums[$moduleName])) {
                 continue;
             }
             $moduleEnums = $discoveredEnums[$moduleName];
@@ -92,57 +91,39 @@ class EssentialsController extends Controller
         // 3. Storefront commerce settings (dynamically fetched from DB where is_public is true)
         $settings = Setting::getPublicSettings();
 
-        // 4. Public payment gateway configurations (dynamically loaded from DB, enabled gateways only, secrets stripped)
+        // 4. Public payment gateways (code and name only)
         $rawPayments = Setting::getPaymentSettings();
         $paymentGateways = [];
 
         foreach ($rawPayments as $code => $gatewayConfig) {
-            if (!is_array($gatewayConfig) || empty($gatewayConfig['enabled'])) {
+            if (! is_array($gatewayConfig) || empty($gatewayConfig['enabled'])) {
                 continue;
             }
 
-            $publicGateway = [
+            $paymentGateways[] = [
+                'code' => (string) $code,
                 'name' => (string) ($gatewayConfig['name'] ?? Str::headline((string) $code)),
             ];
-
-            foreach ($gatewayConfig as $key => $val) {
-                $keyStr = (string) $key;
-                if (Setting::isSensitiveKey($keyStr) || str_contains(strtolower($keyStr), 'secret')) {
-                    continue;
-                }
-                $publicGateway[$keyStr] = $val;
-            }
-
-            $paymentGateways[$code] = $publicGateway;
         }
 
-        // 5. Public shipping carrier configurations (dynamically loaded from DB, enabled carriers only)
+        // 5. Public shipping carriers (code and name only)
         $rawShipping = Setting::getShippingSettings();
         $shipping = [];
 
         foreach ($rawShipping as $code => $carrierConfig) {
-            if ($code === 'carrier' || !is_array($carrierConfig)) {
+            if ($code === 'carrier' || ! is_array($carrierConfig)) {
                 continue;
             }
 
             $isEnabled = (bool) ($carrierConfig['enabled'] ?? ($rawShipping['carrier']['provider'] === $code));
-            if (!$isEnabled) {
+            if (! $isEnabled) {
                 continue;
             }
 
-            $publicCarrier = [
+            $shipping[] = [
+                'code' => (string) $code,
                 'name' => (string) ($carrierConfig['name'] ?? Str::headline((string) $code)),
             ];
-
-            foreach ($carrierConfig as $key => $val) {
-                $keyStr = (string) $key;
-                if (Setting::isSensitiveKey($keyStr) || in_array($keyStr, ['account_number', 'api_key', 'api_secret'], true)) {
-                    continue;
-                }
-                $publicCarrier[$keyStr] = $val;
-            }
-
-            $shipping[$code] = $publicCarrier;
         }
 
         // 6. Public constants (dynamically resolved from DB configuration)

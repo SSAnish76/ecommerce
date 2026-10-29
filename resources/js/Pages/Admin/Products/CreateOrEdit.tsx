@@ -566,12 +566,56 @@ export default function CreateOrEditProductPage({
         form.setData('variants', form.data.variants.filter((_, i) => i !== idx));
     };
 
-    // Price change auto-discount calculation
+    // Handlers for price & discount syncing
+    const handleMrpChange = (val: number) => {
+        form.setData((prev) => {
+            const retail = Number(prev.retail_price);
+            let discountVal = prev.discount_value;
+
+            // If no separate sale price is present, discount is between MRP and retail price
+            if (prev.sale_price === '' || prev.sale_price === null) {
+                if (val > 0 && retail > 0 && val > retail) {
+                    if (prev.discount_type === 'fixed') {
+                        discountVal = Number((val - retail).toFixed(2));
+                    } else {
+                        discountVal = Number((((val - retail) / val) * 100).toFixed(2));
+                    }
+                } else if (retail >= val) {
+                    discountVal = '';
+                }
+            }
+
+            return { ...prev, mrp: val, discount_value: discountVal };
+        });
+    };
+
     const handleRetailPriceChange = (val: number) => {
         form.setData((prev) => {
             const mrp = Number(prev.mrp);
+            let sale = prev.sale_price;
             let discountVal = prev.discount_value;
-            if (mrp > 0 && val > 0 && mrp > val) {
+
+            if (sale !== '' && sale !== null && Number(sale) > 0) {
+                // If a sale price exists, recalculate discount value against new retail price
+                if (val > 0 && val >= Number(sale)) {
+                    if (prev.discount_type === 'fixed') {
+                        discountVal = Number((val - Number(sale)).toFixed(2));
+                    } else {
+                        discountVal = Number((((val - Number(sale)) / val) * 100).toFixed(2));
+                    }
+                } else {
+                    discountVal = '';
+                }
+            } else if (discountVal !== '' && Number(discountVal) > 0 && val > 0) {
+                // If discount value exists and sale price wasn't set, calculate sale price
+                if (prev.discount_type === 'fixed') {
+                    sale = Math.max(0, Number((val - Number(discountVal)).toFixed(2)));
+                } else {
+                    const pct = Math.min(100, Number(discountVal));
+                    sale = Math.max(0, Number((val - (val * pct) / 100).toFixed(2)));
+                }
+            } else if (mrp > 0 && val > 0 && mrp > val) {
+                // Default discount between MRP and retail price
                 if (prev.discount_type === 'fixed') {
                     discountVal = Number((mrp - val).toFixed(2));
                 } else {
@@ -580,24 +624,62 @@ export default function CreateOrEditProductPage({
             } else if (val >= mrp) {
                 discountVal = '';
             }
-            return { ...prev, retail_price: val, discount_value: discountVal };
+
+            return { ...prev, retail_price: val, sale_price: sale, discount_value: discountVal };
         });
     };
 
-    const handleMrpChange = (val: number) => {
+    const handleSalePriceChange = (val: string) => {
         form.setData((prev) => {
-            const retail = Number(prev.retail_price);
-            let discountVal = prev.discount_value;
-            if (val > 0 && retail > 0 && val > retail) {
-                if (prev.discount_type === 'fixed') {
-                    discountVal = Number((val - retail).toFixed(2));
-                } else {
-                    discountVal = Number((((val - retail) / val) * 100).toFixed(2));
+            if (val === '' || val === null) {
+                const mrp = Number(prev.mrp);
+                const retail = Number(prev.retail_price);
+                let fallbackDiscount: number | string = '';
+                if (mrp > 0 && retail > 0 && mrp > retail) {
+                    fallbackDiscount =
+                        prev.discount_type === 'fixed'
+                            ? Number((mrp - retail).toFixed(2))
+                            : Number((((mrp - retail) / mrp) * 100).toFixed(2));
                 }
-            } else if (retail >= val) {
-                discountVal = '';
+                return { ...prev, sale_price: '', discount_value: fallbackDiscount };
             }
-            return { ...prev, mrp: val, discount_value: discountVal };
+
+            const saleNum = Number(val);
+            const basePrice = Number(prev.retail_price) > 0 ? Number(prev.retail_price) : Number(prev.mrp);
+            let discountVal: number | string = '';
+
+            if (basePrice > 0 && basePrice >= saleNum && saleNum >= 0) {
+                if (prev.discount_type === 'fixed') {
+                    discountVal = Number((basePrice - saleNum).toFixed(2));
+                } else {
+                    discountVal = Number((((basePrice - saleNum) / basePrice) * 100).toFixed(2));
+                }
+            }
+
+            return { ...prev, sale_price: saleNum, discount_value: discountVal };
+        });
+    };
+
+    const handleDiscountValueChange = (val: string) => {
+        form.setData((prev) => {
+            if (val === '' || val === null) {
+                return { ...prev, discount_value: '', sale_price: '' };
+            }
+
+            const discNum = Number(val);
+            const basePrice = Number(prev.retail_price) > 0 ? Number(prev.retail_price) : Number(prev.mrp);
+            let sale: number | string = '';
+
+            if (basePrice > 0 && discNum >= 0) {
+                if (prev.discount_type === 'fixed') {
+                    sale = Math.max(0, Number((basePrice - discNum).toFixed(2)));
+                } else {
+                    const pct = Math.min(100, discNum);
+                    sale = Math.max(0, Number((basePrice - (basePrice * pct) / 100).toFixed(2)));
+                }
+            }
+
+            return { ...prev, discount_value: discNum, sale_price: sale };
         });
     };
 
@@ -606,16 +688,16 @@ export default function CreateOrEditProductPage({
      */
     const handleDiscountTypeChange = (newType: string) => {
         form.setData((prev) => {
-            const mrp = Number(prev.mrp);
+            const basePrice = Number(prev.retail_price) > 0 ? Number(prev.retail_price) : Number(prev.mrp);
             let discountVal = prev.discount_value;
 
-            if (discountVal !== '' && Number(discountVal) > 0 && mrp > 0) {
+            if (discountVal !== '' && Number(discountVal) > 0 && basePrice > 0) {
                 if (newType === 'fixed' && prev.discount_type === 'percentage') {
                     // convert % to fixed amount
-                    discountVal = Number(((mrp * Number(discountVal)) / 100).toFixed(2));
+                    discountVal = Number(((basePrice * Number(discountVal)) / 100).toFixed(2));
                 } else if (newType === 'percentage' && prev.discount_type === 'fixed') {
                     // convert fixed amount to %
-                    discountVal = Number(((Number(discountVal) / mrp) * 100).toFixed(2));
+                    discountVal = Number(((Number(discountVal) / basePrice) * 100).toFixed(2));
                 }
             }
 
@@ -626,6 +708,20 @@ export default function CreateOrEditProductPage({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        const mrpNum = Number(form.data.mrp);
+        const retailNum = Number(form.data.retail_price);
+        const saleNum = form.data.sale_price !== '' && form.data.sale_price !== null ? Number(form.data.sale_price) : null;
+
+        if (mrpNum > 0 && retailNum > mrpNum) {
+            scrollToSection('sec-pricing');
+            return;
+        }
+
+        if (saleNum !== null && retailNum > 0 && saleNum > retailNum) {
+            scrollToSection('sec-pricing');
+            return;
+        }
 
         // Convert spec array back to key-value object
         const cleanSpecs: Record<string, string> = {};
@@ -678,10 +774,28 @@ export default function CreateOrEditProductPage({
     };
 
     // Calculated financial metrics
-    const savingsAmount =
-        Number(form.data.mrp) > Number(form.data.retail_price)
-            ? Number(form.data.mrp) - Number(form.data.retail_price)
-            : 0;
+    const effectivePrice = Number(
+        form.data.sale_price !== '' && form.data.sale_price !== null && Number(form.data.sale_price) > 0
+            ? form.data.sale_price
+            : form.data.retail_price || 0
+    );
+    const mrpPrice = Number(form.data.mrp || 0);
+    const savingsAmount = mrpPrice > effectivePrice ? mrpPrice - effectivePrice : 0;
+
+    const retailPriceError =
+        form.errors.retail_price ||
+        (mrpPrice > 0 && Number(form.data.retail_price) > mrpPrice
+            ? 'Selling price cannot exceed MRP / List Price'
+            : undefined);
+
+    const salePriceError =
+        form.errors.sale_price ||
+        (form.data.sale_price !== '' &&
+        form.data.sale_price !== null &&
+        Number(form.data.retail_price) > 0 &&
+        Number(form.data.sale_price) > Number(form.data.retail_price)
+            ? 'Sale price cannot exceed Selling Price'
+            : undefined);
 
     const activeAttributeConfigs = availableAttributes
         .filter((attr) => form.data.attribute_ids.includes(attr.id))
@@ -961,6 +1075,8 @@ export default function CreateOrEditProductPage({
                                                 ? form.data.discount_type === 'fixed'
                                                     ? ` (${currency}${Number(form.data.discount_value).toFixed(2)} OFF)`
                                                     : ` (${Number(form.data.discount_value)}% OFF)`
+                                                : mrpPrice > 0
+                                                ? ` (${Math.round((savingsAmount / mrpPrice) * 100)}% OFF)`
                                                 : ''}
                                         </span>
                                     </div>
@@ -986,7 +1102,7 @@ export default function CreateOrEditProductPage({
                                     step="0.01"
                                     value={String(form.data.retail_price)}
                                     onChange={(e) => handleRetailPriceChange(Number(e.target.value))}
-                                    error={form.errors.retail_price}
+                                    error={retailPriceError}
                                     placeholder="0.00"
                                 />
 
@@ -994,9 +1110,9 @@ export default function CreateOrEditProductPage({
                                     label={`Sale Price (${currency})`}
                                     type="number"
                                     step="0.01"
-                                    value={String(form.data.sale_price)}
-                                    onChange={(e) => form.setData('sale_price', e.target.value ? Number(e.target.value) : '')}
-                                    error={form.errors.sale_price}
+                                    value={String(form.data.sale_price ?? '')}
+                                    onChange={(e) => handleSalePriceChange(e.target.value)}
+                                    error={salePriceError}
                                     placeholder="Optional"
                                 />
 
@@ -1013,7 +1129,7 @@ export default function CreateOrEditProductPage({
                                     type="number"
                                     step={form.data.discount_type === 'fixed' ? '0.01' : '0.1'}
                                     value={String(form.data.discount_value ?? '')}
-                                    onChange={(e) => form.setData('discount_value', e.target.value === '' ? '' : Number(e.target.value))}
+                                    onChange={(e) => handleDiscountValueChange(e.target.value)}
                                     error={form.errors.discount_value}
                                     placeholder={form.data.discount_type === 'fixed' ? '0.00' : '0.0'}
                                 />
@@ -1021,10 +1137,10 @@ export default function CreateOrEditProductPage({
                                 <div className="flex flex-col justify-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Effective Customer Price</span>
                                     <div className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mt-0.5">
-                                        <span>{currency}{Number(form.data.sale_price || form.data.retail_price || 0).toFixed(2)}</span>
-                                        {Number(form.data.mrp) > Number(form.data.retail_price) && (
+                                        <span>{currency}{effectivePrice.toFixed(2)}</span>
+                                        {mrpPrice > effectivePrice && (
                                             <span className="text-xs font-normal text-slate-400 line-through">
-                                                {currency}{Number(form.data.mrp).toFixed(2)}
+                                                {currency}{mrpPrice.toFixed(2)}
                                             </span>
                                         )}
                                     </div>

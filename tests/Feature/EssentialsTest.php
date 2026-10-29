@@ -216,9 +216,10 @@ PHP;
                         'timezone',
                     ],
                     'payment_gateways' => [
-                        'cod',
-                        'stripe',
-                        'paypal',
+                        '*' => [
+                            'code',
+                            'name',
+                        ],
                     ],
                     'shipping',
                     'enums' => [
@@ -261,11 +262,21 @@ PHP;
         $this->assertArrayNotHasKey('vital_permissions', $response->json('data.constants'));
         $this->assertArrayNotHasKey('sms_provider', $response->json('data.enums'));
         $this->assertArrayNotHasKey('mail_driver', $response->json('data.enums'));
-        $this->assertArrayNotHasKey('secret_key', $response->json('data.payment_gateways.stripe'));
-        $this->assertArrayNotHasKey('client_secret', $response->json('data.payment_gateways.paypal'));
+
+        $paymentGateways = $response->json('data.payment_gateways');
+        $this->assertIsArray($paymentGateways);
+        $paymentCodes = array_column($paymentGateways, 'code');
+        $this->assertContains('cod', $paymentCodes);
+        $this->assertContains('stripe', $paymentCodes);
+        $this->assertContains('paypal', $paymentCodes);
 
         // Disabled gateways are not exposed for display purpose
-        $this->assertArrayNotHasKey('razorpay', $response->json('data.payment_gateways'));
+        $this->assertNotContains('razorpay', $paymentCodes);
+
+        foreach ($paymentGateways as $gateway) {
+            $this->assertArrayNotHasKey('secret_key', $gateway);
+            $this->assertArrayNotHasKey('client_secret', $gateway);
+        }
     }
 
     /**
@@ -314,23 +325,28 @@ PHP;
 
         $response = $this->getJson('/api/user/essentials');
 
-        $response->assertOk()
-            ->assertJsonPath('data.payment_gateways.apple_pay.name', 'Apple Pay Express')
-            ->assertJsonPath('data.payment_gateways.apple_pay.merchant_id', 'merchant.com.mystore');
+        $response->assertOk();
 
-        $this->assertArrayNotHasKey('merchant_secret', $response->json('data.payment_gateways.apple_pay'));
+        $paymentGateways = $response->json('data.payment_gateways');
+        $applePay = collect($paymentGateways)->firstWhere('code', 'apple_pay');
+        $this->assertNotNull($applePay);
+        $this->assertSame('Apple Pay Express', $applePay['name']);
+        $this->assertArrayNotHasKey('merchant_id', $applePay);
+        $this->assertArrayNotHasKey('merchant_secret', $applePay);
     }
 
     /**
-     * Test storefront essentials resolves enums dynamically by module without needing settings table.
+     * Test storefront essentials resolves enums dynamically by module configuration.
      */
     public function test_user_frontend_dynamically_resolves_enums_by_module(): void
     {
-        $response = $this->getJson('/api/user/essentials?modules=order,coupon');
+        $response = $this->getJson('/api/user/essentials');
 
         $response->assertOk();
         $this->assertNotNull($response->json('data.enums.order.order_status'));
         $this->assertNotNull($response->json('data.enums.coupon.coupon_type'));
-        $this->assertArrayNotHasKey('address', $response->json('data.enums'));
+        $this->assertNotNull($response->json('data.enums.address.address_type'));
+        $this->assertNotNull($response->json('data.enums.product.stock_visibility'));
+        $this->assertNotNull($response->json('data.enums.setting.currency_position'));
     }
 }
