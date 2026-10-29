@@ -18,7 +18,7 @@ class SettingSeeder extends Seeder
             // ================= 1. Storefront & Localization =================
             [
                 'key' => 'currency_code',
-                'value' => 'USD',
+                'value' => 'INR',
                 'group' => 'localization',
                 'type' => 'string',
                 'label' => 'Default Store Currency Code',
@@ -27,7 +27,7 @@ class SettingSeeder extends Seeder
             ],
             [
                 'key' => 'currency_symbol',
-                'value' => '$',
+                'value' => '₹',
                 'group' => 'localization',
                 'type' => 'string',
                 'label' => 'Currency Symbol',
@@ -54,7 +54,7 @@ class SettingSeeder extends Seeder
             ],
             [
                 'key' => 'timezone',
-                'value' => 'UTC',
+                'value' => 'Asia/Kolkata',
                 'group' => 'localization',
                 'type' => 'string',
                 'label' => 'System Timezone',
@@ -149,16 +149,16 @@ class SettingSeeder extends Seeder
                     'stripe' => [
                         'enabled' => true,
                         'name' => 'Credit / Debit Card (Stripe)',
-                        'publishable_key' => 'pk_test_sample_stripe_publishable_key',
-                        'secret_key' => Setting::encryptSensitive('sk_test_sample_stripe_secret_key'),
-                        'webhook_secret' => Setting::encryptSensitive('whsec_sample_webhook_secret'),
+                        'publishable_key' => '',
+                        'secret_key' => Setting::encryptSensitive(''),
+                        'webhook_secret' => Setting::encryptSensitive(''),
                     ],
                     'paypal' => [
                         'enabled' => true,
                         'name' => 'PayPal',
                         'mode' => 'sandbox',
-                        'client_id' => 'sample_paypal_client_id',
-                        'client_secret' => Setting::encryptSensitive('sample_paypal_client_secret'),
+                        'client_id' => '',
+                        'client_secret' => Setting::encryptSensitive(''),
                     ],
                     'cod' => [
                         'enabled' => true,
@@ -168,9 +168,9 @@ class SettingSeeder extends Seeder
                     'razorpay' => [
                         'enabled' => false,
                         'name' => 'Razorpay',
-                        'key_id' => 'rzp_test_sample_key_id',
-                        'key_secret' => Setting::encryptSensitive('sample_razorpay_secret_key'),
-                        'webhook_secret' => Setting::encryptSensitive('sample_razorpay_webhook_secret'),
+                        'key_id' => '',
+                        'key_secret' => Setting::encryptSensitive(''),
+                        'webhook_secret' => Setting::encryptSensitive(''),
                     ],
                 ], JSON_THROW_ON_ERROR),
                 'group' => 'payment',
@@ -185,10 +185,10 @@ class SettingSeeder extends Seeder
                 'value' => json_encode([
                     'default_disk' => 'public',
                     's3' => [
-                        'key' => 'AKIAIOSFODNN7EXAMPLE',
-                        'secret' => Setting::encryptSensitive('wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'),
-                        'region' => 'us-east-1',
-                        'bucket' => 'store-production-uploads',
+                        'key' => '',
+                        'secret' => Setting::encryptSensitive(''),
+                        'region' => '',
+                        'bucket' => '',
                         'url' => '',
                         'endpoint' => '',
                     ],
@@ -243,11 +243,11 @@ class SettingSeeder extends Seeder
                 'value' => json_encode([
                     'host' => 'smtp.mailtrap.io',
                     'port' => 587,
-                    'username' => 'store_smtp_user',
-                    'password' => Setting::encryptSensitive('secret_smtp_pass'),
+                    'username' => '',
+                    'password' => Setting::encryptSensitive(''),
                     'encryption' => 'tls',
-                    'from_name' => 'E-Commerce Store',
-                    'from_address' => 'notifications@example.com',
+                    'from_name' => '',
+                    'from_address' => '',
                 ], JSON_THROW_ON_ERROR),
                 'group' => 'notifications',
                 'type' => 'json',
@@ -257,10 +257,10 @@ class SettingSeeder extends Seeder
             [
                 'key' => 'sms_settings',
                 'value' => json_encode([
-                    'provider' => 'twilio',
-                    'username' => 'AC_twilio_account_sid_sample',
-                    'password' => Setting::encryptSensitive('secret_sms_auth_token'),
-                    'from_number' => '+15550192834',
+                    'provider' => '',
+                    'username' => '',
+                    'password' => Setting::encryptSensitive(''),
+                    'from_number' => '',
                 ], JSON_THROW_ON_ERROR),
                 'group' => 'notifications',
                 'type' => 'json',
@@ -452,33 +452,7 @@ class SettingSeeder extends Seeder
                 'type' => 'json',
                 'label' => 'Admin Alert Target Users',
                 'description' => 'Specific staff user IDs to receive admin email notifications',
-            ],
-
-            // ================= 9. Storefront Frontend Registry =================
-            [
-                'key' => 'frontend_enums',
-                'value' => json_encode([
-                    'address' => ['address_type'],
-                    'order' => ['order_status', 'payment_status', 'payment_method'],
-                    'coupon' => ['coupon_type', 'coupon_apply_to'],
-                    'product' => ['stock_visibility', 'discount_type'],
-                    'setting' => ['currency_position'],
-                ], JSON_THROW_ON_ERROR),
-                'group' => 'system',
-                'type' => 'json',
-                'label' => 'Storefront Exposed Enums',
-                'description' => 'Registry mapping of domain modules to exposed enum options on customer-facing storefront',
-                'is_public' => false,
-            ],
-            [
-                'key' => 'frontend_constants',
-                'value' => json_encode(['currencies', 'currencies_map', 'timezones'], JSON_THROW_ON_ERROR),
-                'group' => 'system',
-                'type' => 'json',
-                'label' => 'Storefront Exposed Constants',
-                'description' => 'List of system constants exposed to public storefront endpoints',
-                'is_public' => false,
-            ],
+            ],            
         ];
 
         foreach ($defaultSettings as $setting) {
@@ -486,54 +460,7 @@ class SettingSeeder extends Seeder
                 ['key' => $setting['key']],
                 $setting
             );
-        }
-
-        // Purge any obsolete keys that may exist
-        Setting::whereIn('key', [
-            'session_lifetime_minutes',
-            'max_login_attempts',
-            'lockout_duration_minutes',
-            'require_strong_passwords',
-            'min_order_amount',
-            'enable_email_notifications',
-            'enable_in_app_notifications',
-            'maintenance_mode',
-            'maintenance_notice',
-            'allow_admin_bypass_maintenance',
-            'shipping_default_method',
-            'shipping_flat_rate_cost',
-            'shipping_free_shipping_enabled',
-            'shipping_free_shipping_min_order',
-            'payment_bank_transfer_enabled',
-            'payment_bank_name',
-            'payment_bank_account_name',
-            'payment_bank_account_number',
-            'payment_bank_routing_number',
-            'payment_bank_swift_code',
-            'payment_bank_instructions',
-            'mail_mailer',
-            'mail_host',
-            'mail_port',
-            'mail_username',
-            'mail_password',
-            'mail_encryption',
-            'mail_from_name',
-            'mail_from_address',
-            'sms_provider',
-            'sms_username',
-            'sms_password',
-            'sms_from_number',
-            'payment_cod_enabled',
-            'payment_stripe_enabled',
-            'payment_paypal_enabled',
-            'notify_order_placed_customer',
-            'notify_order_placed_admin',
-            'notify_order_status_updated',
-            'notify_order_cancelled',
-            'notify_low_stock_admin',
-            'notify_new_customer_welcome',
-            'notify_new_review_admin',
-        ])->delete();
+        }      
 
         Setting::clearCache();
     }

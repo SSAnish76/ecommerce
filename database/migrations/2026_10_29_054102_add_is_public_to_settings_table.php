@@ -47,28 +47,7 @@ return new class extends Migration
             ]
         );
 
-        // 3. Add frontend exposed enums registry configuration in DB
-        DB::table('settings')->updateOrInsert(
-            ['key' => 'frontend_enums'],
-            [
-                'value' => json_encode([
-                    'address' => ['address_type'],
-                    'order' => ['order_status', 'payment_status', 'payment_method'],
-                    'coupon' => ['coupon_type', 'coupon_apply_to'],
-                    'product' => ['stock_visibility', 'discount_type'],
-                    'setting' => ['currency_position'],
-                ], JSON_THROW_ON_ERROR),
-                'group' => 'system',
-                'type' => 'json',
-                'label' => 'Storefront Exposed Enums',
-                'description' => 'Registry mapping of domain modules to exposed enum options on customer-facing storefront',
-                'is_public' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
-        );
-
-        // 4. Add frontend exposed constants registry configuration in DB
+        // 3. Add frontend exposed constants registry configuration in DB
         DB::table('settings')->updateOrInsert(
             ['key' => 'frontend_constants'],
             [
@@ -138,7 +117,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::table('settings')->whereIn('key', ['currency_position', 'frontend_enums', 'frontend_constants'])->delete();
+        DB::table('settings')->whereIn('key', ['currency_position', 'frontend_constants'])->delete();
 
         Schema::table('settings', function (Blueprint $table): void {
             $table->dropColumn('is_public');

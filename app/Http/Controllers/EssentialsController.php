@@ -58,29 +58,25 @@ class EssentialsController extends Controller
      */
     public function frontend(Request $request): JsonResponse
     {
-        // 1. Resolve storefront domain modules & formatted enums dynamically from DB configuration
-        $frontendEnumConfig = Setting::get('frontend_enums', [
-            'address' => ['address_type'],
-            'order' => ['order_status', 'payment_status', 'payment_method'],
-            'coupon' => ['coupon_type', 'coupon_apply_to'],
-            'product' => ['stock_visibility', 'discount_type'],
-            'setting' => ['currency_position'],
-        ]);
+        // 1. Resolve storefront domain modules & formatted enums dynamically by module     
+        $frontendEnumConfig = ['address', 'order', 'coupon', 'product', 'setting'];
 
         $discoveredEnums = $this->enumRegistry->discover();
-        $enums = [];
+        $enums = []; 
 
-        if (is_array($frontendEnumConfig)) {
-            foreach ($frontendEnumConfig as $module => $enumKeys) {
-                if (! is_array($enumKeys)) {
-                    continue;
-                }
-                foreach ($enumKeys as $enumKey) {
-                    if (isset($discoveredEnums[$module][$enumKey]['options'])) {
-                        $enums[$module][$enumKey] = $discoveredEnums[$module][$enumKey]['options'];
+        foreach ($frontendEnumConfig as $key => $value) {
+            $moduleName = is_int($key) ? trim((string) $value) : trim((string) $key);
+            if (! isset($discoveredEnums[$moduleName])) {
+                continue;
+            }
+            $moduleEnums = $discoveredEnums[$moduleName];
+            if (is_array($value)) {
+                foreach ($value as $enumKey) {
+                    if (isset($moduleEnums[$enumKey]['options'])) {
+                        $enums[$moduleName][$enumKey] = $moduleEnums[$enumKey]['options'];
                     }
                 }
-            }
+            } 
         }
 
         // 2. Store singleton profile branding
@@ -143,7 +139,7 @@ class EssentialsController extends Controller
         }
 
         // 6. Public constants (dynamically resolved from DB configuration)
-        $frontendConstantKeys = (array) (Setting::get('frontend_constants') ?? ['currencies', 'currencies_map', 'timezones']);
+        $frontendConstantKeys = (array) ['currencies', 'currencies_map', 'timezones'];
         $constants = [];
 
         foreach ($frontendConstantKeys as $constantKey) {

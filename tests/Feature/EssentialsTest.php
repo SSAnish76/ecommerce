@@ -314,34 +314,15 @@ PHP;
     }
 
     /**
-     * Test newly configured enum in database automatically appears in storefront essentials without code change.
+     * Test storefront essentials resolves enums dynamically by module without needing settings table.
      */
-    public function test_user_frontend_automatically_reflects_new_enum_configured_in_database(): void
+    public function test_user_frontend_dynamically_resolves_enums_by_module(): void
     {
-        $frontendEnums = [
-            'address' => ['address_type'],
-            'order' => ['order_status'],
-            'store' => ['store_status'],
-        ];
-
-        \App\Models\Setting::updateOrCreate(
-            ['key' => 'frontend_enums'],
-            [
-                'value' => json_encode($frontendEnums),
-                'type' => 'json',
-                'group' => 'system',
-                'is_public' => false,
-            ]
-        );
-        \App\Models\Setting::clearCache();
-
-        $response = $this->getJson('/api/user/essentials');
+        $response = $this->getJson('/api/user/essentials?modules=order,coupon');
 
         $response->assertOk();
-        $storeStatusOptions = $response->json('data.enums.store.store_status');
-        $this->assertIsArray($storeStatusOptions);
-        $this->assertNotEmpty($storeStatusOptions);
-        $this->assertArrayHasKey('value', $storeStatusOptions[0]);
-        $this->assertArrayHasKey('label', $storeStatusOptions[0]);
+        $this->assertNotNull($response->json('data.enums.order.order_status'));
+        $this->assertNotNull($response->json('data.enums.coupon.coupon_type'));
+        $this->assertArrayNotHasKey('address', $response->json('data.enums'));
     }
 }
