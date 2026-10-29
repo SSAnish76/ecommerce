@@ -65,7 +65,7 @@ class CategoryController extends Controller
             $category = $query->whereSlugOrId($slugOrId)->first();
 
             if (! $category) {
-                return $this->returnError(null, 'Category not found or inactive.', 404);
+                return $this->returnError(null, 'Category not found or inactive.');
             }
 
             $perPage = $this->resolvePerPage($request);

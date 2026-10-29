@@ -165,7 +165,7 @@ class ProductController extends Controller
             $product = $query->whereSlugOrId($slugOrId)->first();
 
             if (! $product || $product->shouldHideWhenOutOfStock()) {
-                return $this->returnError(null, 'Product not found or unavailable.', 404);
+                return $this->returnError(null, 'Product not found or unavailable.');
             }
 
             /** @var Customer|null $customer */
@@ -189,7 +189,7 @@ class ProductController extends Controller
             $product = Product::whereSlugOrId($slugOrId)->first();
 
             if (! $product) {
-                return $this->returnError(null, 'Product not found.', 404);
+                return $this->returnError(null, 'Product not found.');
             }
 
             $relatedProducts = Product::query()

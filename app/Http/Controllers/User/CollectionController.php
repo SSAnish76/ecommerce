@@ -54,7 +54,7 @@ class CollectionController extends Controller
             $collection = $query->whereSlugOrId($slugOrId)->first();
 
             if (! $collection) {
-                return $this->returnError(null, 'Collection not found or inactive.', 404);
+                return $this->returnError(null, 'Collection not found or inactive.');
             }
 
             $type = $collection->type->value ?? (string) $collection->type;

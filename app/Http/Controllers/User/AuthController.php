@@ -11,6 +11,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
@@ -74,6 +75,8 @@ class AuthController extends Controller
             $tokenData = $this->generateAuthTokens($customer, 'customer-auth-token');
 
             return $this->returnSuccess($tokenData, 'Registration successful!', 201);
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -116,6 +119,8 @@ class AuthController extends Controller
             $tokenData = $this->generateAuthTokens($customer, $deviceName);
 
             return $this->returnSuccess($tokenData, 'Login successful!');
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -262,6 +267,8 @@ class AuthController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Profile updated successfully.');
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -293,6 +300,8 @@ class AuthController extends Controller
             ]);
 
             return $this->returnSuccess([], 'Password updated successfully.');
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }

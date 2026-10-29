@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Wishlist;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class WishlistController extends Controller
 {
@@ -57,7 +58,7 @@ class WishlistController extends Controller
 
             $product = Product::active()->where('id', $validated['product_id'])->first();
             if (! $product) {
-                return $this->returnError(null, 'Product not found or unavailable.', 404);
+                return $this->returnError(null, 'Product not found or unavailable.');
             }
 
             $wishlist = Wishlist::firstOrCreate([
@@ -72,6 +73,8 @@ class WishlistController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Product added to wishlist.', 201);
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -93,7 +96,7 @@ class WishlistController extends Controller
                 ->delete();
 
             if ($deleted === 0) {
-                return $this->returnError(null, 'Product was not in your wishlist.', 404);
+                return $this->returnError(null, 'Product was not in your wishlist.');
             }
 
             $data = [
@@ -137,7 +140,7 @@ class WishlistController extends Controller
 
             $product = Product::active()->where('id', $validated['product_id'])->first();
             if (! $product) {
-                return $this->returnError(null, 'Product not found or unavailable.', 404);
+                return $this->returnError(null, 'Product not found or unavailable.');
             }
 
             $created = Wishlist::create([
@@ -152,6 +155,8 @@ class WishlistController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Product added to wishlist.', 201);
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }

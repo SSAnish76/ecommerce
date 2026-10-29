@@ -11,6 +11,7 @@ use App\Models\Customer;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AddressController extends Controller
 {
@@ -78,6 +79,8 @@ class AddressController extends Controller
             ]);
 
             return $this->returnSuccess($address, 'Address created successfully.', 201);
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -94,7 +97,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError(null, 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.');
             }
 
             return $this->returnSuccess($address, 'Address retrieved successfully.');
@@ -114,7 +117,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError(null, 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.');
             }
 
             $validated = $request->validate([
@@ -137,6 +140,8 @@ class AddressController extends Controller
             $address->update($validated);
 
             return $this->returnSuccess($address, 'Address updated successfully.');
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -153,7 +158,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError(null, 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.');
             }
 
             $wasDefault = $address->is_default;
@@ -184,7 +189,7 @@ class AddressController extends Controller
 
             $address = Address::where('customer_id', $customer->id)->where('id', $id)->first();
             if (! $address) {
-                return $this->returnError(null, 'Address not found.', 404);
+                return $this->returnError(null, 'Address not found.');
             }
 
             Address::where('customer_id', $customer->id)->update(['is_default' => false]);

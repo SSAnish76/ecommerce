@@ -65,11 +65,11 @@ class CartController extends Controller
             /** @var Product|null $product */
             $product = Product::active()->find($productId);
             if (! $product) {
-                return $this->returnError(null, 'Selected product is not available.', 404);
+                return $this->returnError(null, 'Selected product is not available.');
             }
 
             if ($product->shouldHideWhenOutOfStock()) {
-                return $this->returnError(null, 'Selected product is out of stock and unavailable.', 404);
+                return $this->returnError(null, 'Selected product is out of stock and unavailable.');
             }
 
             $hasVariants = (bool) ($product->has_variants || $product->variants()->exists());
@@ -182,7 +182,7 @@ class CartController extends Controller
                 ->find($id);
 
             if (! $cartItem) {
-                return $this->returnError(null, 'Cart item not found.', 404);
+                return $this->returnError(null, 'Cart item not found.');
             }
 
             $newQty = (int) $validated['quantity'];
@@ -264,7 +264,7 @@ class CartController extends Controller
 
             $deleted = CartItem::where('customer_id', $customer->id)->where('id', $id)->delete();
             if (! $deleted) {
-                return $this->returnError(null, 'Cart item not found.', 404);
+                return $this->returnError(null, 'Cart item not found.');
             }
 
             $cartData = $this->buildCartData($customer->id);

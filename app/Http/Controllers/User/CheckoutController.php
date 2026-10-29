@@ -24,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
@@ -37,11 +38,11 @@ class CheckoutController extends Controller
      */
     public function summary(Request $request): JsonResponse
     {
-        /** @var Customer|null $customer */
-        $customer = $request->user();
-        $validated = $request->validate($this->checkoutRules());
-
         try {
+            /** @var Customer|null $customer */
+            $customer = $request->user();
+            $validated = $request->validate($this->checkoutRules());
+
             $itemsPayload = $this->resolveCheckoutItems($customer, $validated);
 
             $variantIds = array_values(array_filter(array_column($itemsPayload, 'product_variant_id')));
@@ -66,7 +67,7 @@ class CheckoutController extends Controller
                 if ($variantId !== null) {
                     /** @var ProductVariant|null $variant */
                     $variant = $variants->get($variantId);
-                    if (!$variant || !$variant->is_active) {
+                    if (!$variant || !$variant->isActive()) {
                         return $this->returnError(
                             null,
                             'One or more selected items are no longer active.'
@@ -168,6 +169,8 @@ class CheckoutController extends Controller
                 ],
                 'coupon' => $couponInfo,
             ], 'Checkout summary calculated successfully.');
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (\Throwable $e) {
             return $this->returnError($e->getMessage());
         }
@@ -202,6 +205,8 @@ class CheckoutController extends Controller
                 'type' => $result['coupon']?->type?->value ?? (string) ($result['coupon']?->type ?? 'fixed'),
                 'value' => (float) ($result['coupon']?->value ?? 0),
             ], $result['message']);
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (\Throwable $e) {
             return $this->returnError($e->getMessage());
         }
@@ -219,17 +224,17 @@ class CheckoutController extends Controller
             return $this->returnError(null, 'Customer must be logged in to checkout.', 401);
         }
 
-        $validated = $request->validate($this->checkoutRules(true));
-
-        [$shippingAddress, $billingAddress, $shippingInput, $billingInput] = $this->resolveCheckoutAddresses($request, $validated, $customer);
-
-        if (empty($shippingAddress)) {
-            return $this->returnError(null, 'A valid shipping address is required.');
-        }
-
-        $this->handleAddressPersistence($customer, $validated, $shippingInput, $billingInput);
-
         try {
+            $validated = $request->validate($this->checkoutRules(true));
+
+            [$shippingAddress, $billingAddress, $shippingInput, $billingInput] = $this->resolveCheckoutAddresses($request, $validated, $customer);
+
+            if (empty($shippingAddress)) {
+                return $this->returnError(null, 'A valid shipping address is required.');
+            }
+
+            $this->handleAddressPersistence($customer, $validated, $shippingInput, $billingInput);
+
             $rawItems = $this->resolveCheckoutItems($customer, $validated);
 
             $order = DB::transaction(function () use ($rawItems, $validated, $shippingAddress, $billingAddress, $customer): Order {
@@ -389,6 +394,8 @@ class CheckoutController extends Controller
             ]);
 
             return $this->returnSuccess(['order' => $order], "Order #{$order->order_number} placed successfully!", 201);
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (\Throwable $e) {
             return $this->returnError($e->getMessage());
         }

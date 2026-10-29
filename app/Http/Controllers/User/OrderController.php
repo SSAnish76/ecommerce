@@ -60,7 +60,7 @@ class OrderController extends Controller
                 message: 'Orders retrieved successfully.'
             );
         } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.', 422);
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -84,7 +84,7 @@ class OrderController extends Controller
             $order = $query->whereSlugOrId($orderNumberOrId, 'order_number')->first();
 
             if (! $order) {
-                return $this->returnError(null, 'Order not found.', 404);
+                return $this->returnError(null, 'Order not found.');
             }
 
             // Authorization check
@@ -151,7 +151,7 @@ class OrderController extends Controller
                 ->first();
 
             if (! $order) {
-                return $this->returnError(null, 'Order not found.', 404);
+                return $this->returnError(null, 'Order not found.');
             }
 
             // Authorization check
@@ -168,8 +168,7 @@ class OrderController extends Controller
 
                 return $this->returnError(
                     null,
-                    "Order cannot be cancelled in '{$statusVal}' status.",
-                    422
+                    "Order cannot be cancelled in '{$statusVal}' status."
                 );
             }
 

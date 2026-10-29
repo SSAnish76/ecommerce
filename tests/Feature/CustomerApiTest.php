@@ -951,9 +951,9 @@ class CustomerApiTest extends TestCase
         $validResponse->assertOk()
             ->assertJson(['success' => true]);
 
-        // Invalid enum value should return 422 validation error
+        // Invalid enum value should return 400 validation error
         $invalidResponse = $this->getJson('/api/user/orders?status=non_existent_status');
-        $invalidResponse->assertStatus(422)
+        $invalidResponse->assertStatus(400)
             ->assertJson([
                 'success' => false,
                 'message' => 'Validation failed.',

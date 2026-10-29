@@ -115,18 +115,18 @@ class StockVisibilityTest extends TestCase
         $catalogResponse->assertOk()
             ->assertJsonMissing(['id' => $product->id]);
 
-        // Direct product detail endpoint returns 404
+        // Direct product detail endpoint returns 400
         $detailResponse = $this->getJson("/api/user/products/{$product->slug}");
-        $detailResponse->assertStatus(404);
+        $detailResponse->assertStatus(400);
 
-        // Attempting to add to cart returns 404
+        // Attempting to add to cart returns 400
         Sanctum::actingAs($this->customer);
         $cartResponse = $this->postJson('/api/user/cart', [
             'product_id' => $product->id,
             'quantity' => 1,
         ]);
 
-        $cartResponse->assertStatus(404);
+        $cartResponse->assertStatus(400);
     }
 
     /**
@@ -237,8 +237,8 @@ class StockVisibilityTest extends TestCase
         $catalogResponse->assertOk()
             ->assertJsonMissing(['id' => $product->id]);
 
-        // Direct product view 404s
-        $this->getJson("/api/user/products/{$product->slug}")->assertStatus(404);
+        // Direct product view 400s
+        $this->getJson("/api/user/products/{$product->slug}")->assertStatus(400);
 
         // Reset global setting to badge
         Setting::updateOrCreate(
