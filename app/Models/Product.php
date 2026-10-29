@@ -8,6 +8,8 @@ use App\Enums\Product\DiscountType;
 use App\Enums\Product\LocationAvailabilityType;
 use App\Enums\Product\ProductStatus;
 use App\Enums\Product\StockVisibility;
+use App\Models\Customer;
+use App\Models\Wishlist;
 use App\Traits\FindsBySlugOrId;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -378,5 +380,68 @@ class Product extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Resolve flipped map of product IDs that are in the customer's wishlist.
+     *
+     * @param  iterable<Product>  $products
+     * @return array<string, int|string>
+     */
+    public static function resolveWishlistProductIds(iterable $products, ?Customer $customer = null): array
+    {
+        if (! $customer) {
+            return [];
+        }
+
+        $ids = collect($products)->pluck('id')->filter()->all();
+        if ($ids === []) {
+            return [];
+        }
+
+        return Wishlist::where('customer_id', $customer->id)
+            ->whereIn('product_id', $ids)
+            ->pluck('product_id')
+            ->flip()
+            ->all();
+    }
+
+    /**
+     * Format product summary for catalog listings, search, and user views.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSummaryArray(bool $isWishlist = false): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'sku' => $this->sku,
+            'short_description' => $this->short_description,
+            'brand' => $this->brand ? [
+                'id' => $this->brand->id,
+                'name' => $this->brand->name,
+                'slug' => $this->brand->slug,
+            ] : null,
+            'category' => $this->category ? [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'slug' => $this->category->slug,
+            ] : null,
+            'mrp' => (float) $this->mrp,
+            'retail_price' => (float) $this->retail_price,
+            'sale_price' => $this->sale_price !== null ? (float) $this->sale_price : null,
+            'effective_price' => $this->effectivePrice(),
+            'discount_label' => $this->discountLabel(),
+            'has_variants' => (bool) $this->has_variants,
+            'stock_quantity' => (int) $this->stock_quantity,
+            'is_in_stock' => $this->stock_quantity > 0,
+            'stock_visibility' => $this->effectiveStockVisibility()->value,
+            'allows_backorder' => $this->allowsBackorder(),
+            'is_wishlist' => $isWishlist,
+            'primary_image' => $this->primaryImage?->media?->url,
+            'created_at' => $this->created_at?->toISOString(),
+        ];
     }
 }

@@ -212,7 +212,7 @@ class CustomerApiTest extends TestCase
             ->assertJson(['success' => true])
             ->assertJsonStructure([
                 'data' => [
-                    '*' => ['id', 'name', 'slug', 'sku', 'effective_price', 'brand', 'category', 'is_wishlist', 'in_wishlist'],
+                    '*' => ['id', 'name', 'slug', 'sku', 'effective_price', 'brand', 'category', 'is_wishlist'],
                 ],
                 'pagination' => ['total', 'current_page', 'last_page'],
             ]);
@@ -227,7 +227,6 @@ class CustomerApiTest extends TestCase
                     'slug' => 'smart-gadget-pro',
                     'effective_price' => 149.99,
                     'is_wishlist' => false,
-                    'in_wishlist' => false,
                 ],
             ]);
 
@@ -244,7 +243,6 @@ class CustomerApiTest extends TestCase
         $matched = collect($authListResponse->json('data'))->firstWhere('id', $this->product->id);
         $this->assertNotNull($matched);
         $this->assertTrue($matched['is_wishlist']);
-        $this->assertTrue($matched['in_wishlist']);
 
         $authDetailResponse = $this->getJson("/api/user/products/{$this->product->slug}");
         $authDetailResponse->assertOk()
@@ -252,7 +250,6 @@ class CustomerApiTest extends TestCase
                 'data' => [
                     'id' => $this->product->id,
                     'is_wishlist' => true,
-                    'in_wishlist' => true,
                 ],
             ]);
 

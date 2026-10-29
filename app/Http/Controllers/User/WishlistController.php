@@ -201,29 +201,7 @@ class WishlistController extends Controller
         return [
             'wishlist_id' => $wishlist->id,
             'added_at' => $wishlist->created_at?->toISOString(),
-            'product' => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'sku' => $product->sku,
-                'mrp' => (float) $product->mrp,
-                'retail_price' => (float) $product->retail_price,
-                'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
-                'effective_price' => $product->effectivePrice(),
-                'stock_quantity' => (int) $product->stock_quantity,
-                'is_in_stock' => $product->stock_quantity > 0,
-                'primary_image' => $product->primaryImage?->media?->url,
-                'brand' => $product->brand ? [
-                    'id' => $product->brand->id,
-                    'name' => $product->brand->name,
-                    'slug' => $product->brand->slug,
-                ] : null,
-                'category' => $product->category ? [
-                    'id' => $product->category->id,
-                    'name' => $product->category->name,
-                    'slug' => $product->category->slug,
-                ] : null,
-            ],
+            'product' => $product->toSummaryArray(true),
         ];
     }
 }

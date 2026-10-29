@@ -91,13 +91,7 @@ class SearchController extends Controller
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = $customer
-                ? Wishlist::where('customer_id', $customer->id)
-                    ->whereIn('product_id', collect($paginator->items())->pluck('id'))
-                    ->pluck('product_id')
-                    ->flip()
-                    ->all()
-                : [];
+            $wishlistProductIds = Product::resolveWishlistProductIds($paginator->items(), $customer);
 
             $items = array_map(
                 fn (Product $product) => $this->formatSearchResultItem($product, isset($wishlistProductIds[$product->id])),
@@ -180,33 +174,9 @@ class SearchController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function formatSearchResultItem(Product $product, bool $isWishlist = false): array
+    public function formatSearchResultItem(Product $product, bool $isWishlist = false): array
     {
-        return [
-            'id' => $product->id,
-            'name' => $product->name,
-            'slug' => $product->slug,
-            'sku' => $product->sku,
-            'short_description' => $product->short_description,
-            'brand' => $product->brand ? [
-                'id' => $product->brand->id,
-                'name' => $product->brand->name,
-                'slug' => $product->brand->slug,
-            ] : null,
-            'category' => $product->category ? [
-                'id' => $product->category->id,
-                'name' => $product->category->name,
-                'slug' => $product->category->slug,
-            ] : null,
-            'retail_price' => (float) $product->retail_price,
-            'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
-            'effective_price' => $product->effectivePrice(),
-            'stock_quantity' => (int) $product->stock_quantity,
-            'is_in_stock' => $product->stock_quantity > 0,
-            'is_wishlist' => $isWishlist,
-            'in_wishlist' => $isWishlist,
-            'primary_image' => $product->primaryImage?->media?->url,
-        ];
+        return $product->toSummaryArray($isWishlist);
     }
 }
 

@@ -83,33 +83,12 @@ class CategoryController extends Controller
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = $customer
-                ? Wishlist::where('customer_id', $customer->id)
-                    ->whereIn('product_id', collect($productsPaginator->items())->pluck('id'))
-                    ->pluck('product_id')
-                    ->flip()
-                    ->all()
-                : [];
+            $wishlistProductIds = Product::resolveWishlistProductIds($productsPaginator->items(), $customer);
 
-            $products = array_map(function (Product $product) use ($wishlistProductIds) {
-                $isWishlist = isset($wishlistProductIds[$product->id]);
-
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'sku' => $product->sku,
-                    'mrp' => (float) $product->mrp,
-                    'retail_price' => (float) $product->retail_price,
-                    'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
-                    'effective_price' => $product->effectivePrice(),
-                    'stock_quantity' => (int) $product->stock_quantity,
-                    'is_in_stock' => $product->stock_quantity > 0,
-                    'is_wishlist' => $isWishlist,
-                    'in_wishlist' => $isWishlist,
-                    'primary_image' => $product->primaryImage?->media?->url,
-                ];
-            }, $productsPaginator->items());
+            $products = array_map(
+                fn (Product $product) => $product->toSummaryArray(isset($wishlistProductIds[$product->id])),
+                $productsPaginator->items()
+            );
 
             $data = [
                 'category' => $this->formatCategoryFlat($category),

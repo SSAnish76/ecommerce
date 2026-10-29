@@ -121,13 +121,7 @@ class ProductController extends Controller
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = $customer
-                ? Wishlist::where('customer_id', $customer->id)
-                    ->whereIn('product_id', collect($paginator->items())->pluck('id'))
-                    ->pluck('product_id')
-                    ->flip()
-                    ->all()
-                : [];
+            $wishlistProductIds = Product::resolveWishlistProductIds($paginator->items(), $customer);
 
             $items = array_map(
                 fn (Product $product) => $this->formatProductSummary($product, isset($wishlistProductIds[$product->id])),
@@ -210,13 +204,7 @@ class ProductController extends Controller
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = $customer
-                ? Wishlist::where('customer_id', $customer->id)
-                    ->whereIn('product_id', $relatedProducts->pluck('id'))
-                    ->pluck('product_id')
-                    ->flip()
-                    ->all()
-                : [];
+            $wishlistProductIds = Product::resolveWishlistProductIds($relatedProducts, $customer);
 
             $items = $relatedProducts->map(
                 fn (Product $p) => $this->formatProductSummary($p, isset($wishlistProductIds[$p->id]))
@@ -233,39 +221,9 @@ class ProductController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function formatProductSummary(Product $product, bool $isWishlist = false): array
+    public function formatProductSummary(Product $product, bool $isWishlist = false): array
     {
-        return [
-            'id' => $product->id,
-            'name' => $product->name,
-            'slug' => $product->slug,
-            'sku' => $product->sku,
-            'short_description' => $product->short_description,
-            'brand' => $product->brand ? [
-                'id' => $product->brand->id,
-                'name' => $product->brand->name,
-                'slug' => $product->brand->slug,
-            ] : null,
-            'category' => $product->category ? [
-                'id' => $product->category->id,
-                'name' => $product->category->name,
-                'slug' => $product->category->slug,
-            ] : null,
-            'mrp' => (float) $product->mrp,
-            'retail_price' => (float) $product->retail_price,
-            'sale_price' => $product->sale_price !== null ? (float) $product->sale_price : null,
-            'effective_price' => $product->effectivePrice(),
-            'discount_label' => $product->discountLabel(),
-            'has_variants' => (bool) $product->has_variants,
-            'stock_quantity' => (int) $product->stock_quantity,
-            'is_in_stock' => $product->stock_quantity > 0,
-            'stock_visibility' => $product->effectiveStockVisibility()->value,
-            'allows_backorder' => $product->allowsBackorder(),
-            'is_wishlist' => $isWishlist,
-            'in_wishlist' => $isWishlist,
-            'primary_image' => $product->primaryImage?->media?->url,
-            'created_at' => $product->created_at?->toISOString(),
-        ];
+        return $product->toSummaryArray($isWishlist);
     }
 
     /**
