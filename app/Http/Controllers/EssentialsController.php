@@ -120,9 +120,9 @@ class EssentialsController extends Controller
             'out_of_stock_visibility' => (string) ($allSettings['out_of_stock_visibility'] ?? 'show'),
         ];
 
-        // 6. Public payment gateway configurations (without private secrets)
+        // 6. Public payment gateway configurations (only enabled gateways for display purpose)
         $rawPayments = Setting::getPaymentSettings();
-        $paymentGateways = [
+        $allGateways = [
             'cod' => [
                 'enabled' => (bool) ($rawPayments['cod']['enabled'] ?? true),
                 'name' => 'Cash on Delivery',
@@ -146,7 +146,28 @@ class EssentialsController extends Controller
             ],
         ];
 
-        // 7. Public constants (currencies, timezones)
+        $paymentGateways = array_filter($allGateways, fn (array $gateway): bool => (bool) $gateway['enabled']);
+
+        // 7. Public shipping carrier configurations (only enabled carriers for display purpose)
+        $rawShipping = Setting::getShippingSettings();
+        $allShipping = [
+            'fedex' => [
+                'enabled' => (bool) ($rawShipping['fedex']['enabled'] ?? ($rawShipping['carrier']['provider'] === 'fedex')),
+                'name' => 'FedEx',
+            ],
+            'ups' => [
+                'enabled' => (bool) ($rawShipping['ups']['enabled'] ?? ($rawShipping['carrier']['provider'] === 'ups')),
+                'name' => 'UPS',
+            ],
+            'dhl' => [
+                'enabled' => (bool) ($rawShipping['dhl']['enabled'] ?? ($rawShipping['carrier']['provider'] === 'dhl')),
+                'name' => 'DHL Express',
+            ],
+        ];
+
+        $shipping = array_filter($allShipping, fn (array $carrier): bool => (bool) $carrier['enabled']);
+
+        // 8. Public constants (currencies, timezones)
         $constants = [
             'currencies' => Constants::currencies(),
             'currencies_map' => Constants::currenciesMap(),
@@ -159,6 +180,7 @@ class EssentialsController extends Controller
                 'store' => $storeData,
                 'settings' => $settings,
                 'payment_gateways' => $paymentGateways,
+                'shipping' => $shipping,
                 'enums' => $enums,
                 'constants' => $constants,
             ],

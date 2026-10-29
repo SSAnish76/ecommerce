@@ -211,8 +211,8 @@ PHP;
                         'cod',
                         'stripe',
                         'paypal',
-                        'razorpay',
                     ],
+                    'shipping',
                     'enums' => [
                         'address' => [
                             'address_type',
@@ -255,5 +255,8 @@ PHP;
         $this->assertArrayNotHasKey('mail_driver', $response->json('data.enums'));
         $this->assertArrayNotHasKey('secret_key', $response->json('data.payment_gateways.stripe'));
         $this->assertArrayNotHasKey('client_secret', $response->json('data.payment_gateways.paypal'));
+
+        // Disabled gateways are not exposed for display purpose
+        $this->assertArrayNotHasKey('razorpay', $response->json('data.payment_gateways'));
     }
 }

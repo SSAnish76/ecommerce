@@ -208,6 +208,89 @@ class Product extends Model
     }
 
     /**
+     * Scope query to products visible in the catalog storefront based on Out-of-Stock Catalog Visibility.
+     *
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeCatalogVisible(Builder $query): Builder
+    {
+        $globalSetting = Setting::get('out_of_stock_visibility', StockVisibility::Badge->value);
+        $globalIsHide = $globalSetting === StockVisibility::Hide->value;
+
+        return $query->where(function (Builder $q) use ($globalIsHide): void {
+            if ($globalIsHide) {
+                $q->where('stock_visibility', StockVisibility::Backorder->value)
+                    ->orWhere(function (Builder $sub): void {
+                        $sub->where('stock_visibility', '!=', StockVisibility::Hide->value)
+                            ->where(function (Builder $sq): void {
+                                $sq->where('stock_quantity', '>', 0)
+                                    ->orWhereHas('variants', fn (Builder $vq) => $vq->where('stock_quantity', '>', 0));
+                            });
+                    });
+            } else {
+                $q->where('stock_visibility', '!=', StockVisibility::Hide->value)
+                    ->orWhere(function (Builder $sub): void {
+                        $sub->where('stock_quantity', '>', 0)
+                            ->orWhereHas('variants', fn (Builder $vq) => $vq->where('stock_quantity', '>', 0));
+                    });
+            }
+        });
+    }
+
+    /**
+     * Determine the effective stock visibility policy for this product.
+     */
+    public function effectiveStockVisibility(): StockVisibility
+    {
+        $globalSetting = Setting::get('out_of_stock_visibility');
+        $globalVisibility = is_string($globalSetting) ? StockVisibility::tryFrom($globalSetting) : null;
+
+        if ($this->stock_visibility instanceof StockVisibility) {
+            if ($this->stock_visibility === StockVisibility::Backorder) {
+                return StockVisibility::Backorder;
+            }
+            if ($this->stock_visibility === StockVisibility::Hide) {
+                return StockVisibility::Hide;
+            }
+            if ($globalVisibility && $globalVisibility !== StockVisibility::Badge) {
+                return $globalVisibility;
+            }
+
+            return $this->stock_visibility;
+        }
+
+        if (is_string($this->stock_visibility) && $enum = StockVisibility::tryFrom($this->stock_visibility)) {
+            if ($enum === StockVisibility::Backorder || $enum === StockVisibility::Hide) {
+                return $enum;
+            }
+            if ($globalVisibility && $globalVisibility !== StockVisibility::Badge) {
+                return $globalVisibility;
+            }
+
+            return $enum;
+        }
+
+        return $globalVisibility ?? StockVisibility::Badge;
+    }
+
+    /**
+     * Determine if backorders are allowed for this product.
+     */
+    public function allowsBackorder(): bool
+    {
+        return $this->effectiveStockVisibility() === StockVisibility::Backorder;
+    }
+
+    /**
+     * Determine if this product should be hidden from catalog when out of stock.
+     */
+    public function shouldHideWhenOutOfStock(): bool
+    {
+        return $this->effectiveStockVisibility() === StockVisibility::Hide && $this->isOutOfStock();
+    }
+
+    /**
      * Calculate effective selling price.
      */
     public function effectivePrice(): float
@@ -232,7 +315,17 @@ class Product extends Model
      */
     public function isOutOfStock(): bool
     {
-        return $this->stock_quantity <= 0;
+        if ($this->has_variants) {
+            if ($this->relationLoaded('variants')) {
+                return $this->variants->isNotEmpty()
+                    && $this->variants->every(fn (ProductVariant $v): bool => (int) $v->stock_quantity <= 0);
+            }
+
+            return $this->variants()->exists()
+                && ! $this->variants()->where('stock_quantity', '>', 0)->exists();
+        }
+
+        return (int) $this->stock_quantity <= 0;
     }
 
     /**

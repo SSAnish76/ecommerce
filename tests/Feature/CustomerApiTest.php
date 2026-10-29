@@ -202,19 +202,21 @@ class CustomerApiTest extends TestCase
     }
 
     /**
-     * Test products catalog listing, detail, and related products.
+     * Test products catalog listing, detail, and related products including is_wishlist functionality.
      */
     public function test_can_list_and_view_products(): void
     {
+        // 1. Guest view should have is_wishlist = false
         $listResponse = $this->getJson('/api/user/products');
         $listResponse->assertOk()
             ->assertJson(['success' => true])
             ->assertJsonStructure([
                 'data' => [
-                    '*' => ['id', 'name', 'slug', 'sku', 'effective_price', 'brand', 'category'],
+                    '*' => ['id', 'name', 'slug', 'sku', 'effective_price', 'brand', 'category', 'is_wishlist', 'in_wishlist'],
                 ],
                 'pagination' => ['total', 'current_page', 'last_page'],
             ]);
+        $this->assertFalse($listResponse->json('data.0.is_wishlist'));
 
         $detailResponse = $this->getJson("/api/user/products/{$this->product->slug}");
         $detailResponse->assertOk()
@@ -224,6 +226,33 @@ class CustomerApiTest extends TestCase
                     'id' => $this->product->id,
                     'slug' => 'smart-gadget-pro',
                     'effective_price' => 149.99,
+                    'is_wishlist' => false,
+                    'in_wishlist' => false,
+                ],
+            ]);
+
+        // 2. Authenticated customer who wishlisted the product should have is_wishlist = true
+        Wishlist::create([
+            'customer_id' => $this->customer->id,
+            'product_id' => $this->product->id,
+        ]);
+
+        Sanctum::actingAs($this->customer);
+
+        $authListResponse = $this->getJson('/api/user/products');
+        $authListResponse->assertOk();
+        $matched = collect($authListResponse->json('data'))->firstWhere('id', $this->product->id);
+        $this->assertNotNull($matched);
+        $this->assertTrue($matched['is_wishlist']);
+        $this->assertTrue($matched['in_wishlist']);
+
+        $authDetailResponse = $this->getJson("/api/user/products/{$this->product->slug}");
+        $authDetailResponse->assertOk()
+            ->assertJson([
+                'data' => [
+                    'id' => $this->product->id,
+                    'is_wishlist' => true,
+                    'in_wishlist' => true,
                 ],
             ]);
 
@@ -355,7 +384,7 @@ class CustomerApiTest extends TestCase
             'product_id' => $this->variantProduct->id,
             'quantity' => 1,
         ]);
-        $variantRequiredResponse->assertStatus(422)
+        $variantRequiredResponse->assertStatus(400)
             ->assertJson([
                 'success' => false,
                 'message' => 'This product has variants. Please select a variant to add to cart.',
@@ -367,7 +396,7 @@ class CustomerApiTest extends TestCase
             'product_variant_id' => $this->variant->id,
             'quantity' => 1,
         ]);
-        $standardWithVariantResponse->assertStatus(422)
+        $standardWithVariantResponse->assertStatus(400)
             ->assertJson([
                 'success' => false,
                 'message' => 'Validation failed.',
@@ -897,13 +926,13 @@ class CustomerApiTest extends TestCase
             ]);
     }
     /**
-     * Test retrieval of available order statuses enum list.
+     * Test retrieval of available order statuses enum list via essentials API.
      */
     public function test_customer_can_retrieve_order_statuses(): void
     {
         Sanctum::actingAs($this->customer);
 
-        $response = $this->getJson('/api/user/orders/statuses');
+        $response = $this->getJson('/api/user/essentials');
         $response->assertOk()
             ->assertJson(['success' => true])
             ->assertJsonFragment(['value' => 'pending', 'label' => 'Pending'])

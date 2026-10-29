@@ -6,7 +6,9 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Collection;
+use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Wishlist;
 use Exception;
 use Illuminate\Http\Request;
 
@@ -63,10 +65,23 @@ class CollectionController extends Controller
 
                 $productsPaginator = $collection->products()
                     ->active()
+                    ->catalogVisible()
                     ->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media'])
                     ->paginate($perPage);
 
-                $products = array_map(function (Product $product) {
+                /** @var Customer|null $customer */
+                $customer = $request->user('sanctum') ?? $request->user();
+                $wishlistProductIds = $customer
+                    ? Wishlist::where('customer_id', $customer->id)
+                        ->whereIn('product_id', collect($productsPaginator->items())->pluck('id'))
+                        ->pluck('product_id')
+                        ->flip()
+                        ->all()
+                    : [];
+
+                $products = array_map(function (Product $product) use ($wishlistProductIds) {
+                    $isWishlist = isset($wishlistProductIds[$product->id]);
+
                     return [
                         'id' => $product->id,
                         'name' => $product->name,
@@ -78,6 +93,8 @@ class CollectionController extends Controller
                         'effective_price' => $product->effectivePrice(),
                         'stock_quantity' => (int) $product->stock_quantity,
                         'is_in_stock' => $product->stock_quantity > 0,
+                        'is_wishlist' => $isWishlist,
+                        'in_wishlist' => $isWishlist,
                         'primary_image' => $product->primaryImage?->media?->url,
                     ];
                 }, $productsPaginator->items());

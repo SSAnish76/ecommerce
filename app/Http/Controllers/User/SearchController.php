@@ -7,7 +7,9 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Wishlist;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -28,6 +30,7 @@ class SearchController extends Controller
 
             $query = Product::query()
                 ->active()
+                ->catalogVisible()
                 ->where(function (Builder $q) use ($keyword): void {
                     $q->where('name', 'like', "%{$keyword}%")
                         ->orWhere('sku', 'like', "%{$keyword}%")
@@ -83,12 +86,25 @@ class SearchController extends Controller
                 default => $query->orderBy('created_at', 'desc'),
             };
 
-            return $this->paginateAndFormat(
-                $query,
-                $request,
-                fn (Product $product) => $this->formatSearchResultItem($product),
-                message: 'Search results retrieved.'
+            $perPage = $this->resolvePerPage($request);
+            $paginator = $query->paginate($perPage);
+
+            /** @var Customer|null $customer */
+            $customer = $request->user('sanctum') ?? $request->user();
+            $wishlistProductIds = $customer
+                ? Wishlist::where('customer_id', $customer->id)
+                    ->whereIn('product_id', collect($paginator->items())->pluck('id'))
+                    ->pluck('product_id')
+                    ->flip()
+                    ->all()
+                : [];
+
+            $items = array_map(
+                fn (Product $product) => $this->formatSearchResultItem($product, isset($wishlistProductIds[$product->id])),
+                $paginator->items()
             );
+
+            return $this->paginatedResponse($paginator, $items, 'Search results retrieved.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -112,6 +128,7 @@ class SearchController extends Controller
 
             $products = Product::query()
                 ->active()
+                ->catalogVisible()
                 ->where('name', 'like', "%{$keyword}%")
                 ->with('primaryImage.media')
                 ->limit(6)
@@ -163,7 +180,7 @@ class SearchController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function formatSearchResultItem(Product $product): array
+    protected function formatSearchResultItem(Product $product, bool $isWishlist = false): array
     {
         return [
             'id' => $product->id,
@@ -186,6 +203,8 @@ class SearchController extends Controller
             'effective_price' => $product->effectivePrice(),
             'stock_quantity' => (int) $product->stock_quantity,
             'is_in_stock' => $product->stock_quantity > 0,
+            'is_wishlist' => $isWishlist,
+            'in_wishlist' => $isWishlist,
             'primary_image' => $product->primaryImage?->media?->url,
         ];
     }

@@ -100,7 +100,8 @@ class ShopController extends Controller
                             throw new \RuntimeException('Selected product variant is no longer active or available.');
                         }
 
-                        if ($variant->stock_quantity < $qty) {
+                        $allowsBackorder = $variant->product?->allowsBackorder() ?? false;
+                        if (! $allowsBackorder && $variant->stock_quantity < $qty) {
                             throw new \RuntimeException("Insufficient stock for '{$variant->name}'. Only {$variant->stock_quantity} available.");
                         }
 
@@ -140,7 +141,8 @@ class ShopController extends Controller
                             throw new \RuntimeException('Product is no longer available.');
                         }
 
-                        if ($product->stock_quantity < $qty) {
+                        $allowsBackorder = $product->allowsBackorder();
+                        if (! $allowsBackorder && $product->stock_quantity < $qty) {
                             throw new \RuntimeException("Insufficient stock for '{$product->name}'. Only {$product->stock_quantity} available.");
                         }
 

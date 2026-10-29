@@ -8,9 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Collection;
+use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Wishlist;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -18,11 +21,12 @@ class ProductController extends Controller
     /**
      * Display a listing of active products with search, filtering, and sorting.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             $query = Product::query()
                 ->active()
+                ->catalogVisible()
                 ->with([
                     'brand:id,name,slug',
                     'category:id,name,slug',
@@ -112,12 +116,25 @@ class ProductController extends Controller
                 default => $query->latest(),
             };
 
-            return $this->paginateAndFormat(
-                $query,
-                $request,
-                fn(Product $product) => $this->formatProductSummary($product),
-                message: 'Products retrieved successfully.'
+            $perPage = $this->resolvePerPage($request);
+            $paginator = $query->paginate($perPage);
+
+            /** @var Customer|null $customer */
+            $customer = $request->user('sanctum') ?? $request->user();
+            $wishlistProductIds = $customer
+                ? Wishlist::where('customer_id', $customer->id)
+                    ->whereIn('product_id', collect($paginator->items())->pluck('id'))
+                    ->pluck('product_id')
+                    ->flip()
+                    ->all()
+                : [];
+
+            $items = array_map(
+                fn (Product $product) => $this->formatProductSummary($product, isset($wishlistProductIds[$product->id])),
+                $paginator->items()
             );
+
+            return $this->paginatedResponse($paginator, $items, 'Products retrieved successfully.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -126,11 +143,12 @@ class ProductController extends Controller
     /**
      * Display the specified product detail by ID or Slug.
      */
-    public function show(string $slugOrId)
+    public function show(string $slugOrId, Request $request): JsonResponse
     {
         try {
             $query = Product::query()
                 ->active()
+                ->catalogVisible()
                 ->with([
                     'brand:id,name,slug',
                     'category:id,name,slug',
@@ -146,11 +164,17 @@ class ProductController extends Controller
 
             $product = $query->whereSlugOrId($slugOrId)->first();
 
-            if (!$product) {
+            if (! $product || $product->shouldHideWhenOutOfStock()) {
                 return $this->returnError(null, 'Product not found or unavailable.', 404);
             }
 
-            return $this->returnSuccess($this->formatProductDetail($product), 'Product details retrieved successfully.');
+            /** @var Customer|null $customer */
+            $customer = $request->user('sanctum') ?? $request->user();
+            $isWishlist = $customer
+                ? Wishlist::where('customer_id', $customer->id)->where('product_id', $product->id)->exists()
+                : false;
+
+            return $this->returnSuccess($this->formatProductDetail($product, $isWishlist), 'Product details retrieved successfully.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -159,17 +183,18 @@ class ProductController extends Controller
     /**
      * Get related products for the specified product.
      */
-    public function related(string $slugOrId)
+    public function related(string $slugOrId, Request $request): JsonResponse
     {
         try {
             $product = Product::whereSlugOrId($slugOrId)->first();
 
-            if (!$product) {
+            if (! $product) {
                 return $this->returnError(null, 'Product not found.', 404);
             }
 
             $relatedProducts = Product::query()
                 ->active()
+                ->catalogVisible()
                 ->where('id', '!=', $product->id)
                 ->where(function (Builder $q) use ($product): void {
                     if ($product->category_id) {
@@ -183,7 +208,19 @@ class ProductController extends Controller
                 ->limit(6)
                 ->get();
 
-            $items = $relatedProducts->map(fn(Product $p) => $this->formatProductSummary($p));
+            /** @var Customer|null $customer */
+            $customer = $request->user('sanctum') ?? $request->user();
+            $wishlistProductIds = $customer
+                ? Wishlist::where('customer_id', $customer->id)
+                    ->whereIn('product_id', $relatedProducts->pluck('id'))
+                    ->pluck('product_id')
+                    ->flip()
+                    ->all()
+                : [];
+
+            $items = $relatedProducts->map(
+                fn (Product $p) => $this->formatProductSummary($p, isset($wishlistProductIds[$p->id]))
+            );
 
             return $this->returnSuccess($items, 'Related products retrieved successfully.');
         } catch (Exception $e) {
@@ -196,7 +233,7 @@ class ProductController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function formatProductSummary(Product $product): array
+    protected function formatProductSummary(Product $product, bool $isWishlist = false): array
     {
         return [
             'id' => $product->id,
@@ -222,6 +259,10 @@ class ProductController extends Controller
             'has_variants' => (bool) $product->has_variants,
             'stock_quantity' => (int) $product->stock_quantity,
             'is_in_stock' => $product->stock_quantity > 0,
+            'stock_visibility' => $product->effectiveStockVisibility()->value,
+            'allows_backorder' => $product->allowsBackorder(),
+            'is_wishlist' => $isWishlist,
+            'in_wishlist' => $isWishlist,
             'primary_image' => $product->primaryImage?->media?->url,
             'created_at' => $product->created_at?->toISOString(),
         ];
@@ -232,7 +273,7 @@ class ProductController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function formatProductDetail(Product $product): array
+    protected function formatProductDetail(Product $product, bool $isWishlist = false): array
     {
         $galleryImages = $product->images->map(fn($img) => [
             'id' => $img->id,
@@ -255,7 +296,7 @@ class ProductController extends Controller
             'image_url' => $variant->image_url,
         ]);
 
-        return array_merge($this->formatProductSummary($product), [
+        return array_merge($this->formatProductSummary($product, $isWishlist), [
             'description' => $product->description,
             'specifications' => $product->specifications,
             'return_policy' => $product->return_policy,

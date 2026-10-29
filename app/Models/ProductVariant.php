@@ -161,4 +161,12 @@ class ProductVariant extends Model
     {
         return $this->stock_quantity <= 0;
     }
+
+    /**
+     * Determine if backorders are allowed for this variant.
+     */
+    public function allowsBackorder(): bool
+    {
+        return $this->product?->allowsBackorder() ?? false;
+    }
 }

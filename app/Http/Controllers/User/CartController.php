@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\Product\StockVisibility;
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\Customer;
@@ -67,21 +68,23 @@ class CartController extends Controller
                 return $this->returnError(null, 'Selected product is not available.', 404);
             }
 
+            if ($product->shouldHideWhenOutOfStock()) {
+                return $this->returnError(null, 'Selected product is out of stock and unavailable.', 404);
+            }
+
             $hasVariants = (bool) ($product->has_variants || $product->variants()->exists());
 
             if ($hasVariants && empty($variantId)) {
                 return $this->returnError(
                     null,
-                    'This product has variants. Please select a variant to add to cart.',
-                    422
+                    'This product has variants. Please select a variant to add to cart.'
                 );
             }
 
             if (! $hasVariants && ! empty($variantId)) {
                 return $this->returnError(
                     null,
-                    'This product does not have variants. Variant ID should not be provided.',
-                    422
+                    'This product does not have variants. Variant ID should not be provided.'
                 );
             }
 
@@ -95,8 +98,7 @@ class CartController extends Controller
                 if (! $variant) {
                     return $this->returnError(
                         null,
-                        'Selected variant is not valid for this product or unavailable.',
-                        422
+                        'Selected variant is not valid for this product or unavailable.'
                     );
                 }
 
@@ -115,7 +117,17 @@ class CartController extends Controller
 
             $targetQuantity = $cartItem ? ($cartItem->quantity + $qtyToAdd) : $qtyToAdd;
 
-            if ($targetQuantity > $availableStock) {
+            // Stock validation based on Out-of-Stock Catalog Visibility
+            $effectiveVisibility = $product->effectiveStockVisibility();
+
+            if ($effectiveVisibility === StockVisibility::Hide && $availableStock <= 0) {
+                return $this->returnError(
+                    null,
+                    "Product '{$itemName}' is currently out of stock and unavailable."
+                );
+            }
+
+            if ($effectiveVisibility !== StockVisibility::Backorder && $targetQuantity > $availableStock) {
                 return $this->returnError(
                     null,
                     "Insufficient stock for '{$itemName}'. Only {$availableStock} available."
@@ -145,7 +157,7 @@ class CartController extends Controller
                 'cart' => $cartData,
             ], 'Item added to cart.', 201);
         } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.', 422);
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -174,23 +186,54 @@ class CartController extends Controller
             }
 
             $newQty = (int) $validated['quantity'];
+            $product = $cartItem->product;
+            $effectiveVisibility = $product?->effectiveStockVisibility() ?? StockVisibility::Badge;
 
             // Check stock using preloaded relationships
             if ($cartItem->product_variant_id) {
                 $variant = $cartItem->variant;
-                if (! $variant || ! $variant->is_active || $variant->stock_quantity < $newQty) {
-                    $stock = $variant?->stock_quantity ?? 0;
+                if (! $variant || ! $variant->is_active) {
+                    return $this->returnError(
+                        null,
+                        'Selected variant is no longer available.'
+                    );
+                }
 
+                $stock = (int) $variant->stock_quantity;
+                $itemName = $variant->displayName($product);
+
+                if ($effectiveVisibility === StockVisibility::Hide && $stock <= 0) {
+                    return $this->returnError(
+                        null,
+                        "Variant '{$itemName}' is currently out of stock and unavailable."
+                    );
+                }
+
+                if ($effectiveVisibility !== StockVisibility::Backorder && $stock < $newQty) {
                     return $this->returnError(
                         null,
                         "Insufficient stock for variant. Only {$stock} available."
                     );
                 }
             } else {
-                $product = $cartItem->product;
-                if (! $product || $product->status->value !== 'active' || $product->stock_quantity < $newQty) {
-                    $stock = $product?->stock_quantity ?? 0;
+                if (! $product || $product->status->value !== 'active') {
+                    return $this->returnError(
+                        null,
+                        'Selected product is no longer available.'
+                    );
+                }
 
+                $stock = (int) $product->stock_quantity;
+                $itemName = $product->name;
+
+                if ($effectiveVisibility === StockVisibility::Hide && $stock <= 0) {
+                    return $this->returnError(
+                        null,
+                        "Product '{$itemName}' is currently out of stock and unavailable."
+                    );
+                }
+
+                if ($effectiveVisibility !== StockVisibility::Backorder && $stock < $newQty) {
                     return $this->returnError(
                         null,
                         "Insufficient stock for product. Only {$stock} available."
@@ -204,7 +247,7 @@ class CartController extends Controller
 
             return $this->returnSuccess($cartData, 'Cart item quantity updated.');
         } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.', 422);
+            return $this->returnError($e->errors(), 'Validation failed.');
         } catch (Exception $e) {
             return $this->returnError($e->getMessage());
         }
@@ -307,6 +350,11 @@ class CartController extends Controller
             $subtotal += $lineTotal;
             $totalQuantity += $qty;
 
+            $effectiveVisibility = $product->effectiveStockVisibility();
+            $allowsBackorder = $effectiveVisibility === StockVisibility::Backorder;
+            $hasStock = $availableStock >= $qty;
+            $isBackorder = ! $hasStock && $allowsBackorder;
+
             $formattedItems[] = [
                 'id' => $item->id,
                 'product_id' => $item->product_id,
@@ -319,7 +367,10 @@ class CartController extends Controller
                 'unit_price' => $unitPrice,
                 'line_total' => $lineTotal,
                 'available_stock' => $availableStock,
-                'is_in_stock' => $availableStock >= $qty,
+                'is_in_stock' => $hasStock,
+                'allows_backorder' => $allowsBackorder,
+                'is_backorder' => $isBackorder,
+                'stock_visibility' => $effectiveVisibility->value,
             ];
         }
 

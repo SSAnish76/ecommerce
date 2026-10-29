@@ -11,8 +11,10 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Setting;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -23,7 +25,7 @@ class OrderController extends Controller
     /**
      * Display a listing of orders placed by the authenticated customer.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             /** @var Customer $customer */
@@ -39,7 +41,8 @@ class OrderController extends Controller
                     $q->where('customer_id', $customer->id)
                         ->orWhere('customer_email', $customer->email);
                 })
-                ->with(['items'])
+                ->with(['items:id,order_id,product_name,quantity,price,image_url'])
+                ->withCount('items')
                 ->latest();
 
             // Optional status filter
@@ -64,28 +67,16 @@ class OrderController extends Controller
     }
 
     /**
-     * Get list of available order statuses and labels.
-     */
-    public function statuses()
-    {
-        $statuses = array_map(fn (OrderStatus $status) => [
-            'value' => $status->value,
-            'label' => $status->label(),
-        ], OrderStatus::cases());
-
-        return $this->returnSuccess($statuses, 'Order statuses retrieved successfully.');
-    }
-
-    /**
      * Display the specified order details with all items.
      */
-    public function show(string $orderNumberOrId, Request $request)
+    public function show(string $orderNumberOrId, Request $request): JsonResponse
     {
         try {
             /** @var Customer $customer */
             $customer = $request->user();
 
             $query = Order::query()->with([
+                'items:id,order_id,product_id,product_variant_id,product_name,variant_name,sku,price,quantity,subtotal,attributes,image_url',
                 'items.product:id,name,slug',
                 'items.variant:id,name,sku',
             ]);
@@ -97,7 +88,7 @@ class OrderController extends Controller
             }
 
             // Authorization check
-            if ($order->customer_id !== $customer->id && strtolower($order->customer_email) !== strtolower($customer->email)) {
+            if ($order->customer_id !== $customer->id && strtolower((string) $order->customer_email) !== strtolower((string) $customer->email)) {
                 return $this->returnError(null, 'Unauthorized to view this order.', 403);
             }
 
@@ -110,7 +101,6 @@ class OrderController extends Controller
                 'shipping_address' => $order->shipping_address,
                 'billing_address' => $order->billing_address ?? $order->shipping_address,
                 'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
-                'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
                 'payment_method' => $order->payment_method?->value ?? $order->payment_method,
                 'payment_status' => $order->payment_status?->value ?? $order->payment_status,
                 'coupon_code' => $order->coupon_code,
@@ -146,20 +136,26 @@ class OrderController extends Controller
     /**
      * Cancel an eligible customer order and restore reserved product stock.
      */
-    public function cancel(string $orderNumberOrId, Request $request)
+    public function cancel(string $orderNumberOrId, Request $request): JsonResponse
     {
         try {
             /** @var Customer $customer */
             $customer = $request->user();
 
-            $order = Order::with('items')->whereSlugOrId($orderNumberOrId, 'order_number')->first();
+            if (! (bool) Setting::get('allow_customer_cancellation', true)) {
+                return $this->returnError(null, 'Customer order cancellation is currently disabled by the store.');
+            }
+
+            $order = Order::with('items:id,order_id,product_id,product_variant_id,quantity')
+                ->whereSlugOrId($orderNumberOrId, 'order_number')
+                ->first();
 
             if (! $order) {
                 return $this->returnError(null, 'Order not found.', 404);
             }
 
             // Authorization check
-            if ($order->customer_id !== $customer->id && strtolower($order->customer_email) !== strtolower($customer->email)) {
+            if ($order->customer_id !== $customer->id && strtolower((string) $order->customer_email) !== strtolower((string) $customer->email)) {
                 return $this->returnError(null, 'Unauthorized to cancel this order.', 403);
             }
 
@@ -173,6 +169,7 @@ class OrderController extends Controller
 
             if (! $isCancellable) {
                 $statusVal = $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status;
+
                 return $this->returnError(
                     null,
                     "Order cannot be cancelled in '{$statusVal}' status.",
@@ -180,31 +177,36 @@ class OrderController extends Controller
                 );
             }
 
-            $reason = $request->input('reason', 'Cancelled by customer');
+            $reason = (string) $request->input('reason', 'Cancelled by customer');
 
             DB::transaction(function () use ($order, $reason): void {
-                // Restore inventory
+                $variantIds = $order->items->pluck('product_variant_id')->filter()->unique()->values()->all();
+                $productIds = $order->items->pluck('product_id')->filter()->unique()->values()->all();
+
+                $variants = ! empty($variantIds)
+                    ? ProductVariant::whereIn('id', $variantIds)->lockForUpdate()->get()->keyBy('id')
+                    : collect();
+
+                $products = ! empty($productIds)
+                    ? Product::whereIn('id', $productIds)->lockForUpdate()->get()->keyBy('id')
+                    : collect();
+
+                // Restore inventory in batch
                 foreach ($order->items as $item) {
                     $qty = (int) $item->quantity;
 
-                    if ($item->product_variant_id) {
-                        $variant = ProductVariant::where('id', $item->product_variant_id)->lockForUpdate()->first();
-                        if ($variant) {
-                            $variant->increment('stock_quantity', $qty);
-                        }
+                    if ($item->product_variant_id && isset($variants[$item->product_variant_id])) {
+                        $variants[$item->product_variant_id]->increment('stock_quantity', $qty);
                     }
 
-                    if ($item->product_id) {
-                        $product = Product::where('id', $item->product_id)->lockForUpdate()->first();
-                        if ($product) {
-                            $product->increment('stock_quantity', $qty);
-                        }
+                    if ($item->product_id && isset($products[$item->product_id])) {
+                        $products[$item->product_id]->increment('stock_quantity', $qty);
                     }
                 }
 
                 $order->update([
                     'status' => OrderStatus::Cancelled,
-                    'notes' => trim(($order->notes ? "{$order->notes}\n" : '') . "Cancellation Reason: {$reason}"),
+                    'notes' => trim(($order->notes ? "{$order->notes}\n" : '')."Cancellation Reason: {$reason}"),
                 ]);
             });
 
@@ -245,7 +247,7 @@ class OrderController extends Controller
             'status_label' => $order->status instanceof OrderStatus ? $order->status->label() : null,
             'payment_method' => $order->payment_method?->value ?? $order->payment_method,
             'payment_status' => $order->payment_status?->value ?? $order->payment_status,
-            'items_count' => $order->items->count(),
+            'items_count' => (int) ($order->items_count ?? $order->items->count()),
             'subtotal' => (float) $order->subtotal,
             'discount_amount' => (float) $order->discount_amount,
             'tax' => (float) $order->tax,
@@ -260,4 +262,3 @@ class OrderController extends Controller
         ];
     }
 }
-
