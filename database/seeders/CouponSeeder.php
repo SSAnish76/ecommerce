@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Collection\CollectionType;
 use App\Enums\Coupon\CouponApplyTo;
 use App\Enums\Coupon\CouponType;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Collection;
 use App\Models\Coupon;
 use App\Models\Product;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 class CouponSeeder extends Seeder
 {
@@ -26,7 +27,7 @@ class CouponSeeder extends Seeder
             ['slug' => 'trending'],
             [
                 'name' => 'Trending Now',
-                'type' => \App\Enums\Collection\CollectionType::Product,
+                'type' => CollectionType::Product,
                 'description' => 'Fast-moving, popular catalog items',
                 'is_active' => true,
             ]
@@ -36,7 +37,7 @@ class CouponSeeder extends Seeder
             ['slug' => 'special-deals'],
             [
                 'name' => 'Special Deals',
-                'type' => \App\Enums\Collection\CollectionType::Product,
+                'type' => CollectionType::Product,
                 'description' => 'Exclusive seasonal discounted items',
                 'is_active' => true,
             ]
@@ -46,7 +47,7 @@ class CouponSeeder extends Seeder
             ['slug' => 'featured-brands'],
             [
                 'name' => 'Featured Flagship Brands',
-                'type' => \App\Enums\Collection\CollectionType::Brand,
+                'type' => CollectionType::Brand,
                 'description' => 'Handpicked premium brand partners and manufacturers',
                 'is_active' => true,
             ]
@@ -56,7 +57,7 @@ class CouponSeeder extends Seeder
             ['slug' => 'top-categories'],
             [
                 'name' => 'Explore Top Categories',
-                'type' => \App\Enums\Collection\CollectionType::Category,
+                'type' => CollectionType::Category,
                 'description' => 'Core shopping departments and curated taxonomy',
                 'is_active' => true,
             ]
@@ -70,7 +71,7 @@ class CouponSeeder extends Seeder
         }
 
         // Attach brands to brand collection
-        $brands = \App\Models\Brand::limit(4)->get();
+        $brands = Brand::limit(4)->get();
         if ($brands->isNotEmpty()) {
             $brandCollection->brands()->syncWithoutDetaching($brands->pluck('id'));
         }

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('type', 20)->default('string');
             $table->string('label')->nullable();
             $table->text('description')->nullable();
+            $table->boolean('is_public')->default(false)->index();
             $table->timestamps();
         });
     }

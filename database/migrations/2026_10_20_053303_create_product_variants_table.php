@@ -24,6 +24,7 @@ return new class extends Migration
             $table->integer('low_stock_threshold')->default(5);
             $table->boolean('is_active')->default(true)->index();
             $table->string('image_path')->nullable();
+            $table->foreignUuid('media_id')->nullable()->constrained('media_files')->nullOnDelete();
             $table->timestamps();
         });
     }

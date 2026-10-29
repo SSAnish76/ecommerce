@@ -36,14 +36,6 @@ class ProductSeeder extends Seeder
             ]);
         }
 
-        // 2. Remove legacy duplicate placeholder product if present
-        $legacyIphone = Product::where('sku', 'APL-IP16PM-256')->first();
-        if ($legacyIphone) {
-            $legacyIphone->variants()->delete();
-            $legacyIphone->images()->delete();
-            $legacyIphone->delete();
-        }
-
         // 2. Seed Computers and Mobile Phones
         $this->call([
             ComputerProductSeeder::class,
@@ -161,9 +153,7 @@ class ProductSeeder extends Seeder
         $totalShoeStock = 0;
 
         foreach ($shoeSizes as $size => $stock) {
-            $valModel = AttributeValue::where('attribute_id', $attrSize?->id)
-                ->where('value', $size)
-                ->first();
+            $valModel = $attrSize ? $this->findAttributeValue($attrSize->id, $size) : null;
 
             if ($valModel && $attrSize) {
                 $shoeAttrValueSync[$valModel->id] = ['attribute_id' => $attrSize->id];

@@ -10,6 +10,7 @@ use App\Models\RolePermission;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -24,9 +25,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $menus = Menu::query()->where('status', MenuStatus::Active)->get();
 
         // 2. Define Roles
-        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin'], ['is_system' => true]);
-        $superAdmin->update(['is_system' => true]);
-
+        $superAdmin = Role::updateOrCreate(['name' => 'Super Admin'], ['is_system' => true]);
         $admin = Role::firstOrCreate(['name' => 'Admin']);
         $manager = Role::firstOrCreate(['name' => 'Manager']);
         $editor = Role::firstOrCreate(['name' => 'Editor']);
@@ -39,30 +38,27 @@ class RolesAndPermissionsSeeder extends Seeder
                 ? $menus
                 : $menus->filter(fn (Menu $m) => in_array($m->slug, $allowedSlugs, true));
 
+            $records = [];
+            $now = now();
+
             foreach ($targetMenus as $menu) {
-                if ($isViewOnly) {
-                    RolePermission::create([
-                        'role_id' => $role->id,
-                        'menu_slug' => $menu->slug,
-                        'can_view' => true,
-                        'can_create' => false,
-                        'can_update' => false,
-                        'can_delete' => false,
-                        'can_import' => false,
-                        'can_export' => false,
-                    ]);
-                } else {
-                    RolePermission::create([
-                        'role_id' => $role->id,
-                        'menu_slug' => $menu->slug,
-                        'can_view' => true,
-                        'can_create' => (bool) $menu->is_crud,
-                        'can_update' => (bool) $menu->is_crud,
-                        'can_delete' => $isFullAccess ? (bool) $menu->is_crud : ($menu->slug !== 'roles' && (bool) $menu->is_crud),
-                        'can_import' => (bool) $menu->is_import_export,
-                        'can_export' => (bool) $menu->is_import_export,
-                    ]);
-                }
+                $records[] = [
+                    'id' => (string) Str::uuid(),
+                    'role_id' => $role->id,
+                    'menu_slug' => $menu->slug,
+                    'can_view' => true,
+                    'can_create' => $isViewOnly ? false : (bool) $menu->is_crud,
+                    'can_update' => $isViewOnly ? false : (bool) $menu->is_crud,
+                    'can_delete' => $isViewOnly ? false : ($isFullAccess ? (bool) $menu->is_crud : ($menu->slug !== 'roles' && (bool) $menu->is_crud)),
+                    'can_import' => $isViewOnly ? false : (bool) $menu->is_import_export,
+                    'can_export' => $isViewOnly ? false : (bool) $menu->is_import_export,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            if (! empty($records)) {
+                RolePermission::insert($records);
             }
         };
 
@@ -99,5 +95,7 @@ class RolesAndPermissionsSeeder extends Seeder
         if ($adminUser->role_id !== $superAdmin->id) {
             $adminUser->update(['role_id' => $superAdmin->id]);
         }
+
+        Menu::clearCache();
     }
 }

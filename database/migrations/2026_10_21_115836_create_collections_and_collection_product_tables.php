@@ -18,6 +18,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('type')->default('product');
             $table->foreignUuid('image_id')->nullable()->constrained('media_files')->nullOnDelete();
+            $table->json('custom_items')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

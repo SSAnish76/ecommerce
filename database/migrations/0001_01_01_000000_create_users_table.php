@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->uuid('id')->primary();
             $table->string('name');
             $table->string('email')->unique();
+            $table->foreignUuid('role_id')->nullable()->constrained('roles')->nullOnDelete();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->text('2fa_secret')->nullable();

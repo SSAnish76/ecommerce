@@ -15,59 +15,49 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Ensure Super Admin exists and has the Super Admin role
-        $superAdminRole = Role::where('name', 'Super Admin')->first();
+        // 1. Create standard demo accounts for defined roles
+        $roles = Role::whereIn('name', ['Super Admin', 'Manager', 'Editor'])->get()->keyBy('name');
 
-        $adminUser = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+        $demoUsers = [
             [
+                'email' => 'admin@example.com',
                 'name' => 'Admin User',
-                'password' => Hash::make('password'),
-                'status' => UserStatus::Active,
-                'role_id' => $superAdminRole?->id,
-            ]
-        );
+                'role' => 'Super Admin',
+            ],
+            [
+                'email' => 'manager@example.com',
+                'name' => 'Store Operations Manager',
+                'role' => 'Manager',
+            ],
+            [
+                'email' => 'editor@example.com',
+                'name' => 'Catalog Content Editor',
+                'role' => 'Editor',
+            ],
+        ];
 
-        if ($superAdminRole && $adminUser->role_id !== $superAdminRole->id) {
-            $adminUser->update(['role_id' => $superAdminRole->id]);
-        }
+        foreach ($demoUsers as $demo) {
+            $role = $roles->get($demo['role']);
+            if (! $role && $demo['role'] !== 'Super Admin') {
+                continue;
+            }
 
-        // 2. Create demo users for other roles if they do not exist
-        $managerRole = Role::where('name', 'Manager')->first();
-        if ($managerRole) {
-            $manager = User::firstOrCreate(
-                ['email' => 'manager@example.com'],
+            $user = User::firstOrCreate(
+                ['email' => $demo['email']],
                 [
-                    'name' => 'Store Operations Manager',
+                    'name' => $demo['name'],
                     'password' => Hash::make('password'),
                     'status' => UserStatus::Active,
-                    'role_id' => $managerRole->id,
+                    'role_id' => $role?->id,
                 ]
             );
 
-            if ($manager->role_id !== $managerRole->id) {
-                $manager->update(['role_id' => $managerRole->id]);
+            if ($role && $user->role_id !== $role->id) {
+                $user->update(['role_id' => $role->id]);
             }
         }
 
-        $editorRole = Role::where('name', 'Editor')->first();
-        if ($editorRole) {
-            $editor = User::firstOrCreate(
-                ['email' => 'editor@example.com'],
-                [
-                    'name' => 'Catalog Content Editor',
-                    'password' => Hash::make('password'),
-                    'status' => UserStatus::Active,
-                    'role_id' => $editorRole->id,
-                ]
-            );
-
-            if ($editor->role_id !== $editorRole->id) {
-                $editor->update(['role_id' => $editorRole->id]);
-            }
-        }
-
-        // 3. Create sample accounts if less than 5 non-admin users
+        // 2. Create sample accounts if less than 5 non-admin users
         if (User::where('email', '!=', 'admin@example.com')->count() < 5) {
             User::factory(3)->create();
         }

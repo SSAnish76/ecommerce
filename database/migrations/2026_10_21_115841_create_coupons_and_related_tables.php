@@ -48,6 +48,12 @@ return new class extends Migration
             $table->primary(['coupon_id', 'collection_id']);
         });
 
+        Schema::create('coupon_brand', function (Blueprint $table): void {
+            $table->foreignUuid('coupon_id')->constrained('coupons')->cascadeOnDelete();
+            $table->foreignUuid('brand_id')->constrained('brands')->cascadeOnDelete();
+            $table->primary(['coupon_id', 'brand_id']);
+        });
+
         Schema::create('coupon_usages', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('coupon_id')->constrained('coupons')->cascadeOnDelete();
@@ -74,6 +80,7 @@ return new class extends Migration
         });
 
         Schema::dropIfExists('coupon_usages');
+        Schema::dropIfExists('coupon_brand');
         Schema::dropIfExists('coupon_collection');
         Schema::dropIfExists('coupon_category');
         Schema::dropIfExists('coupon_product');

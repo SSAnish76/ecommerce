@@ -39,13 +39,6 @@ return new class extends Migration
 
             $table->primary(['product_variant_id', 'attribute_value_id'], 'p_var_attr_val_pk');
         });
-
-        // 4. Add media_id to product_variants if not present
-        if (! Schema::hasColumn('product_variants', 'media_id')) {
-            Schema::table('product_variants', function (Blueprint $table): void {
-                $table->foreignUuid('media_id')->nullable()->after('image_path')->constrained('media_files')->nullOnDelete();
-            });
-        }
     }
 
     /**
@@ -53,13 +46,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasColumn('product_variants', 'media_id')) {
-            Schema::table('product_variants', function (Blueprint $table): void {
-                $table->dropForeign(['media_id']);
-                $table->dropColumn('media_id');
-            });
-        }
-
         Schema::dropIfExists('product_variant_attribute_values');
         Schema::dropIfExists('product_attribute_values');
         Schema::dropIfExists('product_attributes');

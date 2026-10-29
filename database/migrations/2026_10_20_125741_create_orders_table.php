@@ -13,11 +13,13 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table): void {
             $table->uuid('id')->primary();
+            $table->foreignUuid('customer_id')->nullable()->constrained('customers')->nullOnDelete();
             $table->string('order_number')->unique()->index();
             $table->string('customer_name');
             $table->string('customer_email')->index();
             $table->string('customer_phone')->nullable();
             $table->text('shipping_address');
+            $table->text('billing_address')->nullable();
             $table->decimal('subtotal', 10, 2);
             $table->decimal('tax', 10, 2)->default(0.00);
             $table->decimal('shipping_fee', 10, 2)->default(0.00);

@@ -25,8 +25,7 @@ return new class extends Migration
             $table->decimal('retail_price', 10, 2)->default(0.00);
             $table->decimal('sale_price', 10, 2)->nullable();
             $table->string('discount_type')->default('percentage');
-            $table->decimal('discount_amount', 10, 2)->nullable();
-            $table->decimal('discount_percentage', 5, 2)->nullable();
+            $table->decimal('discount_value', 10, 2)->nullable();
             $table->integer('stock_quantity')->default(0)->index();
             $table->integer('low_stock_threshold')->default(5);
             $table->string('stock_visibility')->default('badge');

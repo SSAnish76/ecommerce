@@ -4,10 +4,25 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Concerns;
 
+use App\Models\Attribute;
+use App\Models\AttributeValue;
+use App\Models\Brand;
+use App\Models\Category;
 use App\Models\MediaFile;
+use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariant;
 
 trait SeedsProductMedia
 {
+    /** @var array<string, MediaFile> */
+    protected array $mediaCache = [];
+
+    /** @var array<string, Attribute|null> */
+    protected array $attributeCache = [];
+
+    /** @var array<string, AttributeValue|null> */
+    protected array $attributeValueCache = [];
     /**
      * Live Unsplash/Picsum download URLs keyed by seeder filename.
      * Each URL returns a real product-relevant photo (800×800 JPEG).
@@ -54,6 +69,10 @@ trait SeedsProductMedia
         string $brandName,
         string $hexBg = '#0f172a'
     ): MediaFile {
+        if (isset($this->mediaCache[$filename])) {
+            return $this->mediaCache[$filename];
+        }
+
         $dir = storage_path('app/public/media/products');
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
@@ -71,7 +90,7 @@ trait SeedsProductMedia
 
         $size = file_exists($filePath) ? filesize($filePath) : 10240;
 
-        return MediaFile::firstOrCreate(
+        return $this->mediaCache[$filename] = MediaFile::firstOrCreate(
             ['filename' => $filename],
             [
                 'disk'          => 'public',
@@ -83,6 +102,150 @@ trait SeedsProductMedia
                 'collection'    => 'products',
             ]
         );
+    }
+
+    protected function findAttributeByName(string $name): ?Attribute
+    {
+        return $this->attributeCache[$name] ??= Attribute::where('name', $name)->first();
+    }
+
+    protected function findAttributeValue(string $attributeId, string $value): ?AttributeValue
+    {
+        $key = "{$attributeId}:{$value}";
+
+        return $this->attributeValueCache[$key] ??= AttributeValue::where('attribute_id', $attributeId)
+            ->where('value', $value)
+            ->first();
+    }
+
+    /**
+     * Seed a product with its images, attribute links, and variants.
+     *
+     * @param  array<string, mixed>  $productData
+     * @param  array<string, string>  $imageFilenames
+     * @param  array<int, Attribute|null>  $attributesToSync
+     * @param  array<int, array<string, mixed>>  $variants
+     */
+    protected function seedProduct(
+        Category $category,
+        Brand $brand,
+        array $productData,
+        array $imageFilenames,
+        array $attributesToSync,
+        array $variants
+    ): void {
+        // 1. Create or Update Product
+        /** @var Product $product */
+        $product = Product::updateOrCreate(
+            ['sku' => $productData['sku']],
+            array_merge($productData, [
+                'category_id' => $category->id,
+                'brand_id' => $brand->id,
+            ])
+        );
+
+        // 2. Register media images & attach
+        $registeredMedia = [];
+        $sortOrder = 1;
+        foreach ($imageFilenames as $imgName => $hexBg) {
+            $media = $this->ensureProductMedia(
+                filename: $imgName,
+                title: $productData['name'],
+                brandName: $brand->name,
+                hexBg: $hexBg
+            );
+
+            ProductImage::updateOrCreate(
+                ['product_id' => $product->id, 'sort_order' => $sortOrder],
+                [
+                    'media_id' => $media->id,
+                    'alt_text' => "{$productData['name']} image {$sortOrder}",
+                    'is_primary' => $sortOrder === 1,
+                ]
+            );
+
+            $registeredMedia[$imgName] = $media;
+            $sortOrder++;
+        }
+
+        // Attach category-level attributes to product
+        $attributeSyncData = [];
+        foreach ($attributesToSync as $index => $attr) {
+            if ($attr) {
+                $attributeSyncData[$attr->id] = ['sort_order' => $index + 1];
+            }
+        }
+        $product->attributes()->sync($attributeSyncData);
+
+        // 3. Process Variants & Attribute Values
+        $productAttributeValueIds = [];
+        $totalStock = 0;
+        $lowestRetail = null;
+        $lowestSale = null;
+        $lowestMrp = null;
+
+        foreach ($variants as $v) {
+            $vSku = (string) $v['sku'];
+            $vAttributes = (array) $v['attributes'];
+
+            // Find matching attribute values with memory cache
+            $variantValueIds = [];
+            foreach ($vAttributes as $attrName => $valString) {
+                $attrModel = $this->findAttributeByName($attrName);
+                if ($attrModel) {
+                    $valModel = $this->findAttributeValue($attrModel->id, $valString);
+                    if ($valModel) {
+                        $variantValueIds[] = $valModel->id;
+                        $productAttributeValueIds[$valModel->id] = ['attribute_id' => $attrModel->id];
+                    }
+                }
+            }
+
+            $variantMedia = null;
+            if (! empty($v['image']) && isset($registeredMedia[$v['image']])) {
+                $variantMedia = $registeredMedia[$v['image']];
+            }
+
+            /** @var ProductVariant $variant */
+            $variant = ProductVariant::updateOrCreate(
+                ['sku' => $vSku],
+                [
+                    'product_id' => $product->id,
+                    'name' => $v['name'],
+                    'attributes' => $vAttributes,
+                    'mrp' => $v['mrp'],
+                    'price' => $v['price'],
+                    'sale_price' => $v['sale_price'],
+                    'stock_quantity' => $v['stock_quantity'],
+                    'low_stock_threshold' => $v['low_stock_threshold'] ?? 5,
+                    'is_active' => true,
+                    'media_id' => $variantMedia?->id,
+                    'image_path' => $variantMedia?->url,
+                ]
+            );
+
+            $variant->attributeValues()->sync($variantValueIds);
+
+            $totalStock += (int) $v['stock_quantity'];
+
+            $effPrice = (float) ($v['sale_price'] ?? $v['price']);
+            if ($lowestRetail === null || $effPrice < (float) ($lowestSale ?? $lowestRetail)) {
+                $lowestRetail = (float) $v['price'];
+                $lowestSale = $v['sale_price'] !== null ? (float) $v['sale_price'] : null;
+                $lowestMrp = (float) ($v['mrp'] ?? $v['price']);
+            }
+        }
+
+        // 4. Sync Product Attribute Values pivot
+        $product->attributeValues()->sync($productAttributeValueIds);
+
+        // 5. Update Product Summary stock & base prices
+        $product->update([
+            'stock_quantity' => $totalStock,
+            'retail_price' => $lowestRetail ?? $product->retail_price,
+            'sale_price' => $lowestSale,
+            'mrp' => $lowestMrp ?? $product->mrp,
+        ]);
     }
 
     /**
