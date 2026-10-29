@@ -465,6 +465,28 @@ class Product extends Model
     }
 
     /**
+     * Batch format products into summary arrays with wishlist status and N+1 eager load protection.
+     *
+     * @param  iterable<Product>  $products
+     * @return array<int, array<string, mixed>>
+     */
+    public static function formatSummaries(iterable $products, ?Customer $customer = null): array
+    {
+        $items = collect($products)->filter(fn ($item): bool => $item instanceof Product)->values()->all();
+        if ($items === []) {
+            return [];
+        }
+
+        static::loadMissingSummaryRelations($items);
+        $wishlistProductIds = static::resolveWishlistProductIds($items, $customer);
+
+        return array_map(
+            fn (Product $product): array => $product->toSummaryArray(isset($wishlistProductIds[$product->id])),
+            $items
+        );
+    }
+
+    /**
      * Format product summary for catalog listings, search, and user views.
      *
      * @return array<string, mixed>

@@ -8,8 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
-use App\Models\Wishlist;
-use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
@@ -17,9 +16,9 @@ class CategoryController extends Controller
     /**
      * Display a listing of active categories (as tree or flat list).
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $asTree = $request->boolean('tree', false);
 
             if ($asTree) {
@@ -31,7 +30,7 @@ class CategoryController extends Controller
                     ->orderBy('sort_order')
                     ->get();
 
-                $data = $categories->map(fn (Category $category) => $this->formatCategoryTree($category));
+                $data = $categories->map(fn (Category $category): array => $this->formatCategoryTree($category));
 
                 return $this->returnSuccess($data, 'Category tree retrieved successfully.');
             }
@@ -43,20 +42,18 @@ class CategoryController extends Controller
                 ->orderBy('sort_order')
                 ->get();
 
-            $data = $categories->map(fn (Category $category) => $this->formatCategoryFlat($category));
+            $data = $categories->map(fn (Category $category): array => $this->formatCategoryFlat($category));
 
             return $this->returnSuccess($data, 'Categories retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Display the specified category and its active products.
      */
-    public function show(string $slugOrId, Request $request)
+    public function show(string $slugOrId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($slugOrId, $request): JsonResponse {
             $query = Category::query()
                 ->active()
                 ->with(['image', 'parent', 'children' => fn ($q) => $q->active()->with('image')])
@@ -81,21 +78,14 @@ class CategoryController extends Controller
                 ->latest()
                 ->paginate($perPage);
 
-            Product::loadMissingSummaryRelations($productsPaginator->items());
-
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = Product::resolveWishlistProductIds($productsPaginator->items(), $customer);
-
-            $products = array_map(
-                fn (Product $product) => $product->toSummaryArray(isset($wishlistProductIds[$product->id])),
-                $productsPaginator->items()
-            );
+            $products = Product::formatSummaries($productsPaginator->items(), $customer);
 
             $data = [
                 'category' => $this->formatCategoryFlat($category),
                 'parent' => $category->parent ? $this->formatCategoryFlat($category->parent) : null,
-                'children' => $category->children->map(fn ($c) => $this->formatCategoryFlat($c)),
+                'children' => $category->children->map(fn ($c): array => $this->formatCategoryFlat($c)),
                 'products' => [
                     'data' => $products,
                     'pagination' => $this->paginationMeta($productsPaginator),
@@ -103,9 +93,7 @@ class CategoryController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Category details retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -135,7 +123,7 @@ class CategoryController extends Controller
     protected function formatCategoryTree(Category $category): array
     {
         $data = $this->formatCategoryFlat($category);
-        $data['children'] = $category->children->map(fn (Category $child) => $this->formatCategoryTree($child))->values();
+        $data['children'] = $category->children->map(fn (Category $child): array => $this->formatCategoryTree($child))->values();
 
         return $data;
     }

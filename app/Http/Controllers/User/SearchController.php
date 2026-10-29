@@ -9,9 +9,8 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
-use App\Models\Wishlist;
-use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SearchController extends Controller
@@ -19,9 +18,9 @@ class SearchController extends Controller
     /**
      * Search products with filtering, facets, and pagination.
      */
-    public function search(Request $request)
+    public function search(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $keyword = $request->string('q')->trim()->value();
 
             if ($keyword === '') {
@@ -78,36 +77,26 @@ class SearchController extends Controller
                 'price_desc' => $query->orderByRaw('COALESCE(sale_price, retail_price) DESC'),
                 'name_asc' => $query->orderBy('name', 'asc'),
                 'name_desc' => $query->orderBy('name', 'desc'),
-                'latest' => $query->orderBy('created_at', 'desc'),
                 default => $query->orderBy('created_at', 'desc'),
             };
 
             $perPage = $this->resolvePerPage($request);
             $paginator = $query->paginate($perPage);
 
-            Product::loadMissingSummaryRelations($paginator->items());
-
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = Product::resolveWishlistProductIds($paginator->items(), $customer);
-
-            $items = array_map(
-                fn (Product $product) => $this->formatSearchResultItem($product, isset($wishlistProductIds[$product->id])),
-                $paginator->items()
-            );
+            $items = Product::formatSummaries($paginator->items(), $customer);
 
             return $this->paginatedResponse($paginator, $items, 'Search results retrieved.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Fast search suggestions (autocomplete) for search input dropdowns.
      */
-    public function suggestions(Request $request)
+    public function suggestions(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $keyword = $request->string('q')->trim()->value();
 
             if (mb_strlen($keyword) < 1) {
@@ -125,7 +114,7 @@ class SearchController extends Controller
                 ->with('primaryImage.media')
                 ->limit(6)
                 ->get(['id', 'name', 'slug', 'retail_price', 'sale_price'])
-                ->map(fn (Product $p) => [
+                ->map(fn (Product $p): array => [
                     'id' => $p->id,
                     'name' => $p->name,
                     'slug' => $p->slug,
@@ -138,7 +127,7 @@ class SearchController extends Controller
                 ->where('name', 'like', "%{$keyword}%")
                 ->limit(4)
                 ->get(['id', 'name', 'slug'])
-                ->map(fn (Category $c) => [
+                ->map(fn (Category $c): array => [
                     'id' => $c->id,
                     'name' => $c->name,
                     'slug' => $c->slug,
@@ -149,7 +138,7 @@ class SearchController extends Controller
                 ->where('name', 'like', "%{$keyword}%")
                 ->limit(4)
                 ->get(['id', 'name', 'slug'])
-                ->map(fn (Brand $b) => [
+                ->map(fn (Brand $b): array => [
                     'id' => $b->id,
                     'name' => $b->name,
                     'slug' => $b->slug,
@@ -162,19 +151,6 @@ class SearchController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Search suggestions retrieved.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
-    }
-
-    /**
-     * Format search result product item for API response.
-     *
-     * @return array<string, mixed>
-     */
-    public function formatSearchResultItem(Product $product, bool $isWishlist = false): array
-    {
-        return $product->toSummaryArray($isWishlist);
+        });
     }
 }
-

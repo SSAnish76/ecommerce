@@ -7,11 +7,10 @@ namespace App\Http\Controllers\User;
 use App\Enums\Customer\CustomerStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
@@ -19,7 +18,7 @@ class AuthController extends Controller
     /**
      * Issue access and refresh token pair for a customer.
      *
-     * @return array{token: string, access_token: string, refresh_token: string, token_type: string, expires_in: int, expires_at: string}
+     * @return array{access_token: string, refresh_token: string, token_type: string, expires_in: int, expires_at: string}
      */
     protected function generateAuthTokens(Customer $customer, string $deviceName = 'customer-app'): array
     {
@@ -53,9 +52,9 @@ class AuthController extends Controller
     /**
      * Register a new customer account.
      */
-    public function register(Request $request)
+    public function register(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $validated = $request->validate([
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:customers,email'],
@@ -75,19 +74,15 @@ class AuthController extends Controller
             $tokenData = $this->generateAuthTokens($customer, 'customer-auth-token');
 
             return $this->returnSuccess($tokenData, 'Registration successful!', 201);
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Authenticate customer credentials and return access token.
      */
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $validated = $request->validate([
                 'email' => ['required', 'string', 'email'],
                 'password' => ['required', 'string'],
@@ -97,7 +92,7 @@ class AuthController extends Controller
             /** @var Customer|null $customer */
             $customer = Customer::where('email', strtolower(trim($validated['email'])))->first();
 
-            if (!$customer || !Hash::check($validated['password'], $customer->password)) {
+            if (! $customer || ! Hash::check($validated['password'], $customer->password)) {
                 return $this->returnError(
                     null,
                     'The provided credentials do not match our records.',
@@ -105,7 +100,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (!$customer->isActive()) {
+            if (! $customer->isActive()) {
                 return $this->returnError(
                     null,
                     'Your account is currently inactive. Please contact support.',
@@ -119,22 +114,18 @@ class AuthController extends Controller
             $tokenData = $this->generateAuthTokens($customer, $deviceName);
 
             return $this->returnSuccess($tokenData, 'Login successful!');
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Refresh access token using a valid refresh token.
      */
-    public function refresh(Request $request)
+    public function refresh(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $refreshTokenString = $request->input('refresh_token') ?? $request->bearerToken();
 
-            if (!$refreshTokenString) {
+            if (! $refreshTokenString) {
                 return $this->returnError(
                     null,
                     'Refresh token is required.',
@@ -145,7 +136,7 @@ class AuthController extends Controller
             /** @var PersonalAccessToken|null $tokenModel */
             $tokenModel = PersonalAccessToken::findToken($refreshTokenString);
 
-            if (!$tokenModel) {
+            if (! $tokenModel) {
                 return $this->returnError(
                     null,
                     'Invalid refresh token.',
@@ -163,7 +154,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (!$tokenModel->can('issue-access-token')) {
+            if (! $tokenModel->can('issue-access-token')) {
                 return $this->returnError(
                     null,
                     'The provided token is not a valid refresh token.',
@@ -173,7 +164,7 @@ class AuthController extends Controller
 
             $customer = $tokenModel->tokenable;
 
-            if (!($customer instanceof Customer)) {
+            if (! ($customer instanceof Customer)) {
                 return $this->returnError(
                     null,
                     'Invalid customer token.',
@@ -181,7 +172,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (!$customer->isActive()) {
+            if (! $customer->isActive()) {
                 return $this->returnError(
                     null,
                     'Your account is currently inactive. Please contact support.',
@@ -196,17 +187,15 @@ class AuthController extends Controller
             $tokenData = $this->generateAuthTokens($customer, $deviceName);
 
             return $this->returnSuccess($tokenData, 'Token refreshed successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Get the authenticated customer profile.
      */
-    public function profile(Request $request)
+    public function profile(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -231,17 +220,15 @@ class AuthController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Profile retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Update customer profile details.
      */
-    public function updateProfile(Request $request)
+    public function updateProfile(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -267,19 +254,15 @@ class AuthController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Profile updated successfully.');
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Update customer password.
      */
-    public function updatePassword(Request $request)
+    public function updatePassword(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -288,7 +271,7 @@ class AuthController extends Controller
                 'password' => ['required', 'string', 'min:8', 'confirmed'],
             ]);
 
-            if (!Hash::check($validated['current_password'], $customer->password)) {
+            if (! Hash::check($validated['current_password'], $customer->password)) {
                 return $this->returnError(
                     ['current_password' => ['The current password provided is incorrect.']],
                     'The current password provided is incorrect.'
@@ -300,41 +283,31 @@ class AuthController extends Controller
             ]);
 
             return $this->returnSuccess([], 'Password updated successfully.');
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Revoke customer current access token (logout).
      */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
-        try {
-            /** @var Customer $customer */
+        return $this->safeCall(function () use ($request): JsonResponse {
+            /** @var Customer|null $customer */
             $customer = $request->user();
 
             if ($customer) {
                 if ($request->boolean('all')) {
                     $customer->tokens()->delete();
                 } else {
-                    if ($customer->currentAccessToken()) {
-                        $customer->currentAccessToken()->delete();
-                    }
+                    $customer->currentAccessToken()?->delete();
 
                     if ($refreshToken = $request->input('refresh_token')) {
-                        if ($tokenModel = PersonalAccessToken::findToken($refreshToken)) {
-                            $tokenModel->delete();
-                        }
+                        PersonalAccessToken::findToken($refreshToken)?->delete();
                     }
                 }
             }
 
             return $this->returnSuccess([], 'Successfully logged out.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 }

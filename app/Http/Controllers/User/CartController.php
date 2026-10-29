@@ -10,11 +10,9 @@ use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
@@ -23,16 +21,14 @@ class CartController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
             $cartData = $this->buildCartData($customer->id);
 
             return $this->returnSuccess($cartData, 'Cart retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -40,7 +36,7 @@ class CartController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -109,13 +105,14 @@ class CartController extends Controller
                 $itemName = $product->name;
             }
 
-            // Find existing cart item for same product and variant
-            $cartItem = CartItem::where('customer_id', $customer->id)
-                ->where('product_id', $productId)
-                ->where('product_variant_id', $variantId)
-                ->first();
+            // Find or initialize existing cart item for same product and variant
+            $cartItem = CartItem::firstOrNew([
+                'customer_id' => $customer->id,
+                'product_id' => $productId,
+                'product_variant_id' => $variantId,
+            ]);
 
-            $targetQuantity = $cartItem ? ($cartItem->quantity + $qtyToAdd) : $qtyToAdd;
+            $targetQuantity = ($cartItem->exists ? $cartItem->quantity : 0) + $qtyToAdd;
 
             // Stock validation based on Out-of-Stock Catalog Visibility
             $effectiveVisibility = $product->effectiveStockVisibility();
@@ -134,16 +131,8 @@ class CartController extends Controller
                 );
             }
 
-            if ($cartItem) {
-                $cartItem->update(['quantity' => $targetQuantity]);
-            } else {
-                $cartItem = CartItem::create([
-                    'customer_id' => $customer->id,
-                    'product_id' => $productId,
-                    'product_variant_id' => $variantId,
-                    'quantity' => $targetQuantity,
-                ]);
-            }
+            $cartItem->quantity = $targetQuantity;
+            $cartItem->save();
 
             $cartData = $this->buildCartData($customer->id);
 
@@ -156,11 +145,7 @@ class CartController extends Controller
                 ],
                 'cart' => $cartData,
             ], 'Item added to cart.', 201);
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -168,7 +153,7 @@ class CartController extends Controller
      */
     public function update(string $id, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($id, $request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -189,56 +174,39 @@ class CartController extends Controller
             $product = $cartItem->product;
             $effectiveVisibility = $product?->effectiveStockVisibility() ?? StockVisibility::Badge;
 
-            // Check stock using preloaded relationships
             if ($cartItem->product_variant_id) {
                 $variant = $cartItem->variant;
                 if (! $variant || ! $variant->isActive()) {
-                    return $this->returnError(
-                        null,
-                        'Selected variant is no longer available.'
-                    );
+                    return $this->returnError(null, 'Selected variant is no longer available.');
                 }
 
                 $stock = (int) $variant->stock_quantity;
                 $itemName = $variant->displayName($product);
-
-                if ($effectiveVisibility === StockVisibility::Hide && $stock <= 0) {
-                    return $this->returnError(
-                        null,
-                        "Variant '{$itemName}' is currently out of stock and unavailable."
-                    );
-                }
-
-                if ($effectiveVisibility !== StockVisibility::Backorder && $stock < $newQty) {
-                    return $this->returnError(
-                        null,
-                        "Insufficient stock for variant. Only {$stock} available."
-                    );
-                }
+                $entityType = 'variant';
             } else {
                 if (! $product || ! $product->isActive()) {
-                    return $this->returnError(
-                        null,
-                        'Selected product is no longer available.'
-                    );
+                    return $this->returnError(null, 'Selected product is no longer available.');
                 }
 
                 $stock = (int) $product->stock_quantity;
                 $itemName = $product->name;
+                $entityType = 'product';
+            }
 
-                if ($effectiveVisibility === StockVisibility::Hide && $stock <= 0) {
-                    return $this->returnError(
-                        null,
-                        "Product '{$itemName}' is currently out of stock and unavailable."
-                    );
-                }
+            if ($effectiveVisibility === StockVisibility::Hide && $stock <= 0) {
+                $prefix = $entityType === 'variant' ? 'Variant' : 'Product';
 
-                if ($effectiveVisibility !== StockVisibility::Backorder && $stock < $newQty) {
-                    return $this->returnError(
-                        null,
-                        "Insufficient stock for product. Only {$stock} available."
-                    );
-                }
+                return $this->returnError(
+                    null,
+                    "{$prefix} '{$itemName}' is currently out of stock and unavailable."
+                );
+            }
+
+            if ($effectiveVisibility !== StockVisibility::Backorder && $stock < $newQty) {
+                return $this->returnError(
+                    null,
+                    "Insufficient stock for {$entityType}. Only {$stock} available."
+                );
             }
 
             $cartItem->update(['quantity' => $newQty]);
@@ -246,11 +214,7 @@ class CartController extends Controller
             $cartData = $this->buildCartData($customer->id);
 
             return $this->returnSuccess($cartData, 'Cart item quantity updated.');
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -258,7 +222,7 @@ class CartController extends Controller
      */
     public function destroy(string $id, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($id, $request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -270,9 +234,7 @@ class CartController extends Controller
             $cartData = $this->buildCartData($customer->id);
 
             return $this->returnSuccess($cartData, 'Item removed from cart.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -280,7 +242,7 @@ class CartController extends Controller
      */
     public function clear(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -296,9 +258,7 @@ class CartController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Cart cleared successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -306,7 +266,7 @@ class CartController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function buildCartData(string $customerId): array
+    public function buildCartData(string $customerId): array
     {
         $items = CartItem::query()
             ->where('customer_id', $customerId)

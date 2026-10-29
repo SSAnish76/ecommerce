@@ -8,23 +8,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Wishlist;
-use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class WishlistController extends Controller
 {
     /**
      * Display a listing of products in customer wishlist.
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
-            $query = Wishlist::query()
-                ->where('customer_id', $customer->id)
+            $query = $customer->wishlists()
                 ->with([
                     'product' => function ($q): void {
                         $q->active()->withSummaryRelations();
@@ -35,20 +33,18 @@ class WishlistController extends Controller
             return $this->paginateAndFormat(
                 $query,
                 $request,
-                fn (Wishlist $wishlist) => $this->formatWishlistItem($wishlist),
+                fn (Wishlist $wishlist): ?array => $this->formatWishlistItem($wishlist),
                 message: 'Wishlist retrieved successfully.'
             );
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Add a product to customer wishlist.
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -61,8 +57,7 @@ class WishlistController extends Controller
                 return $this->returnError(null, 'Product not found or unavailable.');
             }
 
-            $wishlist = Wishlist::firstOrCreate([
-                'customer_id' => $customer->id,
+            $wishlist = $customer->wishlists()->firstOrCreate([
                 'product_id' => $product->id,
             ]);
 
@@ -73,23 +68,19 @@ class WishlistController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Product added to wishlist.', 201);
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
-     * Remove a product from customer wishlist by product ID.
+     * Remove a product from customer wishlist by product ID or wishlist item ID.
      */
-    public function destroy(string $productId, Request $request)
+    public function destroy(string $productId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($productId, $request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
-            $deleted = Wishlist::where('customer_id', $customer->id)
+            $deleted = $customer->wishlists()
                 ->where(function ($q) use ($productId): void {
                     $q->where('product_id', $productId)->orWhere('id', $productId);
                 })
@@ -105,17 +96,15 @@ class WishlistController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Product removed from wishlist.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Toggle product wishlist status (add if missing, remove if present).
      */
-    public function toggle(Request $request)
+    public function toggle(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -123,7 +112,7 @@ class WishlistController extends Controller
                 'product_id' => ['required', 'string', 'exists:products,id'],
             ]);
 
-            $existing = Wishlist::where('customer_id', $customer->id)
+            $existing = $customer->wishlists()
                 ->where('product_id', $validated['product_id'])
                 ->first();
 
@@ -143,8 +132,7 @@ class WishlistController extends Controller
                 return $this->returnError(null, 'Product not found or unavailable.');
             }
 
-            $created = Wishlist::create([
-                'customer_id' => $customer->id,
+            $created = $customer->wishlists()->create([
                 'product_id' => $product->id,
             ]);
 
@@ -155,23 +143,19 @@ class WishlistController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Product added to wishlist.', 201);
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
      * Check if a product is in customer wishlist.
      */
-    public function check(string $productId, Request $request)
+    public function check(string $productId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($productId, $request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
-            $exists = Wishlist::where('customer_id', $customer->id)
+            $exists = $customer->wishlists()
                 ->where('product_id', $productId)
                 ->exists();
 
@@ -181,9 +165,7 @@ class WishlistController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Wishlist status checked.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -205,4 +187,3 @@ class WishlistController extends Controller
         ];
     }
 }
-

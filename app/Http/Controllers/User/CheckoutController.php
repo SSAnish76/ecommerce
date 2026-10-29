@@ -24,7 +24,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class CheckoutController extends Controller
 {
@@ -38,22 +38,27 @@ class CheckoutController extends Controller
      */
     public function summary(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer|null $customer */
             $customer = $request->user();
-            $validated = $request->validate($this->checkoutRules());
+            $validated = $request->validate($this->checkoutRules(false, $customer));
 
             $itemsPayload = $this->resolveCheckoutItems($customer, $validated);
 
             $variantIds = array_values(array_filter(array_column($itemsPayload, 'product_variant_id')));
             $productIds = array_values(array_unique(array_column($itemsPayload, 'product_id')));
 
-            $variants = !empty($variantIds)
+            $variants = ! empty($variantIds)
                 ? ProductVariant::whereIn('id', $variantIds)->with(['product.primaryImage.media', 'media'])->get()->keyBy('id')
                 : collect();
 
-            $products = !empty($productIds)
-                ? Product::whereIn('id', $productIds)->with('primaryImage.media')->get()->keyBy('id')
+            $allProductIds = array_values(array_unique(array_merge(
+                $productIds,
+                $variants->pluck('product_id')->filter()->all()
+            )));
+
+            $products = ! empty($allProductIds)
+                ? Product::whereIn('id', $allProductIds)->with('primaryImage.media')->get()->keyBy('id')
                 : collect();
 
             $subtotal = 0.0;
@@ -67,11 +72,10 @@ class CheckoutController extends Controller
                 if ($variantId !== null) {
                     /** @var ProductVariant|null $variant */
                     $variant = $variants->get($variantId);
-                    if (!$variant || !$variant->isActive()) {
-                        return $this->returnError(
-                            null,
-                            'One or more selected items are no longer active.'
-                        );
+                    $parentProduct = $variant ? $products->get($variant->product_id) : null;
+
+                    if (! $variant || ! $variant->isActive() || ! $parentProduct || ! $parentProduct->isActive()) {
+                        return $this->returnError(null, 'One or more selected items are no longer active.');
                     }
 
                     $unitPrice = $variant->effectivePrice();
@@ -81,30 +85,27 @@ class CheckoutController extends Controller
                     $itemsSummary[] = [
                         'product_id' => $variant->product_id,
                         'product_variant_id' => $variant->id,
-                        'name' => $variant->displayName($variant->product),
+                        'name' => $variant->displayName($parentProduct),
                         'sku' => $variant->sku,
                         'unit_price' => $unitPrice,
                         'quantity' => $qty,
                         'subtotal' => $lineTotal,
                         'available_stock' => $variant->stock_quantity,
                         'is_in_stock' => $variant->stock_quantity >= $qty,
-                        'image_url' => $variant->image_url ?: $variant->product?->primaryImage?->media?->url,
+                        'image_url' => $variant->image_url ?: $parentProduct->primaryImage?->media?->url,
                     ];
 
                     $couponItems[] = [
                         'product_id' => $variant->product_id,
                         'price' => $unitPrice,
                         'quantity' => $qty,
-                        'category_id' => $variant->product?->category_id,
+                        'category_id' => $parentProduct->category_id,
                     ];
                 } else {
                     /** @var Product|null $product */
                     $product = $products->get($itemData['product_id']);
                     if (! $product || ! $product->isActive()) {
-                        return $this->returnError(
-                            null,
-                            'One or more selected products are no longer active.'
-                        );
+                        return $this->returnError(null, 'One or more selected products are no longer active.');
                     }
 
                     $unitPrice = $product->effectivePrice();
@@ -133,16 +134,12 @@ class CheckoutController extends Controller
                 }
             }
 
-            try {
-                [$discountAmount, , $couponInfo] = $this->applyCoupon(
-                    $validated['coupon_code'] ?? null,
-                    $subtotal,
-                    $couponItems,
-                    $customer?->email
-                );
-            } catch (\RuntimeException $e) {
-                return $this->returnError(null, $e->getMessage());
-            }
+            [$discountAmount, , $couponInfo] = $this->applyCoupon(
+                $validated['coupon_code'] ?? null,
+                $subtotal,
+                $couponItems,
+                $customer?->email
+            );
 
             $tax = 0.0;
             $shippingFee = 0.0;
@@ -169,11 +166,7 @@ class CheckoutController extends Controller
                 ],
                 'coupon' => $couponInfo,
             ], 'Checkout summary calculated successfully.');
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (\Throwable $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -181,7 +174,7 @@ class CheckoutController extends Controller
      */
     public function validateCoupon(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $validated = $request->validate([
                 'code' => ['required', 'string'],
                 'subtotal' => ['required', 'numeric', 'min:0'],
@@ -195,7 +188,7 @@ class CheckoutController extends Controller
                 $request->user()?->email
             );
 
-            if (!$result['valid']) {
+            if (! $result['valid']) {
                 return $this->returnError(null, $result['message']);
             }
 
@@ -205,11 +198,7 @@ class CheckoutController extends Controller
                 'type' => $result['coupon']?->type?->value ?? (string) ($result['coupon']?->type ?? 'fixed'),
                 'value' => (float) ($result['coupon']?->value ?? 0),
             ], $result['message']);
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (\Throwable $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -217,15 +206,15 @@ class CheckoutController extends Controller
      */
     public function checkout(Request $request): JsonResponse
     {
-        /** @var Customer|null $customer */
-        $customer = $request->user();
+        return $this->safeCall(function () use ($request): JsonResponse {
+            /** @var Customer|null $customer */
+            $customer = $request->user();
 
-        if (!$customer) {
-            return $this->returnError(null, 'Customer must be logged in to checkout.', 401);
-        }
+            if (! $customer) {
+                return $this->returnError(null, 'Customer must be logged in to checkout.', 401);
+            }
 
-        try {
-            $validated = $request->validate($this->checkoutRules(true));
+            $validated = $request->validate($this->checkoutRules(true, $customer));
 
             [$shippingAddress, $billingAddress, $shippingInput, $billingInput] = $this->resolveCheckoutAddresses($request, $validated, $customer);
 
@@ -238,6 +227,22 @@ class CheckoutController extends Controller
             $rawItems = $this->resolveCheckoutItems($customer, $validated);
 
             $order = DB::transaction(function () use ($rawItems, $validated, $shippingAddress, $billingAddress, $customer): Order {
+                $variantIds = array_values(array_filter(array_column($rawItems, 'product_variant_id')));
+                $productIds = array_values(array_unique(array_column($rawItems, 'product_id')));
+
+                $variants = ! empty($variantIds)
+                    ? ProductVariant::whereIn('id', $variantIds)->lockForUpdate()->with('product')->get()->keyBy('id')
+                    : collect();
+
+                $allProductIds = array_values(array_unique(array_merge(
+                    $productIds,
+                    $variants->pluck('product_id')->filter()->all()
+                )));
+
+                $products = ! empty($allProductIds)
+                    ? Product::whereIn('id', $allProductIds)->lockForUpdate()->with('primaryImage.media')->get()->keyBy('id')
+                    : collect();
+
                 $subtotal = 0.0;
                 $processedItems = [];
 
@@ -247,30 +252,21 @@ class CheckoutController extends Controller
 
                     if ($variantId !== null) {
                         /** @var ProductVariant|null $variant */
-                        $variant = ProductVariant::where('id', $variantId)
-                            ->lockForUpdate()
-                            ->with('product')
-                            ->first();
+                        $variant = $variants->get($variantId);
+                        $parentProduct = $variant ? $products->get($variant->product_id) : null;
 
-                        if (! $variant || ! $variant->isActive()) {
-                            throw new \RuntimeException("Variant '{$variantId}' is no longer active or available.");
+                        if (! $variant || ! $variant->isActive() || ! $parentProduct || ! $parentProduct->isActive()) {
+                            throw new RuntimeException("Variant '{$variantId}' is no longer active or available.");
                         }
 
-                        $allowsBackorder = $variant->product?->allowsBackorder() ?? false;
+                        $allowsBackorder = $parentProduct->allowsBackorder();
                         if (! $allowsBackorder && $variant->stock_quantity < $qty) {
-                            throw new \RuntimeException("Insufficient stock for '{$variant->name}'. Only {$variant->stock_quantity} available.");
+                            throw new RuntimeException("Insufficient stock for '{$variant->name}'. Only {$variant->stock_quantity} available.");
                         }
 
                         // Atomic stock decrement
                         $variant->decrement('stock_quantity', $qty);
-
-                        // Also decrement parent product stock
-                        if ($variant->product) {
-                            $parentProduct = Product::where('id', $variant->product->id)->lockForUpdate()->first();
-                            if ($parentProduct) {
-                                $parentProduct->decrement('stock_quantity', min($parentProduct->stock_quantity, $qty));
-                            }
-                        }
+                        $parentProduct->decrement('stock_quantity', min($parentProduct->stock_quantity, $qty));
 
                         $unitPrice = $variant->effectivePrice();
                         $lineSubtotal = round($unitPrice * $qty, 2);
@@ -279,30 +275,27 @@ class CheckoutController extends Controller
                         $processedItems[] = [
                             'product_id' => $variant->product_id,
                             'product_variant_id' => $variant->id,
-                            'product_name' => $variant->product?->name ?? $variant->name,
+                            'product_name' => $parentProduct->name,
                             'variant_name' => $variant->name,
                             'sku' => $variant->sku,
                             'price' => $unitPrice,
                             'quantity' => $qty,
                             'subtotal' => $lineSubtotal,
                             'attributes' => $variant->attributes,
-                            'image_url' => $variant->image_url,
-                            'category_id' => $variant->product?->category_id,
+                            'image_url' => $variant->image_url ?: $parentProduct->primaryImage?->media?->url,
+                            'category_id' => $parentProduct->category_id,
                         ];
                     } else {
                         /** @var Product|null $product */
-                        $product = Product::where('id', $itemData['product_id'])
-                            ->lockForUpdate()
-                            ->with('primaryImage.media')
-                            ->first();
+                        $product = $products->get($itemData['product_id']);
 
                         if (! $product || ! $product->isActive()) {
-                            throw new \RuntimeException('Product is no longer available.');
+                            throw new RuntimeException('Product is no longer available.');
                         }
 
                         $allowsBackorder = $product->allowsBackorder();
                         if (! $allowsBackorder && $product->stock_quantity < $qty) {
-                            throw new \RuntimeException("Insufficient stock for '{$product->name}'. Only {$product->stock_quantity} available.");
+                            throw new RuntimeException("Insufficient stock for '{$product->name}'. Only {$product->stock_quantity} available.");
                         }
 
                         $product->decrement('stock_quantity', $qty);
@@ -347,7 +340,7 @@ class CheckoutController extends Controller
                     'shipping_address' => $shippingAddress,
                     'billing_address' => $billingAddress,
                     'subtotal' => $subtotal,
-                    'coupon_code' => !empty($validated['coupon_code']) ? strtoupper(trim($validated['coupon_code'])) : null,
+                    'coupon_code' => ! empty($validated['coupon_code']) ? strtoupper(trim($validated['coupon_code'])) : null,
                     'discount_amount' => $discountAmount,
                     'tax' => $tax,
                     'shipping_fee' => $shippingFee,
@@ -383,7 +376,7 @@ class CheckoutController extends Controller
                 'customer_phone' => $order->customer_phone,
                 'total' => $order->total,
                 'currency' => (string) Setting::get('currency_symbol', '$'),
-                'items' => $order->items->map(fn(OrderItem $item) => [
+                'items' => $order->items->map(fn (OrderItem $item): array => [
                     'name' => $item->product_name ?? 'Product',
                     'quantity' => (int) $item->quantity,
                     'price' => (float) $item->price,
@@ -394,11 +387,7 @@ class CheckoutController extends Controller
             ]);
 
             return $this->returnSuccess(['order' => $order], "Order #{$order->order_number} placed successfully!", 201);
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (\Throwable $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -406,12 +395,16 @@ class CheckoutController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function checkoutRules(bool $isCheckout = false): array
+    protected function checkoutRules(bool $isCheckout = false, ?Customer $customer = null): array
     {
+        $addressRule = $customer
+            ? Rule::exists('addresses', 'id')->where('customer_id', $customer->id)
+            : 'exists:addresses,id';
+
         $rules = [
-            'shipping_address_id' => ['nullable', 'string', 'exists:addresses,id'],
+            'shipping_address_id' => ['nullable', 'string', $addressRule],
             'shipping_address' => ['nullable'],
-            'billing_address_id' => ['nullable', 'string', 'exists:addresses,id'],
+            'billing_address_id' => ['nullable', 'string', $addressRule],
             'billing_address' => ['nullable'],
             'billing_same_as_shipping' => ['nullable', 'boolean'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
@@ -461,15 +454,15 @@ class CheckoutController extends Controller
      */
     protected function handleAddressPersistence(Customer $customer, array $validated, mixed $shippingInput, mixed $billingInput): void
     {
-        if (empty($customer->phone) && is_array($shippingInput) && !empty($shippingInput['phone'])) {
+        if (empty($customer->phone) && is_array($shippingInput) && ! empty($shippingInput['phone'])) {
             $customer->update(['phone' => $shippingInput['phone']]);
         }
 
-        if (!empty($validated['save_address']) && empty($validated['shipping_address_id']) && !empty($shippingInput)) {
+        if (! empty($validated['save_address']) && empty($validated['shipping_address_id']) && ! empty($shippingInput)) {
             $this->saveAddressForCustomer($customer, $shippingInput, AddressType::Shipping);
         }
 
-        if (!empty($validated['save_billing_address']) && empty($validated['billing_address_id']) && !empty($billingInput)) {
+        if (! empty($validated['save_billing_address']) && empty($validated['billing_address_id']) && ! empty($billingInput)) {
             $this->saveAddressForCustomer($customer, $billingInput, AddressType::Billing);
         }
     }
@@ -489,8 +482,8 @@ class CheckoutController extends Controller
         $code = strtoupper(trim($code));
         $result = $this->couponService->validate($code, $subtotal, $items, $email);
 
-        if (!$result['valid']) {
-            throw new \RuntimeException($result['message']);
+        if (! $result['valid']) {
+            throw new RuntimeException($result['message']);
         }
 
         $discount = (float) $result['discount'];
@@ -514,24 +507,24 @@ class CheckoutController extends Controller
      */
     protected function resolveCheckoutItems(?Customer $customer, array $validated): array
     {
-        if (!empty($validated['items'])) {
+        if (! empty($validated['items'])) {
             return $validated['items'];
         }
 
         if ($customer && ($validated['use_cart'] ?? true)) {
             $cartItems = CartItem::where('customer_id', $customer->id)->get();
             if ($cartItems->isEmpty()) {
-                throw new \RuntimeException('Your shopping cart is currently empty.');
+                throw new RuntimeException('Your shopping cart is currently empty.');
             }
 
-            return $cartItems->map(fn(CartItem $c) => [
+            return $cartItems->map(fn (CartItem $c): array => [
                 'product_id' => $c->product_id,
                 'product_variant_id' => $c->product_variant_id,
                 'quantity' => $c->quantity,
             ])->all();
         }
 
-        throw new \RuntimeException('No items provided for checkout.');
+        throw new RuntimeException('No items provided for checkout.');
     }
 
     /**
@@ -540,19 +533,19 @@ class CheckoutController extends Controller
     protected function resolveAddress(mixed $addressData, ?string $addressId, ?Customer $customer, AddressType $type = AddressType::Shipping): ?string
     {
         if ($addressId && $customer) {
-            $saved = Address::where('customer_id', $customer->id)->find($addressId);
+            $saved = $customer->addresses()->find($addressId);
             if ($saved) {
                 return $saved->formatted_address;
             }
         }
 
-        if (!empty($addressData)) {
+        if (! empty($addressData)) {
             return $this->formatAddress($addressData, $customer);
         }
 
         if ($customer) {
-            $default = Address::where('customer_id', $customer->id)
-                ->where(fn($q) => $q->where('type', $type)->orWhere('is_default', true))
+            $default = $customer->addresses()
+                ->where(fn ($q) => $q->where('type', $type)->orWhere('is_default', true))
                 ->orderBy('is_default', 'desc')
                 ->first();
 
@@ -578,10 +571,10 @@ class CheckoutController extends Controller
         if (is_array($addressData)) {
             $parts = array_filter([
                 $addressData['name'] ?? $customer?->name,
-                !empty($addressData['phone'] ?? $customer?->phone) ? 'Tel: ' . ($addressData['phone'] ?? $customer?->phone) : null,
+                ! empty($addressData['phone'] ?? $customer?->phone) ? 'Tel: '.($addressData['phone'] ?? $customer?->phone) : null,
                 $addressData['address_line_1'] ?? $addressData['address'] ?? null,
                 $addressData['address_line_2'] ?? null,
-                trim(($addressData['city'] ?? '') . ', ' . ($addressData['state'] ?? '') . ' ' . ($addressData['postal_code'] ?? '')),
+                trim(($addressData['city'] ?? '').', '.($addressData['state'] ?? '').' '.($addressData['postal_code'] ?? '')),
                 $addressData['country'] ?? null,
             ]);
 
@@ -610,7 +603,7 @@ class CheckoutController extends Controller
         $country = $data['country'] ?? 'United States';
         $postalCode = $data['postal_code'] ?? $data['zip'] ?? null;
 
-        if (!is_array($addressInput) && str_contains($line1, ',')) {
+        if (! is_array($addressInput) && str_contains($line1, ',')) {
             $segments = array_map('trim', explode(',', $line1));
             if (count($segments) >= 3) {
                 $city = $segments[count($segments) - 2];
@@ -622,16 +615,13 @@ class CheckoutController extends Controller
             }
         }
 
-        $isDefault = $makeDefault || !Address::where('customer_id', $customer->id)->exists();
+        $isDefault = $makeDefault || ! $customer->addresses()->exists();
 
         if ($isDefault) {
-            Address::where('customer_id', $customer->id)
-                ->where('type', $type)
-                ->update(['is_default' => false]);
+            $customer->addresses()->where('type', $type)->update(['is_default' => false]);
         }
 
-        return Address::create([
-            'customer_id' => $customer->id,
+        return $customer->addresses()->create([
             'type' => $type,
             'name' => $data['name'] ?? $customer->name,
             'phone' => $data['phone'] ?? $customer->phone,

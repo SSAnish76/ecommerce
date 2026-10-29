@@ -13,6 +13,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
+use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 abstract class Controller extends BaseController
 {
@@ -65,6 +71,32 @@ abstract class Controller extends BaseController
             : $paginator->items();
 
         return $this->paginatedResponse($paginator, $items, $message);
+    }
+
+    /**
+     * Safely execute an operation with automatic validation formatting and exception shielding.
+     *
+     * @param  callable(): JsonResponse  $callback
+     */
+    public function safeCall(callable $callback): JsonResponse
+    {
+        try {
+            return $callback();
+        } catch (ValidationException $e) {
+            return $this->returnError($e->errors(), 'Validation failed.', 400);
+        } catch (HttpException $e) {
+            return $this->returnError(null, $e->getMessage() ?: 'An error occurred.', $e->getStatusCode());
+        } catch (RuntimeException|InvalidArgumentException $e) {
+            return $this->returnError(null, $e->getMessage(), 400);
+        } catch (Throwable $e) {
+            Log::error($e->getMessage(), ['exception' => $e]);
+
+            $message = config('app.debug') || app()->environment('local', 'testing')
+                ? $e->getMessage()
+                : 'An unexpected error occurred. Please try again.';
+
+            return $this->returnError(null, $message, 500);
+        }
     }
 
     /**

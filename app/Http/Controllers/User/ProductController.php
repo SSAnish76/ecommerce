@@ -7,11 +7,8 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\Collection;
 use App\Models\Customer;
 use App\Models\Product;
-use App\Models\Wishlist;
-use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +20,7 @@ class ProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             $query = Product::query()
                 ->active()
                 ->catalogVisible()
@@ -35,7 +32,6 @@ class ProductController extends Controller
             } elseif ($categorySlug = $request->input('category')) {
                 $category = Category::where('slug', $categorySlug)->first();
                 if ($category) {
-                    // Include child categories if any
                     $categoryIds = Category::where('parent_id', $category->id)->pluck('id')->push($category->id);
                     $query->whereIn('category_id', $categoryIds);
                 }
@@ -53,29 +49,25 @@ class ProductController extends Controller
 
             // Collection filter (by ID or Slug)
             if ($collectionId = $request->input('collection_id')) {
-                $query->whereHas('collections', fn($q) => $q->where('collections.id', $collectionId));
+                $query->whereHas('collections', fn ($q) => $q->where('collections.id', $collectionId));
             } elseif ($collectionSlug = $request->input('collection')) {
-                $query->whereHas('collections', fn($q) => $q->where('collections.slug', $collectionSlug));
+                $query->whereHas('collections', fn ($q) => $q->where('collections.slug', $collectionSlug));
             }
 
             // Price range filter
             if ($minPrice = $request->input('min_price')) {
-                $query->where(function (Builder $q) use ($minPrice): void {
-                    $q->where(function (Builder $sq) use ($minPrice): void {
-                        $sq->whereNotNull('sale_price')->where('sale_price', '>=', (float) $minPrice);
-                    })->orWhere(function (Builder $sq) use ($minPrice): void {
-                        $sq->whereNull('sale_price')->where('retail_price', '>=', (float) $minPrice);
-                    });
+                $minVal = (float) $minPrice;
+                $query->where(function (Builder $q) use ($minVal): void {
+                    $q->where(fn (Builder $sq) => $sq->whereNotNull('sale_price')->where('sale_price', '>=', $minVal))
+                        ->orWhere(fn (Builder $sq) => $sq->whereNull('sale_price')->where('retail_price', '>=', $minVal));
                 });
             }
 
             if ($maxPrice = $request->input('max_price')) {
-                $query->where(function (Builder $q) use ($maxPrice): void {
-                    $q->where(function (Builder $sq) use ($maxPrice): void {
-                        $sq->whereNotNull('sale_price')->where('sale_price', '<=', (float) $maxPrice);
-                    })->orWhere(function (Builder $sq) use ($maxPrice): void {
-                        $sq->whereNull('sale_price')->where('retail_price', '<=', (float) $maxPrice);
-                    });
+                $maxVal = (float) $maxPrice;
+                $query->where(function (Builder $q) use ($maxVal): void {
+                    $q->where(fn (Builder $sq) => $sq->whereNotNull('sale_price')->where('sale_price', '<=', $maxVal))
+                        ->orWhere(fn (Builder $sq) => $sq->whereNull('sale_price')->where('retail_price', '<=', $maxVal));
                 });
             }
 
@@ -89,7 +81,7 @@ class ProductController extends Controller
                 $query->where('is_featured', true);
             }
 
-            // Search by name / sku / barcode
+            // Search by name / sku / barcode / description
             if ($search = $request->input('q')) {
                 $term = trim((string) $search);
                 $query->where(function (Builder $q) use ($term): void {
@@ -115,21 +107,12 @@ class ProductController extends Controller
             $perPage = $this->resolvePerPage($request);
             $paginator = $query->paginate($perPage);
 
-            Product::loadMissingSummaryRelations($paginator->items());
-
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = Product::resolveWishlistProductIds($paginator->items(), $customer);
-
-            $items = array_map(
-                fn (Product $product) => $this->formatProductSummary($product, isset($wishlistProductIds[$product->id])),
-                $paginator->items()
-            );
+            $items = Product::formatSummaries($paginator->items(), $customer);
 
             return $this->paginatedResponse($paginator, $items, 'Products retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -137,7 +120,7 @@ class ProductController extends Controller
      */
     public function show(string $slugOrId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($slugOrId, $request): JsonResponse {
             $query = Product::query()
                 ->active()
                 ->catalogVisible()
@@ -146,7 +129,7 @@ class ProductController extends Controller
                     'category:id,name,slug',
                     'images.media',
                     'attributes' => function ($q): void {
-                        $q->active()->with(['values' => fn($vq) => $vq->active()->orderBy('sort_order')]);
+                        $q->active()->with(['values' => fn ($vq) => $vq->active()->orderBy('sort_order')]);
                     },
                     'attributeValues',
                     'variants' => function ($q): void {
@@ -162,14 +145,10 @@ class ProductController extends Controller
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $isWishlist = $customer
-                ? Wishlist::where('customer_id', $customer->id)->where('product_id', $product->id)->exists()
-                : false;
+            $isWishlist = $customer ? $customer->wishlists()->where('product_id', $product->id)->exists() : false;
 
             return $this->returnSuccess($this->formatProductDetail($product, $isWishlist), 'Product details retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -177,7 +156,7 @@ class ProductController extends Controller
      */
     public function related(string $slugOrId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($slugOrId, $request): JsonResponse {
             $product = Product::whereSlugOrId($slugOrId)->first();
 
             if (! $product) {
@@ -200,30 +179,12 @@ class ProductController extends Controller
                 ->limit(6)
                 ->get();
 
-            Product::loadMissingSummaryRelations($relatedProducts);
-
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
-            $wishlistProductIds = Product::resolveWishlistProductIds($relatedProducts, $customer);
-
-            $items = $relatedProducts->map(
-                fn (Product $p) => $this->formatProductSummary($p, isset($wishlistProductIds[$p->id]))
-            );
+            $items = Product::formatSummaries($relatedProducts, $customer);
 
             return $this->returnSuccess($items, 'Related products retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
-    }
-
-    /**
-     * Format product summary for listings.
-     *
-     * @return array<string, mixed>
-     */
-    public function formatProductSummary(Product $product, bool $isWishlist = false): array
-    {
-        return $product->toSummaryArray($isWishlist);
+        });
     }
 
     /**
@@ -233,14 +194,14 @@ class ProductController extends Controller
      */
     protected function formatProductDetail(Product $product, bool $isWishlist = false): array
     {
-        $galleryImages = $product->images->map(fn($img) => [
+        $galleryImages = $product->images->map(fn ($img): array => [
             'id' => $img->id,
             'url' => $img->media?->url,
             'is_primary' => (bool) $img->is_primary,
             'sort_order' => (int) $img->sort_order,
         ]);
 
-        $variants = $product->variants->map(fn($variant) => [
+        $variants = $product->variants->map(fn ($variant): array => [
             'id' => $variant->id,
             'name' => $variant->name,
             'sku' => $variant->sku,
@@ -254,7 +215,7 @@ class ProductController extends Controller
             'image_url' => $variant->image_url,
         ]);
 
-        return array_merge($this->formatProductSummary($product, $isWishlist), [
+        return array_merge($product->toSummaryArray($isWishlist), [
             'description' => $product->description,
             'specifications' => $product->specifications,
             'return_policy' => $product->return_policy,
@@ -262,12 +223,12 @@ class ProductController extends Controller
             'delivery_radius_km' => $product->delivery_radius_km !== null ? (float) $product->delivery_radius_km : null,
             'images' => $galleryImages,
             'variants' => $variants,
-            'attributes' => $product->attributes->map(fn($attr) => [
+            'attributes' => $product->attributes->map(fn ($attr): array => [
                 'id' => $attr->id,
                 'name' => $attr->name,
                 'code' => $attr->code,
                 'type' => $attr->type?->value ?? (string) $attr->type,
-                'values' => $attr->values->map(fn($v) => [
+                'values' => $attr->values->map(fn ($v): array => [
                     'id' => $v->id,
                     'value' => $v->value,
                     'color_code' => $v->color_code,

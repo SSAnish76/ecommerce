@@ -12,13 +12,11 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
-use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -27,7 +25,7 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -45,7 +43,6 @@ class OrderController extends Controller
                 ->withCount('items')
                 ->latest();
 
-            // Optional status filter
             if (! empty($validated['status'])) {
                 $statusValue = $validated['status'] instanceof OrderStatus
                     ? $validated['status']->value
@@ -56,14 +53,10 @@ class OrderController extends Controller
             return $this->paginateAndFormat(
                 $query,
                 $request,
-                fn (Order $order) => $this->formatOrderSummary($order),
+                fn (Order $order): array => $this->formatOrderSummary($order),
                 message: 'Orders retrieved successfully.'
             );
-        } catch (ValidationException $e) {
-            return $this->returnError($e->errors(), 'Validation failed.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -71,7 +64,7 @@ class OrderController extends Controller
      */
     public function show(string $orderNumberOrId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($orderNumberOrId, $request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -112,7 +105,7 @@ class OrderController extends Controller
                 'notes' => $order->notes,
                 'created_at' => $order->created_at?->toISOString(),
                 'updated_at' => $order->updated_at?->toISOString(),
-                'items' => $order->items->map(fn ($item) => [
+                'items' => $order->items->map(fn ($item): array => [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
                     'product_variant_id' => $item->product_variant_id,
@@ -128,9 +121,7 @@ class OrderController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Order details retrieved successfully.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -138,7 +129,7 @@ class OrderController extends Controller
      */
     public function cancel(string $orderNumberOrId, Request $request): JsonResponse
     {
-        try {
+        return $this->safeCall(function () use ($orderNumberOrId, $request): JsonResponse {
             /** @var Customer $customer */
             $customer = $request->user();
 
@@ -222,9 +213,7 @@ class OrderController extends Controller
             ];
 
             return $this->returnSuccess($data, 'Order has been successfully cancelled and inventory restored.');
-        } catch (Exception $e) {
-            return $this->returnError($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -248,7 +237,7 @@ class OrderController extends Controller
             'tax' => (float) $order->tax,
             'shipping_fee' => (float) $order->shipping_fee,
             'total' => (float) $order->total,
-            'preview_items' => $order->items->take(2)->map(fn ($item) => [
+            'preview_items' => $order->items->take(2)->map(fn ($item): array => [
                 'name' => $item->product_name,
                 'quantity' => $item->quantity,
                 'price' => (float) $item->price,
