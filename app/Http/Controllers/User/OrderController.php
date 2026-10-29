@@ -159,15 +159,11 @@ class OrderController extends Controller
                 return $this->returnError(null, 'Unauthorized to cancel this order.', 403);
             }
 
-            if ($order->isCancelled() || $order->status === OrderStatus::Cancelled || $order->status === OrderStatus::Cancelled->value) {
+            if ($order->isCancelled()) {
                 return $this->returnError(null, 'This order has already been cancelled.');
             }
 
-            $cancellableStatuses = [OrderStatus::Pending, OrderStatus::Processing];
-            $isCancellable = in_array($order->status, $cancellableStatuses, true)
-                || in_array($order->status, [OrderStatus::Pending->value, OrderStatus::Processing->value], true);
-
-            if (! $isCancellable) {
+            if (! $order->isCancellable()) {
                 $statusVal = $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status;
 
                 return $this->returnError(

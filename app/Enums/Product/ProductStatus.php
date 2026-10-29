@@ -27,4 +27,36 @@ enum ProductStatus: string
             self::Archived => 'Archived',
         };
     }
+
+    /**
+     * Determine if product with this status is active.
+     */
+    public function isActive(): bool
+    {
+        return $this === self::Active;
+    }
+
+    /**
+     * Determine if product with this status is draft.
+     */
+    public function isDraft(): bool
+    {
+        return $this === self::Draft;
+    }
+
+    /**
+     * Determine if product with this status is archived.
+     */
+    public function isArchived(): bool
+    {
+        return $this === self::Archived;
+    }
+
+    /**
+     * Determine if products with this status are eligible for customer purchase.
+     */
+    public function isPurchasable(): bool
+    {
+        return $this === self::Active;
+    }
 }

@@ -96,7 +96,7 @@ class ShopController extends Controller
                             ->with('product')
                             ->first();
 
-                        if (! $variant || ! $variant->is_active) {
+                        if (! $variant || ! $variant->isActive()) {
                             throw new \RuntimeException('Selected product variant is no longer active or available.');
                         }
 
@@ -137,7 +137,7 @@ class ShopController extends Controller
                         /** @var Product|null $product */
                         $product = Product::where('id', $itemData['product_id'])->lockForUpdate()->first();
 
-                        if (! $product || $product->status->value !== 'active') {
+                        if (! $product || ! $product->isActive()) {
                             throw new \RuntimeException('Product is no longer available.');
                         }
 

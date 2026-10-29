@@ -192,7 +192,7 @@ class CartController extends Controller
             // Check stock using preloaded relationships
             if ($cartItem->product_variant_id) {
                 $variant = $cartItem->variant;
-                if (! $variant || ! $variant->is_active) {
+                if (! $variant || ! $variant->isActive()) {
                     return $this->returnError(
                         null,
                         'Selected variant is no longer available.'
@@ -216,7 +216,7 @@ class CartController extends Controller
                     );
                 }
             } else {
-                if (! $product || $product->status->value !== 'active') {
+                if (! $product || ! $product->isActive()) {
                     return $this->returnError(
                         null,
                         'Selected product is no longer available.'

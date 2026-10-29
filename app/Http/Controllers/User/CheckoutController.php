@@ -99,7 +99,7 @@ class CheckoutController extends Controller
                 } else {
                     /** @var Product|null $product */
                     $product = $products->get($itemData['product_id']);
-                    if (!$product || $product->status->value !== 'active') {
+                    if (! $product || ! $product->isActive()) {
                         return $this->returnError(
                             null,
                             'One or more selected products are no longer active.'
@@ -247,7 +247,7 @@ class CheckoutController extends Controller
                             ->with('product')
                             ->first();
 
-                        if (!$variant || !$variant->is_active) {
+                        if (! $variant || ! $variant->isActive()) {
                             throw new \RuntimeException("Variant '{$variantId}' is no longer active or available.");
                         }
 
@@ -291,7 +291,7 @@ class CheckoutController extends Controller
                             ->with('primaryImage.media')
                             ->first();
 
-                        if (!$product || $product->status->value !== 'active') {
+                        if (! $product || ! $product->isActive()) {
                             throw new \RuntimeException('Product is no longer available.');
                         }
 

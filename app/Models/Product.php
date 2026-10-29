@@ -185,6 +185,30 @@ class Product extends Model
     }
 
     /**
+     * Determine if product has active status.
+     */
+    public function isActive(): bool
+    {
+        $status = $this->status instanceof ProductStatus
+            ? $this->status
+            : ProductStatus::tryFrom((string) $this->status);
+
+        return $status?->isActive() ?? false;
+    }
+
+    /**
+     * Determine if product is purchasable by customers.
+     */
+    public function isPurchasable(): bool
+    {
+        $status = $this->status instanceof ProductStatus
+            ? $this->status
+            : ProductStatus::tryFrom((string) $this->status);
+
+        return ($status?->isPurchasable() ?? false) && ! $this->shouldHideWhenOutOfStock();
+    }
+
+    /**
      * Scope a query to products with low stock.
      *
      * @param  Builder<Product>  $query

@@ -31,4 +31,15 @@ enum OrderStatus: string
             self::Cancelled => 'Cancelled',
         };
     }
+
+    /**
+     * Determine if an order with this status can be cancelled by a customer.
+     */
+    public function isCancellable(): bool
+    {
+        return match ($this) {
+            self::Pending, self::Processing => true,
+            default => false,
+        };
+    }
 }

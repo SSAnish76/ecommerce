@@ -169,4 +169,20 @@ class ProductVariant extends Model
     {
         return $this->product?->allowsBackorder() ?? false;
     }
+
+    /**
+     * Determine if variant is active and available.
+     */
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active && ($this->product?->isActive() ?? true);
+    }
+
+    /**
+     * Determine if variant is purchasable by customers.
+     */
+    public function isPurchasable(): bool
+    {
+        return (bool) $this->is_active && ($this->product?->isPurchasable() ?? true);
+    }
 }

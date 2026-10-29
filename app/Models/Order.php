@@ -145,6 +145,18 @@ class Order extends Model
     }
 
     /**
+     * Determine if order is eligible for cancellation.
+     */
+    public function isCancellable(): bool
+    {
+        $status = $this->status instanceof OrderStatus
+            ? $this->status
+            : OrderStatus::tryFrom((string) $this->status);
+
+        return $status?->isCancellable() ?? false;
+    }
+
+    /**
      * Generate sequential unique order number based on configured settings.
      */
     public static function generateOrderNumber(): string
