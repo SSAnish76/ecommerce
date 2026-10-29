@@ -201,19 +201,26 @@ class ProductController extends Controller
             'sort_order' => (int) $img->sort_order,
         ]);
 
-        $variants = $product->variants->map(fn ($variant): array => [
-            'id' => $variant->id,
-            'name' => $variant->name,
-            'sku' => $variant->sku,
-            'attributes' => $variant->attributes,
-            'mrp' => (float) $variant->mrp,
-            'price' => (float) $variant->price,
-            'sale_price' => $variant->sale_price !== null ? (float) $variant->sale_price : null,
-            'effective_price' => $variant->effectivePrice(),
-            'stock_quantity' => (int) $variant->stock_quantity,
-            'is_in_stock' => $variant->stock_quantity > 0,
-            'image_url' => $variant->image_url,
-        ]);
+        $variants = $product->variants->map(function ($variant): array {
+            $rawAttributes = $variant->getAttribute('attributes');
+            if (is_string($rawAttributes)) {
+                $rawAttributes = json_decode($rawAttributes, true);
+            }
+
+            return [
+                'id' => $variant->id,
+                'name' => $variant->name,
+                'sku' => $variant->sku,
+                'attributes' => is_array($rawAttributes) ? $rawAttributes : null,
+                'mrp' => (float) $variant->mrp,
+                'price' => (float) $variant->price,
+                'sale_price' => $variant->sale_price !== null ? (float) $variant->sale_price : null,
+                'effective_price' => $variant->effectivePrice(),
+                'stock_quantity' => (int) $variant->stock_quantity,
+                'is_in_stock' => $variant->stock_quantity > 0,
+                'image_url' => $variant->image_url,
+            ];
+        });
 
         return array_merge($product->toSummaryArray($isWishlist), [
             'description' => $product->description,

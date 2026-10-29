@@ -513,17 +513,23 @@ class Product extends Model
 
             $simpleVariants = $this->variants
                 ->filter(fn(ProductVariant $v): bool => (bool) $v->is_active)
-                ->map(fn(ProductVariant $v): array => [
-                    'id' => $v->id,
-                    'name' => $v->name,
-                    'sku' => $v->sku,
-                    'price' => (float) $v->price,
-                    'sale_price' => $v->sale_price !== null ? (float) $v->sale_price : null,
-                    'effective_price' => $v->effectivePrice(),
-                    'stock_quantity' => (int) $v->stock_quantity,
-                    'is_in_stock' => $v->stock_quantity > 0,
-                    'attributes' => $v->attributes,
-                ])->values()->all();
+                ->map(function (ProductVariant $v): array {
+                    $rawAttributes = $v->getAttribute('attributes');
+                    if (is_string($rawAttributes)) {
+                        $rawAttributes = json_decode($rawAttributes, true);
+                    }
+
+                    return [
+                        'id' => $v->id,
+                        'name' => $v->name,
+                        'sku' => $v->sku,
+                        'price' => (float) $v->price,
+                        'sale_price' => $v->sale_price !== null ? (float) $v->sale_price : null,
+                        'effective_price' => $v->effectivePrice(),
+                        'is_in_stock' => $v->stock_quantity > 0,
+                        'attributes' => is_array($rawAttributes) ? $rawAttributes : null,
+                    ];
+                })->values()->all();
         }
 
         return [
