@@ -27,11 +27,7 @@ class ProductController extends Controller
             $query = Product::query()
                 ->active()
                 ->catalogVisible()
-                ->with([
-                    'brand:id,name,slug',
-                    'category:id,name,slug',
-                    'primaryImage.media',
-                ]);
+                ->withSummaryRelations();
 
             // Category filter (by ID or Slug)
             if ($categoryId = $request->input('category_id')) {
@@ -119,6 +115,8 @@ class ProductController extends Controller
             $perPage = $this->resolvePerPage($request);
             $paginator = $query->paginate($perPage);
 
+            Product::loadMissingSummaryRelations($paginator->items());
+
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();
             $wishlistProductIds = Product::resolveWishlistProductIds($paginator->items(), $customer);
@@ -198,9 +196,11 @@ class ProductController extends Controller
                         $q->orWhere('brand_id', $product->brand_id);
                     }
                 })
-                ->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media'])
+                ->withSummaryRelations()
                 ->limit(6)
                 ->get();
+
+            Product::loadMissingSummaryRelations($relatedProducts);
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();

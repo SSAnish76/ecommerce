@@ -407,12 +407,101 @@ class Product extends Model
     }
 
     /**
+     * Scope a query to eager load all relations required for toSummaryArray() to prevent N+1 queries.
+     *
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeWithSummaryRelations(Builder $query): Builder
+    {
+        return $query->with([
+            'brand:id,name,slug',
+            'category:id,name,slug',
+            'primaryImage.media',
+            'variants' => fn ($q) => $q->active()->select([
+                'id',
+                'product_id',
+                'name',
+                'sku',
+                'price',
+                'sale_price',
+                'stock_quantity',
+                'is_active',
+                'attributes',
+            ]),
+        ]);
+    }
+
+    /**
+     * Batch eager load missing summary relations on an iterable/collection of products to prevent N+1 queries.
+     *
+     * @param  iterable<Product>  $products
+     */
+    public static function loadMissingSummaryRelations(iterable $products): void
+    {
+        $models = collect($products)->filter(fn ($item): bool => $item instanceof Product)->values()->all();
+        if ($models === []) {
+            return;
+        }
+
+        $collection = new \Illuminate\Database\Eloquent\Collection($models);
+
+        $collection->loadMissing([
+            'brand:id,name,slug',
+            'category:id,name,slug',
+            'primaryImage.media',
+            'variants' => fn ($q) => $q->active()->select([
+                'id',
+                'product_id',
+                'name',
+                'sku',
+                'price',
+                'sale_price',
+                'stock_quantity',
+                'is_active',
+                'attributes',
+            ]),
+        ]);
+    }
+
+    /**
      * Format product summary for catalog listings, search, and user views.
      *
      * @return array<string, mixed>
      */
     public function toSummaryArray(bool $isWishlist = false): array
     {
+        $simpleVariants = [];
+        if ($this->has_variants) {
+            if (! $this->relationLoaded('variants')) {
+                $this->load(['variants' => fn ($q) => $q->active()->select([
+                    'id',
+                    'product_id',
+                    'name',
+                    'sku',
+                    'price',
+                    'sale_price',
+                    'stock_quantity',
+                    'is_active',
+                    'attributes',
+                ])]);
+            }
+
+            $simpleVariants = $this->variants
+                ->filter(fn (ProductVariant $v): bool => (bool) $v->is_active)
+                ->map(fn (ProductVariant $v): array => [
+                    'id' => $v->id,
+                    'name' => $v->name,
+                    'sku' => $v->sku,
+                    'price' => (float) $v->price,
+                    'sale_price' => $v->sale_price !== null ? (float) $v->sale_price : null,
+                    'effective_price' => $v->effectivePrice(),
+                    'stock_quantity' => (int) $v->stock_quantity,
+                    'is_in_stock' => $v->stock_quantity > 0,
+                    'attributes' => $v->attributes,
+                ])->values()->all();
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -435,8 +524,9 @@ class Product extends Model
             'effective_price' => $this->effectivePrice(),
             'discount_label' => $this->discountLabel(),
             'has_variants' => (bool) $this->has_variants,
+            'variants' => $simpleVariants,
             'stock_quantity' => (int) $this->stock_quantity,
-            'is_in_stock' => $this->stock_quantity > 0,
+            'is_in_stock' => $this->has_variants ? ! $this->isOutOfStock() : $this->stock_quantity > 0,
             'stock_visibility' => $this->effectiveStockVisibility()->value,
             'allows_backorder' => $this->allowsBackorder(),
             'is_wishlist' => $isWishlist,

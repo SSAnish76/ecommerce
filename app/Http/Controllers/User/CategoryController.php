@@ -77,9 +77,11 @@ class CategoryController extends Controller
                 ->active()
                 ->catalogVisible()
                 ->whereIn('category_id', $allCategoryIds)
-                ->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media'])
+                ->withSummaryRelations()
                 ->latest()
                 ->paginate($perPage);
+
+            Product::loadMissingSummaryRelations($productsPaginator->items());
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();

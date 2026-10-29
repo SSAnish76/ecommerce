@@ -37,11 +37,7 @@ class SearchController extends Controller
                         ->orWhere('short_description', 'like', "%{$keyword}%")
                         ->orWhere('description', 'like', "%{$keyword}%");
                 })
-                ->with([
-                    'brand:id,name,slug',
-                    'category:id,name,slug',
-                    'primaryImage.media',
-                ]);
+                ->withSummaryRelations();
 
             // Category filter
             if ($categoryId = $request->input('category_id')) {
@@ -88,6 +84,8 @@ class SearchController extends Controller
 
             $perPage = $this->resolvePerPage($request);
             $paginator = $query->paginate($perPage);
+
+            Product::loadMissingSummaryRelations($paginator->items());
 
             /** @var Customer|null $customer */
             $customer = $request->user('sanctum') ?? $request->user();

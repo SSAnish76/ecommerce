@@ -27,7 +27,7 @@ class WishlistController extends Controller
                 ->where('customer_id', $customer->id)
                 ->with([
                     'product' => function ($q): void {
-                        $q->active()->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media']);
+                        $q->active()->withSummaryRelations();
                     },
                 ])
                 ->latest();

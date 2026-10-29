@@ -66,8 +66,10 @@ class CollectionController extends Controller
                 $productsPaginator = $collection->products()
                     ->active()
                     ->catalogVisible()
-                    ->with(['brand:id,name,slug', 'category:id,name,slug', 'primaryImage.media'])
+                    ->withSummaryRelations()
                     ->paginate($perPage);
+
+                Product::loadMissingSummaryRelations($productsPaginator->items());
 
                 /** @var Customer|null $customer */
                 $customer = $request->user('sanctum') ?? $request->user();

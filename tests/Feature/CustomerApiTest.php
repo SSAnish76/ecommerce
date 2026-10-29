@@ -218,6 +218,22 @@ class CustomerApiTest extends TestCase
             ]);
         $this->assertFalse($listResponse->json('data.0.is_wishlist'));
 
+        // Verify simple variant details in product listing
+        $variantProductItem = collect($listResponse->json('data'))->firstWhere('id', $this->variantProduct->id);
+        $this->assertNotNull($variantProductItem);
+        $this->assertTrue($variantProductItem['has_variants']);
+        $this->assertCount(1, $variantProductItem['variants']);
+        $this->assertEquals($this->variant->id, $variantProductItem['variants'][0]['id']);
+        $this->assertEquals('Midnight Black / 128GB', $variantProductItem['variants'][0]['name']);
+        $this->assertEquals('SPP-001-BLK-128', $variantProductItem['variants'][0]['sku']);
+        $this->assertEquals(169.99, $variantProductItem['variants'][0]['effective_price']);
+        $this->assertTrue($variantProductItem['variants'][0]['is_in_stock']);
+
+        $simpleProductItem = collect($listResponse->json('data'))->firstWhere('id', $this->product->id);
+        $this->assertNotNull($simpleProductItem);
+        $this->assertFalse($simpleProductItem['has_variants']);
+        $this->assertEmpty($simpleProductItem['variants']);
+
         $detailResponse = $this->getJson("/api/user/products/{$this->product->slug}");
         $detailResponse->assertOk()
             ->assertJson([
@@ -255,6 +271,59 @@ class CustomerApiTest extends TestCase
 
         $relatedResponse = $this->getJson("/api/user/products/{$this->product->id}/related");
         $relatedResponse->assertOk()->assertJson(['success' => true]);
+    }
+
+    /**
+     * Test product listing does not trigger N+1 queries when products have variants.
+     */
+    public function test_product_listing_does_not_trigger_n_plus_one_queries_with_variants(): void
+    {
+        // Create 5 additional products with multiple variants
+        for ($i = 1; $i <= 5; $i++) {
+            $p = Product::create([
+                'name' => "Batch Product {$i}",
+                'slug' => "batch-product-{$i}",
+                'sku' => "BP-00{$i}",
+                'brand_id' => $this->brand->id,
+                'category_id' => $this->category->id,
+                'retail_price' => 100.00,
+                'sale_price' => 80.00,
+                'stock_quantity' => 10,
+                'has_variants' => true,
+                'status' => ProductStatus::Active,
+            ]);
+
+            ProductVariant::create([
+                'product_id' => $p->id,
+                'name' => "Variant A {$i}",
+                'sku' => "BP-00{$i}-VA",
+                'price' => 100.00,
+                'stock_quantity' => 5,
+                'is_active' => true,
+            ]);
+
+            ProductVariant::create([
+                'product_id' => $p->id,
+                'name' => "Variant B {$i}",
+                'sku' => "BP-00{$i}-VB",
+                'price' => 110.00,
+                'stock_quantity' => 5,
+                'is_active' => true,
+            ]);
+        }
+
+        \Illuminate\Support\Facades\DB::flushQueryLog();
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        $response = $this->getJson('/api/user/products?per_page=20');
+        $response->assertOk();
+
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        // 1 count query, 1 select products query, 1 brands, 1 categories, 1 primaryImage, 1 variants
+        // Total should be small and constant (<= 8 queries for all products)
+        $this->assertLessThanOrEqual(8, count($queries), 'N+1 detected in product listing with variants. Total queries: ' . count($queries));
     }
 
     /**
