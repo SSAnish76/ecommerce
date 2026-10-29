@@ -14,6 +14,12 @@ class EssentialsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(\Database\Seeders\SettingSeeder::class);
+    }
+
     /**
      * Helper to create and authenticate a super administrator.
      */
@@ -186,6 +192,8 @@ PHP;
      */
     public function test_user_frontend_essentials_endpoint_returns_storefront_data(): void
     {
+        $this->seed(\Database\Seeders\SettingSeeder::class);
+
         $response = $this->getJson('/api/user/essentials');
 
         $response->assertOk()

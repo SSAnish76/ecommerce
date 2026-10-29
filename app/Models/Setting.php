@@ -202,164 +202,50 @@ class Setting extends Model
     }
 
     /**
-     * Get typed payment gateways configuration settings.
+     * Get typed payment gateways configuration settings from the database.
      *
-     * @return array{
-     *     stripe: array{enabled: bool, publishable_key: string, secret_key: string, webhook_secret: string},
-     *     paypal: array{enabled: bool, mode: string, client_id: string, client_secret: string},
-     *     cod: array{enabled: bool, instructions: string},
-     *     razorpay: array{enabled: bool, key_id: string, key_secret: string, webhook_secret: string}
-     * }
+     * @return array<string, mixed>
      */
     public static function getPaymentSettings(): array
     {
-        $default = [
-            'stripe' => [
-                'enabled' => true,
-                'name' => 'Credit / Debit Card (Stripe)',
-                'publishable_key' => 'pk_test_sample_stripe_publishable_key',
-                'secret_key' => 'sk_test_sample_stripe_secret_key',
-                'webhook_secret' => 'whsec_sample_webhook_secret',
-            ],
-            'paypal' => [
-                'enabled' => true,
-                'name' => 'PayPal',
-                'mode' => 'sandbox',
-                'client_id' => 'sample_paypal_client_id',
-                'client_secret' => 'sample_paypal_client_secret',
-            ],
-            'cod' => [
-                'enabled' => true,
-                'name' => 'Cash on Delivery',
-                'instructions' => 'Pay cash to delivery courier on arrival.',
-            ],
-            'razorpay' => [
-                'enabled' => false,
-                'name' => 'Razorpay',
-                'key_id' => 'rzp_test_sample_key_id',
-                'key_secret' => 'sample_razorpay_secret_key',
-                'webhook_secret' => 'sample_razorpay_webhook_secret',
-            ],
-        ];
-
         /** @var array<string, mixed> $all */
         $all = static::getAllKeyValues();
 
         $configured = $all['payment_settings'] ?? null;
-        if (is_array($configured)) {
-            $result = [];
-            foreach ($default as $key => $def) {
-                $result[$key] = array_merge($def, $configured[$key] ?? []);
-            }
-            foreach ($configured as $key => $conf) {
-                if (! isset($result[$key]) && is_array($conf)) {
-                    $result[$key] = $conf;
-                }
-            }
 
-            return $result;
-        }
-
-        return $default;
+        return is_array($configured) ? $configured : [];
     }
 
     /**
-     * Get typed file storage configuration settings.
+     * Get typed file storage configuration settings from the database.
      *
-     * @return array{
-     *     default_disk: string,
-     *     s3: array{key: string, secret: string, region: string, bucket: string, url: string, endpoint: string}
-     * }
+     * @return array<string, mixed>
      */
     public static function getStorageSettings(): array
     {
-        $default = [
-            'default_disk' => 'public',
-            's3' => [
-                'key' => '',
-                'secret' => '',
-                'region' => 'us-east-1',
-                'bucket' => '',
-                'url' => '',
-                'endpoint' => '',
-            ],
-        ];
-
         /** @var array<string, mixed> $all */
         $all = static::getAllKeyValues();
 
         $configured = $all['storage_settings'] ?? null;
-        if (is_array($configured)) {
-            return [
-                'default_disk' => (string) ($configured['default_disk'] ?? $default['default_disk']),
-                's3' => array_merge($default['s3'], $configured['s3'] ?? []),
-            ];
-        }
 
-        return $default;
+        return is_array($configured) ? $configured : [
+            'default_disk' => 'public',
+        ];
     }
 
     /**
-     * Get typed e-commerce shipping configuration settings.
+     * Get typed e-commerce shipping configuration settings from the database.
      *
-     * @return array{
-     *     carrier: array{provider: string, account_number: string, api_key: string, api_secret: string},
-     *     fedex: array{enabled: bool, account_number: string, api_key: string, api_secret: string},
-     *     ups: array{enabled: bool, account_number: string, api_key: string, api_secret: string},
-     *     dhl: array{enabled: bool, account_number: string, api_key: string, api_secret: string}
-     * }
+     * @return array<string, mixed>
      */
     public static function getShippingSettings(): array
     {
-        $default = [
-            'carrier' => [
-                'provider' => 'none',
-                'account_number' => '',
-                'api_key' => '',
-                'api_secret' => '',
-            ],
-            'fedex' => [
-                'enabled' => false,
-                'name' => 'FedEx',
-                'account_number' => '',
-                'api_key' => '',
-                'api_secret' => '',
-            ],
-            'ups' => [
-                'enabled' => false,
-                'name' => 'UPS',
-                'account_number' => '',
-                'api_key' => '',
-                'api_secret' => '',
-            ],
-            'dhl' => [
-                'enabled' => false,
-                'name' => 'DHL Express',
-                'account_number' => '',
-                'api_key' => '',
-                'api_secret' => '',
-            ],
-        ];
-
         /** @var array<string, mixed> $all */
         $all = static::getAllKeyValues();
 
         $configured = $all['shipping_settings'] ?? null;
-        if (is_array($configured)) {
-            $result = [];
-            foreach ($default as $key => $def) {
-                $result[$key] = array_merge($def, $configured[$key] ?? []);
-            }
-            foreach ($configured as $key => $conf) {
-                if (! isset($result[$key]) && is_array($conf)) {
-                    $result[$key] = $conf;
-                }
-            }
 
-            return $result;
-        }
-
-        return $default;
+        return is_array($configured) ? $configured : [];
     }
 
     /**
@@ -529,73 +415,34 @@ class Setting extends Model
 
             // Expose aliases if payment_settings is present so Inertia & consumers seamlessly access them
             if (isset($result['payment_settings']) && is_array($result['payment_settings'])) {
-                $pay = $result['payment_settings'];
-                $result['payment_stripe_enabled'] ??= (bool) ($pay['stripe']['enabled'] ?? false);
-                $result['payment_paypal_enabled'] ??= (bool) ($pay['paypal']['enabled'] ?? false);
-                $result['payment_cod_enabled'] ??= (bool) ($pay['cod']['enabled'] ?? false);
-                $result['payment_razorpay_enabled'] ??= (bool) ($pay['razorpay']['enabled'] ?? false);
+                foreach ($result['payment_settings'] as $code => $config) {
+                    if (is_array($config) && isset($config['enabled'])) {
+                        $result["payment_{$code}_enabled"] ??= (bool) $config['enabled'];
+                    }
+                }
             }
 
             // Expose shipping carrier aliases
             if (isset($result['shipping_settings']) && is_array($result['shipping_settings'])) {
-                $ship = $result['shipping_settings'];
-                $result['shipping_fedex_enabled'] ??= (bool) ($ship['fedex']['enabled'] ?? false);
-                $result['shipping_ups_enabled'] ??= (bool) ($ship['ups']['enabled'] ?? false);
-                $result['shipping_dhl_enabled'] ??= (bool) ($ship['dhl']['enabled'] ?? false);
+                foreach ($result['shipping_settings'] as $code => $config) {
+                    if (is_array($config) && isset($config['enabled'])) {
+                        $result["shipping_{$code}_enabled"] ??= (bool) $config['enabled'];
+                    }
+                }
             }
 
             // Expose aliases if mail_settings or sms_settings are present so Inertia & consumers seamlessly access them
             if (isset($result['mail_settings']) && is_array($result['mail_settings'])) {
-                $mail = $result['mail_settings'];
-                $result['mail_host'] ??= $mail['host'] ?? '';
-                $result['mail_port'] ??= isset($mail['port']) ? (int) $mail['port'] : 587;
-                $result['mail_username'] ??= $mail['username'] ?? '';
-                $result['mail_password'] ??= $mail['password'] ?? '';
-                $result['mail_encryption'] ??= $mail['encryption'] ?? 'tls';
-                $result['mail_from_name'] ??= $mail['from_name'] ?? '';
-                $result['mail_from_address'] ??= $mail['from_address'] ?? '';
+                foreach ($result['mail_settings'] as $key => $val) {
+                    $result["mail_{$key}"] ??= $val;
+                }
             }
 
             if (isset($result['sms_settings']) && is_array($result['sms_settings'])) {
-                $sms = $result['sms_settings'];
-                $result['sms_provider'] ??= $sms['provider'] ?? 'twilio';
-                $result['sms_username'] ??= $sms['username'] ?? '';
-                $result['sms_password'] ??= $sms['password'] ?? '';
-                $result['sms_from_number'] ??= $sms['from_number'] ?? '';
+                foreach ($result['sms_settings'] as $key => $val) {
+                    $result["sms_{$key}"] ??= $val;
+                }
             }
-
-            // Notification event triggers defaults (Email & SMS independent channels)
-            $result['notify_order_placed_customer_email'] ??= true;
-            $result['notify_order_placed_customer_sms'] ??= true;
-            $result['notify_order_status_updated_email'] ??= true;
-            $result['notify_order_status_updated_sms'] ??= true;
-            $result['notify_order_delivered_customer_email'] ??= true;
-            $result['notify_order_delivered_customer_sms'] ??= true;
-            $result['notify_order_cancelled_customer_email'] ??= true;
-            $result['notify_order_cancelled_customer_sms'] ??= true;
-            $result['notify_new_customer_welcome_email'] ??= true;
-            $result['notify_new_customer_welcome_sms'] ??= false;
-
-            $result['notify_order_placed_admin_email'] ??= true;
-            $result['notify_order_placed_admin_sms'] ??= false;
-            $result['notify_order_cancelled_admin_email'] ??= true;
-            $result['notify_order_cancelled_admin_sms'] ??= false;
-            $result['notify_low_stock_admin_email'] ??= true;
-            $result['notify_low_stock_admin_sms'] ??= false;
-            $result['notify_new_review_admin_email'] ??= true;
-            $result['notify_new_review_admin_sms'] ??= false;
-
-            // Admin Alert Routing Defaults
-            $result['admin_alert_recipient_type'] ??= 'email';
-            $result['admin_alert_email'] ??= 'admin@example.com';
-            $result['admin_alert_roles'] = is_array($result['admin_alert_roles'] ?? null)
-                ? $result['admin_alert_roles']
-                : (json_decode((string) ($result['admin_alert_roles'] ?? '[]'), true) ?: []);
-            $result['admin_alert_users'] = is_array($result['admin_alert_users'] ?? null)
-                ? $result['admin_alert_users']
-                : (json_decode((string) ($result['admin_alert_users'] ?? '[]'), true) ?: []);
-
-            $result['menu_delivery_mode'] ??= 'api';
 
             return $result;
         });
@@ -615,17 +462,6 @@ class Setting extends Model
             foreach ($settings as $setting) {
                 $result[$setting->key] = $setting->getCastValue();
             }
-
-            // Ensure core storefront fallback defaults when running in unseeded or fresh environment
-            $result['currency_code'] ??= 'USD';
-            $result['currency_symbol'] ??= '$';
-            $result['currency_decimals'] ??= 2;
-            $result['currency_position'] ??= 'left';
-            $result['timezone'] ??= (string) config('app.timezone', 'UTC');
-            $result['allow_customer_cancellation'] ??= true;
-            $result['enable_customer_reviews'] ??= true;
-            $result['low_stock_threshold'] ??= 5;
-            $result['out_of_stock_visibility'] ??= 'badge';
 
             return $result;
         });

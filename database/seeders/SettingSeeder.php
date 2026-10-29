@@ -456,6 +456,7 @@ class SettingSeeder extends Seeder
         ];
 
         foreach ($defaultSettings as $setting) {
+            $setting['is_public'] = (bool) ($setting['is_public'] ?? false);
             Setting::updateOrCreate(
                 ['key' => $setting['key']],
                 $setting

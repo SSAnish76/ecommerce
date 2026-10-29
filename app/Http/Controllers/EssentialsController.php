@@ -58,15 +58,16 @@ class EssentialsController extends Controller
      */
     public function frontend(Request $request): JsonResponse
     {
-        // 1. Resolve storefront domain modules & formatted enums dynamically by module     
-        $frontendEnumConfig = ['address', 'order', 'coupon', 'product', 'setting'];
+        // 1. Resolve storefront domain modules & formatted enums dynamically by module
+
+        $frontendEnumConfig = ['address', 'order', 'setting' => ['currency_position']];
 
         $discoveredEnums = $this->enumRegistry->discover();
-        $enums = []; 
+        $enums = [];
 
         foreach ($frontendEnumConfig as $key => $value) {
             $moduleName = is_int($key) ? trim((string) $value) : trim((string) $key);
-            if (! isset($discoveredEnums[$moduleName])) {
+            if (!isset($discoveredEnums[$moduleName])) {
                 continue;
             }
             $moduleEnums = $discoveredEnums[$moduleName];
@@ -76,7 +77,13 @@ class EssentialsController extends Controller
                         $enums[$moduleName][$enumKey] = $moduleEnums[$enumKey]['options'];
                     }
                 }
-            } 
+            } else {
+                foreach ($moduleEnums as $enumKey => $enumData) {
+                    if (isset($enumData['options'])) {
+                        $enums[$moduleName][$enumKey] = $enumData['options'];
+                    }
+                }
+            }
         }
 
         // 2. Store singleton profile branding
@@ -90,7 +97,7 @@ class EssentialsController extends Controller
         $paymentGateways = [];
 
         foreach ($rawPayments as $code => $gatewayConfig) {
-            if (! is_array($gatewayConfig) || empty($gatewayConfig['enabled'])) {
+            if (!is_array($gatewayConfig) || empty($gatewayConfig['enabled'])) {
                 continue;
             }
 
@@ -114,12 +121,12 @@ class EssentialsController extends Controller
         $shipping = [];
 
         foreach ($rawShipping as $code => $carrierConfig) {
-            if ($code === 'carrier' || ! is_array($carrierConfig)) {
+            if ($code === 'carrier' || !is_array($carrierConfig)) {
                 continue;
             }
 
             $isEnabled = (bool) ($carrierConfig['enabled'] ?? ($rawShipping['carrier']['provider'] === $code));
-            if (! $isEnabled) {
+            if (!$isEnabled) {
                 continue;
             }
 
@@ -139,11 +146,11 @@ class EssentialsController extends Controller
         }
 
         // 6. Public constants (dynamically resolved from DB configuration)
-        $frontendConstantKeys = (array) ['currencies', 'currencies_map', 'timezones'];
+        $frontendConstantKeys = ['currencies', 'currencies_map', 'timezones'];
         $constants = [];
 
         foreach ($frontendConstantKeys as $constantKey) {
-            if (! is_string($constantKey)) {
+            if (!is_string($constantKey)) {
                 continue;
             }
             $method = Str::camel($constantKey);
