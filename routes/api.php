@@ -98,14 +98,20 @@ Route::prefix('user')->name('api.user.')->group(function (): void {
         Route::prefix('orders')->name('orders.')->group(function (): void {
             Route::get('/', [OrderController::class, 'index'])->name('index');
             Route::get('/{orderNumberOrId}', [OrderController::class, 'show'])->name('show');
+            Route::get('/{orderNumberOrId}/track', [OrderController::class, 'trackShipment'])->name('track');
             Route::post('/{orderNumberOrId}/cancel', [OrderController::class, 'cancel'])->name('cancel');
         });
 
-        // Checkout: Summary, Coupon & Order Placement
+        // Checkout: Summary, Rates, Coupon & Order Placement
         Route::prefix('checkout')->name('checkout.')->group(function (): void {
             Route::post('/summary', [CheckoutController::class, 'summary'])->name('summary');
+            Route::post('/shipping-rates', [CheckoutController::class, 'getShippingRates'])->name('shipping-rates');
             Route::post('/apply-coupon', [CheckoutController::class, 'validateCoupon'])->name('apply-coupon');
             Route::post('/', [CheckoutController::class, 'checkout'])->name('place-order');
+            Route::post('/verify-payment', [CheckoutController::class, 'verifyPayment'])->name('verify-payment');
         });
     });
+
+    // Payment Gateway Webhooks (Public callback endpoints)
+    Route::post('/payments/webhook/{gateway}', [CheckoutController::class, 'handleWebhook'])->name('payments.webhook');
 });

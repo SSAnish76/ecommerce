@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -36,6 +37,10 @@ class Order extends Model
         'discount_amount',
         'tax',
         'shipping_fee',
+        'shipping_carrier',
+        'shipping_method',
+        'tracking_number',
+        'shipping_label_url',
         'total',
         'total_amount',
         'status',
@@ -126,6 +131,26 @@ class Order extends Model
     public function couponUsage(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(CouponUsage::class);
+    }
+
+    /**
+     * Get payment transactions recorded for this order.
+     *
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the latest payment transaction for this order.
+     *
+     * @return HasOne<Payment, $this>
+     */
+    public function latestPayment(): HasOne
+    {
+        return $this->hasOne(Payment::class)->latestOfMany();
     }
 
     /**

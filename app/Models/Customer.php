@@ -110,4 +110,14 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(Wishlist::class, 'customer_id');
     }
+
+    /**
+     * Get payment transactions belonging to this customer.
+     *
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'customer_id');
+    }
 }

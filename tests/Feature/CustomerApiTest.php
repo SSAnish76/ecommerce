@@ -619,7 +619,7 @@ class CustomerApiTest extends TestCase
                 'data' => [
                     'totals' => [
                         'subtotal' => 299.98,
-                        'total' => 299.98,
+                        'total' => 309.98,
                     ],
                 ],
             ]);

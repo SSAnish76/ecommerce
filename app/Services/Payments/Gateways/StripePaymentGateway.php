@@ -127,23 +127,24 @@ class StripePaymentGateway extends AbstractPaymentGateway
      */
     public function handleWebhook(array $payload, array $headers = []): PaymentResult
     {
-        $eventType = $payload['type'] ?? 'unknown';
+        $eventType = $payload['type'] ?? $payload['event'] ?? 'unknown';
+        $transactionId = (string) ($payload['data']['object']['id'] ?? $payload['id'] ?? '');
 
         $this->log('info', "Received Stripe webhook event: {$eventType}");
 
         return match ($eventType) {
             'payment_intent.succeeded' => PaymentResult::success(
-                transactionId: (string) ($payload['data']['object']['id'] ?? ''),
+                transactionId: $transactionId,
                 message: 'Stripe webhook payment intent succeeded.',
                 data: $payload
             ),
             'payment_intent.payment_failed' => PaymentResult::failed(
                 message: (string) ($payload['data']['object']['last_payment_error']['message'] ?? 'Payment failed.'),
-                transactionId: (string) ($payload['data']['object']['id'] ?? null),
+                transactionId: $transactionId,
                 data: $payload
             ),
             default => PaymentResult::pending(
-                transactionId: (string) ($payload['data']['object']['id'] ?? null),
+                transactionId: $transactionId ?: null,
                 message: "Webhook event [{$eventType}] acknowledged.",
                 data: $payload
             ),

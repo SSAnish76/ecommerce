@@ -23,8 +23,17 @@ abstract class AbstractPaymentGateway implements PaymentGatewayInterface
             $allPaymentSettings = Setting::get('payment_settings', []);
 
             $config = $allPaymentSettings[$this->name()] ?? [];
+            if (! is_array($config)) {
+                $config = [];
+            }
 
-            return is_array($config) ? $config : [];
+            // Also check individual flat setting keys (e.g. payment_stripe_enabled)
+            $flatEnabled = Setting::get("payment_{$this->name()}_enabled");
+            if ($flatEnabled !== null) {
+                $config['enabled'] = (bool) $flatEnabled;
+            }
+
+            return $config;
         } catch (Throwable) {
             return [];
         }

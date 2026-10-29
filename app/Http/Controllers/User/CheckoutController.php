@@ -6,9 +6,10 @@ namespace App\Http\Controllers\User;
 
 use App\Enums\Address\AddressType;
 use App\Enums\Order\OrderStatus;
-use App\Enums\Order\PaymentMethod;
 use App\Enums\Order\PaymentStatus;
 use App\Events\Order\OrderPlaced;
+use App\Facades\PaymentGateway;
+use App\Facades\Shipping;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\CartItem;
@@ -16,25 +17,27 @@ use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Services\CouponService;
+use App\Services\Shipping\DTOs\ShippingRateResult;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use RuntimeException;
+use Throwable;
 
 class CheckoutController extends Controller
 {
     public function __construct(
-        protected CouponService $couponService
-    ) {
-    }
+        protected CouponService $couponService,
+    ) {}
 
     /**
-     * Preview checkout summary, item calculations, and applicable coupon discount.
+     * Preview checkout summary, item calculations, available shipping rates, and applicable coupon discount.
      */
     public function summary(Request $request): JsonResponse
     {
@@ -141,11 +144,43 @@ class CheckoutController extends Controller
                 $customer?->email
             );
 
-            $tax = 0.0;
-            $shippingFee = 0.0;
-            $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
+            [$shippingAddress, $billingAddress, $shippingInput] = $this->resolveCheckoutAddresses($request, $validated, $customer);
 
-            [$shippingAddress, $billingAddress] = $this->resolveCheckoutAddresses($request, $validated, $customer);
+            // Calculate dynamic shipping options using ShippingManager
+            $destinationAddress = $this->resolveDestinationAddressModel($validated, $shippingInput, $customer);
+            $shippingQuotes = Shipping::calculateRates([
+                'subtotal' => $subtotal,
+                'items' => $itemsSummary,
+            ], $destinationAddress);
+
+            $availableShippingMethods = [];
+            foreach ($shippingQuotes as $carrierKey => $quote) {
+                $availableShippingMethods[] = [
+                    'carrier' => $carrierKey,
+                    'service_name' => $quote->serviceName,
+                    'cost' => $quote->cost,
+                    'estimated_days' => $quote->estimatedDays,
+                    'currency' => $quote->currency,
+                    'available' => $quote->available,
+                ];
+            }
+
+            // Determine selected shipping fee
+            $requestedMethod = $validated['shipping_method'] ?? null;
+            $selectedRate = null;
+
+            if ($requestedMethod && isset($shippingQuotes[$requestedMethod])) {
+                $selectedRate = $shippingQuotes[$requestedMethod];
+            } else {
+                // Default to free_shipping if available, or flat_rate, or first available quote
+                $selectedRate = $shippingQuotes['free_shipping'] ?? $shippingQuotes['flat_rate'] ?? (reset($shippingQuotes) ?: null);
+            }
+
+            $shippingFee = $selectedRate instanceof ShippingRateResult ? $selectedRate->cost : 0.0;
+            $selectedCarrier = $selectedRate instanceof ShippingRateResult ? $selectedRate->carrier : ($requestedMethod ?? 'flat_rate');
+
+            $tax = 0.0;
+            $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
 
             return $this->returnSuccess([
                 'items' => $itemsSummary,
@@ -157,6 +192,9 @@ class CheckoutController extends Controller
                     'email' => $customer->email,
                     'phone' => $customer->phone,
                 ] : null,
+                'available_shipping_methods' => $availableShippingMethods,
+                'selected_shipping_method' => $selectedCarrier,
+                'available_payment_methods' => PaymentGateway::forCheckout(),
                 'totals' => [
                     'subtotal' => round($subtotal, 2),
                     'discount_amount' => $discountAmount,
@@ -166,6 +204,47 @@ class CheckoutController extends Controller
                 ],
                 'coupon' => $couponInfo,
             ], 'Checkout summary calculated successfully.');
+        });
+    }
+
+    /**
+     * Get real-time shipping rate quotes from all enabled shipping carriers.
+     */
+    public function getShippingRates(Request $request): JsonResponse
+    {
+        return $this->safeCall(function () use ($request): JsonResponse {
+            /** @var Customer|null $customer */
+            $customer = $request->user();
+            $validated = $request->validate([
+                'shipping_address_id' => ['nullable', 'string'],
+                'shipping_address' => ['nullable'],
+                'subtotal' => ['nullable', 'numeric', 'min:0'],
+                'items' => ['nullable', 'array'],
+            ]);
+
+            $subtotal = (float) ($validated['subtotal'] ?? 0);
+            $destinationAddress = $this->resolveDestinationAddressModel($validated, $validated['shipping_address'] ?? null, $customer);
+
+            $rates = Shipping::calculateRates([
+                'subtotal' => $subtotal,
+                'items' => $validated['items'] ?? [],
+            ], $destinationAddress);
+
+            $results = [];
+            foreach ($rates as $carrierKey => $rate) {
+                $results[] = [
+                    'carrier' => $carrierKey,
+                    'service_name' => $rate->serviceName,
+                    'cost' => $rate->cost,
+                    'estimated_days' => $rate->estimatedDays,
+                    'currency' => $rate->currency,
+                    'available' => $rate->available,
+                ];
+            }
+
+            return $this->returnSuccess([
+                'rates' => $results,
+            ], 'Shipping rates calculated successfully.');
         });
     }
 
@@ -202,7 +281,7 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Process checkout, deduct stock atomically, create order and order items.
+     * Process checkout, deduct stock atomically, create order and payment transaction record.
      */
     public function checkout(Request $request): JsonResponse
     {
@@ -226,7 +305,16 @@ class CheckoutController extends Controller
 
             $rawItems = $this->resolveCheckoutItems($customer, $validated);
 
-            $order = DB::transaction(function () use ($rawItems, $validated, $shippingAddress, $billingAddress, $customer): Order {
+            // Resolve Shipping Method & Rate
+            $shippingMethod = $validated['shipping_method'] ?? 'flat_rate';
+            $destinationAddress = $this->resolveDestinationAddressModel($validated, $shippingInput, $customer);
+
+            $carrierInstance = Shipping::has($shippingMethod)
+                ? Shipping::carrier($shippingMethod)
+                : Shipping::carrier('flat_rate');
+
+            // 1. Create Order inside database transaction
+            $order = DB::transaction(function () use ($rawItems, $validated, $shippingAddress, $billingAddress, $customer, $carrierInstance, $destinationAddress): Order {
                 $variantIds = array_values(array_filter(array_column($rawItems, 'product_variant_id')));
                 $productIds = array_values(array_unique(array_column($rawItems, 'product_id')));
 
@@ -327,9 +415,14 @@ class CheckoutController extends Controller
                     $customer->email
                 );
 
+                // Calculate shipping cost
+                $shippingRateQuote = $carrierInstance->calculateRate(['subtotal' => $subtotal], $destinationAddress);
+                $shippingFee = $shippingRateQuote->available ? $shippingRateQuote->cost : 0.0;
+
                 $tax = 0.0;
-                $shippingFee = 0.0;
                 $total = round(max(0.0, $subtotal - $discountAmount) + $tax + $shippingFee, 2);
+
+                $paymentMethod = $validated['payment_method'];
 
                 $order = Order::create([
                     'customer_id' => $customer->id,
@@ -344,9 +437,11 @@ class CheckoutController extends Controller
                     'discount_amount' => $discountAmount,
                     'tax' => $tax,
                     'shipping_fee' => $shippingFee,
+                    'shipping_carrier' => $carrierInstance->name(),
+                    'shipping_method' => $shippingRateQuote->serviceName,
                     'total' => $total,
                     'status' => OrderStatus::Pending->value,
-                    'payment_method' => $validated['payment_method'],
+                    'payment_method' => $paymentMethod,
                     'payment_status' => PaymentStatus::Pending->value,
                     'notes' => $validated['notes'] ?? null,
                 ]);
@@ -368,6 +463,44 @@ class CheckoutController extends Controller
                 return $order->load('items');
             });
 
+            // 2. Book carrier shipment & tracking
+            try {
+                $shipmentBooking = $carrierInstance->createShipment($order);
+                if ($shipmentBooking->success) {
+                    $order->update([
+                        'tracking_number' => $shipmentBooking->trackingNumber,
+                        'shipping_label_url' => $shipmentBooking->labelUrl,
+                    ]);
+                }
+            } catch (Throwable) {
+                // Non-blocking for immediate order placement
+            }
+
+            // 3. Process payment through PaymentGatewayManager and record transaction in separate payments table
+            $paymentMethod = is_string($order->payment_method) ? $order->payment_method : $order->payment_method?->value;
+            $gateway = PaymentGateway::gateway($paymentMethod);
+
+            $paymentResult = $gateway->charge($order, $request->all());
+
+            /** @var Payment $payment */
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'customer_id' => $customer->id,
+                'transaction_id' => $paymentResult->transactionId,
+                'gateway' => $paymentMethod,
+                'amount' => $order->total,
+                'currency' => (string) Setting::get('currency_code', 'USD'),
+                'status' => $paymentResult->status === 'paid' ? PaymentStatus::Paid : PaymentStatus::Pending,
+                'type' => 'charge',
+                'payload' => $paymentResult->data,
+                'error_message' => ! $paymentResult->success ? $paymentResult->message : null,
+                'paid_at' => $paymentResult->status === 'paid' ? now() : null,
+            ]);
+
+            if ($paymentResult->success && $paymentResult->status === 'paid') {
+                $order->update(['payment_status' => PaymentStatus::Paid]);
+            }
+
             // Dispatch order placed event for customer and admin notifications
             OrderPlaced::dispatch([
                 'order_number' => $order->order_number,
@@ -381,12 +514,87 @@ class CheckoutController extends Controller
                     'quantity' => (int) $item->quantity,
                     'price' => (float) $item->price,
                 ])->values()->all(),
-                'payment_method' => is_string($order->payment_method) ? $order->payment_method : $order->payment_method?->value,
+                'payment_method' => $paymentMethod,
                 'shipping_address' => $order->shipping_address,
                 'billing_address' => $order->billing_address,
             ]);
 
-            return $this->returnSuccess(['order' => $order], "Order #{$order->order_number} placed successfully!", 201);
+            return $this->returnSuccess([
+                'order' => $order->load(['items', 'payments']),
+                'payment' => $payment,
+                'redirect_url' => $paymentResult->redirectUrl,
+            ], "Order #{$order->order_number} placed successfully!", 201);
+        });
+    }
+
+    /**
+     * Verify payment transaction status after external redirect/popup completion.
+     */
+    public function verifyPayment(Request $request): JsonResponse
+    {
+        return $this->safeCall(function () use ($request): JsonResponse {
+            $validated = $request->validate([
+                'gateway' => ['required', 'string'],
+                'transaction_id' => ['nullable', 'string'],
+                'payment_reference' => ['nullable', 'string'],
+                'order_id' => ['nullable', 'string'],
+            ]);
+
+            $txId = $validated['transaction_id'] ?? $validated['payment_reference'] ?? $validated['order_id'] ?? null;
+            if (! $txId) {
+                return $this->returnError(null, 'Transaction ID or payment reference is required.');
+            }
+
+            $gateway = PaymentGateway::gateway($validated['gateway']);
+            $result = $gateway->verifyPayment($txId, $request->all());
+
+            if (! $result->success) {
+                return $this->returnError(null, $result->message ?? 'Payment verification failed.');
+            }
+
+            // Find matching transaction record
+            $payment = Payment::where('transaction_id', $txId)
+                ->orWhere('id', $txId)
+                ->when(! empty($validated['order_id']), fn ($q) => $q->orWhere('order_id', $validated['order_id']))
+                ->first();
+
+            if ($payment) {
+                $payment->markAsPaid($result->transactionId, $result->data);
+            }
+
+            return $this->returnSuccess([
+                'payment' => $payment,
+                'verified' => true,
+            ], 'Payment verified successfully.');
+        });
+    }
+
+    /**
+     * Handle incoming asynchronous payment webhook notifications.
+     */
+    public function handleWebhook(Request $request, string $gateway): JsonResponse
+    {
+        return $this->safeCall(function () use ($request, $gateway): JsonResponse {
+            if (! PaymentGateway::has($gateway)) {
+                return $this->returnError(null, "Gateway [{$gateway}] is not registered.", 404);
+            }
+
+            $gatewayInstance = PaymentGateway::gateway($gateway);
+            $result = $gatewayInstance->handleWebhook($request->all(), $request->headers->all());
+
+            if ($result->transactionId) {
+                $payment = Payment::where('transaction_id', $result->transactionId)->first();
+                if ($payment && $result->success && $result->status === 'paid') {
+                    $payment->markAsPaid($result->transactionId, $result->data);
+                } elseif ($payment && ! $result->success) {
+                    $payment->markAsFailed($result->message ?? 'Webhook indicated payment failure', $result->data);
+                }
+            }
+
+            return response()->json([
+                'received' => true,
+                'status' => $result->status,
+            ]);
         });
     }
 
@@ -408,6 +616,7 @@ class CheckoutController extends Controller
             'billing_address' => ['nullable'],
             'billing_same_as_shipping' => ['nullable', 'boolean'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
+            'shipping_method' => ['nullable', 'string', 'max:50'],
             'use_cart' => ['nullable', 'boolean'],
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required_with:items', 'string', 'exists:products,id'],
@@ -418,11 +627,42 @@ class CheckoutController extends Controller
         if ($isCheckout) {
             $rules['save_address'] = ['nullable', 'boolean'];
             $rules['save_billing_address'] = ['nullable', 'boolean'];
-            $rules['payment_method'] = ['required', Rule::enum(PaymentMethod::class)];
+            $rules['payment_method'] = ['required', 'string'];
             $rules['notes'] = ['nullable', 'string', 'max:500'];
         }
 
         return $rules;
+    }
+
+    /**
+     * Resolve destination Address model instance for shipping calculations.
+     *
+     * @param array<string, mixed> $validated
+     */
+    protected function resolveDestinationAddressModel(array $validated, mixed $shippingInput, ?Customer $customer): ?Address
+    {
+        if (! empty($validated['shipping_address_id']) && $customer) {
+            /** @var Address|null $saved */
+            $saved = $customer->addresses()->find($validated['shipping_address_id']);
+            if ($saved) {
+                return $saved;
+            }
+        }
+
+        if (is_array($shippingInput)) {
+            return new Address([
+                'name' => $shippingInput['name'] ?? $customer?->name,
+                'phone' => $shippingInput['phone'] ?? $customer?->phone,
+                'address_line_1' => $shippingInput['address_line_1'] ?? $shippingInput['address'] ?? '',
+                'address_line_2' => $shippingInput['address_line_2'] ?? null,
+                'city' => $shippingInput['city'] ?? '',
+                'state' => $shippingInput['state'] ?? '',
+                'postal_code' => $shippingInput['postal_code'] ?? $shippingInput['zip'] ?? '00000',
+                'country' => $shippingInput['country'] ?? 'US',
+            ]);
+        }
+
+        return null;
     }
 
     /**

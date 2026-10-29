@@ -23,8 +23,17 @@ abstract class AbstractShippingCarrier implements ShippingCarrierInterface
             $allShippingSettings = Setting::get('shipping_settings', []);
 
             $config = $allShippingSettings[$this->name()] ?? [];
+            if (! is_array($config)) {
+                $config = [];
+            }
 
-            return is_array($config) ? $config : [];
+            // Also check individual flat setting keys (e.g. shipping_fedex_enabled)
+            $flatEnabled = Setting::get("shipping_{$this->name()}_enabled");
+            if ($flatEnabled !== null) {
+                $config['enabled'] = (bool) $flatEnabled;
+            }
+
+            return $config;
         } catch (Throwable) {
             return [];
         }
