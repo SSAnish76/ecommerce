@@ -203,6 +203,16 @@ class SettingSeeder extends Seeder
             [
                 'key' => 'shipping_settings',
                 'value' => json_encode([
+                    'flat_rate' => [
+                        'enabled' => true,
+                        'name' => 'Flat Rate Shipping',
+                        'cost' => 10.00,
+                    ],
+                    'free_shipping' => [
+                        'enabled' => true,
+                        'name' => 'Free Shipping',
+                        'min_amount' => 50.00,
+                    ],
                     'carrier' => [
                         'provider' => 'none',
                         'account_number' => '',

@@ -12,9 +12,9 @@ enum PaymentMethod: string
 
     case Cod = 'cod';
     case Card = 'card';
-    case Wire = 'wire';
     case Stripe = 'stripe';
     case Paypal = 'paypal';
+    case Razorpay = 'razorpay';
 
     /**
      * Get user-friendly label.
@@ -24,9 +24,9 @@ enum PaymentMethod: string
         return match ($this) {
             self::Cod => 'Cash on Delivery (COD)',
             self::Card => 'Credit / Debit Card',
-            self::Wire => 'Bank Wire Transfer',
             self::Stripe => 'Stripe',
             self::Paypal => 'PayPal',
+            self::Razorpay => 'Razorpay',
         };
     }
 }

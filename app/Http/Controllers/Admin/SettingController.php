@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\Product\StockVisibility;
 use App\Enums\Setting\MailEncryption;
 use App\Enums\Setting\SmsProvider;
+use App\Facades\PaymentGateway;
+use App\Facades\Shipping;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Setting;
@@ -39,11 +41,13 @@ class SettingController extends Controller
         'storage_s3_bucket', 'storage_s3_url', 'storage_s3_endpoint',
 
         // Shipping individual keys
+        'shipping_flat_rate_enabled', 'shipping_flat_rate_cost',
+        'shipping_free_shipping_enabled', 'shipping_free_shipping_min_order',
         'shipping_fedex_enabled', 'shipping_fedex_account_number', 'shipping_fedex_api_key', 'shipping_fedex_api_secret',
         'shipping_ups_enabled', 'shipping_ups_account_number', 'shipping_ups_api_key', 'shipping_ups_api_secret',
         'shipping_dhl_enabled', 'shipping_dhl_account_number', 'shipping_dhl_api_key', 'shipping_dhl_api_secret',
         'shipping_carrier_provider', 'shipping_carrier_account_number', 'shipping_carrier_api_key', 'shipping_carrier_api_secret',
-        'shipping_default_method', 'shipping_flat_rate_cost', 'shipping_free_shipping_enabled', 'shipping_free_shipping_min_order',
+        'shipping_default_method',
 
         // Mail & SMS individual keys
         'mail_host', 'mail_port', 'mail_username', 'mail_password', 'mail_encryption', 'mail_from_name', 'mail_from_address', 'mail_mailer',
@@ -71,6 +75,18 @@ class SettingController extends Controller
             'stock_visibility_options' => StockVisibility::options(),
             'mail_encryption_options' => MailEncryption::options(),
             'sms_provider_options' => SmsProvider::options(),
+            'registered_gateways' => array_map(static fn ($g): array => [
+                'id' => $g->name(),
+                'name' => $g->name(),
+                'label' => $g->label(),
+                'enabled' => $g->isEnabled(),
+            ], array_values(PaymentGateway::all())),
+            'registered_carriers' => array_map(static fn ($c): array => [
+                'id' => $c->name(),
+                'name' => $c->name(),
+                'label' => $c->label(),
+                'enabled' => $c->isEnabled(),
+            ], array_values(Shipping::all())),
         ]);
     }
 
@@ -120,6 +136,11 @@ class SettingController extends Controller
             'storage_s3_bucket' => ['sometimes', 'nullable', 'string', 'max:150'],
             'storage_s3_url' => ['sometimes', 'nullable', 'string', 'max:255'],
             'storage_s3_endpoint' => ['sometimes', 'nullable', 'string', 'max:255'],
+
+            'shipping_flat_rate_enabled' => ['sometimes', 'boolean'],
+            'shipping_flat_rate_cost' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'shipping_free_shipping_enabled' => ['sometimes', 'boolean'],
+            'shipping_free_shipping_min_order' => ['sometimes', 'nullable', 'numeric', 'min:0'],
 
             'shipping_fedex_enabled' => ['sometimes', 'boolean'],
             'shipping_fedex_account_number' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -287,20 +308,20 @@ class SettingController extends Controller
 
         return [
             'stripe' => [
-                'enabled' => isset($input['payment_stripe_enabled']) ? (bool) $input['payment_stripe_enabled'] : $existing['stripe']['enabled'],
-                'publishable_key' => $input['payment_stripe_publishable_key'] ?? $existing['stripe']['publishable_key'],
-                'secret_key' => $this->isFreshSecret($input['payment_stripe_secret_key'] ?? null) ? $input['payment_stripe_secret_key'] : $existing['stripe']['secret_key'],
-                'webhook_secret' => $this->isFreshSecret($input['payment_stripe_webhook_secret'] ?? null) ? $input['payment_stripe_webhook_secret'] : $existing['stripe']['webhook_secret'],
+                'enabled' => isset($input['payment_stripe_enabled']) ? (bool) $input['payment_stripe_enabled'] : ($existing['stripe']['enabled'] ?? true),
+                'publishable_key' => $input['payment_stripe_publishable_key'] ?? ($existing['stripe']['publishable_key'] ?? ''),
+                'secret_key' => $this->isFreshSecret($input['payment_stripe_secret_key'] ?? null) ? $input['payment_stripe_secret_key'] : ($existing['stripe']['secret_key'] ?? ''),
+                'webhook_secret' => $this->isFreshSecret($input['payment_stripe_webhook_secret'] ?? null) ? $input['payment_stripe_webhook_secret'] : ($existing['stripe']['webhook_secret'] ?? ''),
             ],
             'paypal' => [
-                'enabled' => isset($input['payment_paypal_enabled']) ? (bool) $input['payment_paypal_enabled'] : $existing['paypal']['enabled'],
-                'mode' => $input['payment_paypal_mode'] ?? $existing['paypal']['mode'],
-                'client_id' => $input['payment_paypal_client_id'] ?? $existing['paypal']['client_id'],
-                'client_secret' => $this->isFreshSecret($input['payment_paypal_client_secret'] ?? null) ? $input['payment_paypal_client_secret'] : $existing['paypal']['client_secret'],
+                'enabled' => isset($input['payment_paypal_enabled']) ? (bool) $input['payment_paypal_enabled'] : ($existing['paypal']['enabled'] ?? true),
+                'mode' => $input['payment_paypal_mode'] ?? ($existing['paypal']['mode'] ?? 'sandbox'),
+                'client_id' => $input['payment_paypal_client_id'] ?? ($existing['paypal']['client_id'] ?? ''),
+                'client_secret' => $this->isFreshSecret($input['payment_paypal_client_secret'] ?? null) ? $input['payment_paypal_client_secret'] : ($existing['paypal']['client_secret'] ?? ''),
             ],
             'cod' => [
-                'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : $existing['cod']['enabled'],
-                'instructions' => $input['payment_cod_instructions'] ?? $existing['cod']['instructions'],
+                'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : ($existing['cod']['enabled'] ?? true),
+                'instructions' => $input['payment_cod_instructions'] ?? ($existing['cod']['instructions'] ?? ''),
             ],
             'razorpay' => [
                 'enabled' => isset($input['payment_razorpay_enabled']) ? (bool) $input['payment_razorpay_enabled'] : ($existing['razorpay']['enabled'] ?? false),
@@ -346,7 +367,17 @@ class SettingController extends Controller
         $legacyProvider = $input['shipping_carrier_provider'] ?? null;
         $carriers = ['fedex', 'ups', 'dhl'];
 
-        $settings = [];
+        $settings = [
+            'flat_rate' => [
+                'enabled' => isset($input['shipping_flat_rate_enabled']) ? (bool) $input['shipping_flat_rate_enabled'] : ($existing['flat_rate']['enabled'] ?? true),
+                'cost' => isset($input['shipping_flat_rate_cost']) ? (float) $input['shipping_flat_rate_cost'] : (float) ($existing['flat_rate']['cost'] ?? 10.00),
+            ],
+            'free_shipping' => [
+                'enabled' => isset($input['shipping_free_shipping_enabled']) ? (bool) $input['shipping_free_shipping_enabled'] : ($existing['free_shipping']['enabled'] ?? true),
+                'min_amount' => isset($input['shipping_free_shipping_min_order']) ? (float) $input['shipping_free_shipping_min_order'] : (float) ($existing['free_shipping']['min_amount'] ?? 50.00),
+            ],
+        ];
+
         $firstEnabled = null;
 
         foreach ($carriers as $carrier) {

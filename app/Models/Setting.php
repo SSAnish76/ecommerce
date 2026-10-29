@@ -425,8 +425,16 @@ class Setting extends Model
             // Expose shipping carrier aliases
             if (isset($result['shipping_settings']) && is_array($result['shipping_settings'])) {
                 foreach ($result['shipping_settings'] as $code => $config) {
-                    if (is_array($config) && isset($config['enabled'])) {
-                        $result["shipping_{$code}_enabled"] ??= (bool) $config['enabled'];
+                    if (is_array($config)) {
+                        if (isset($config['enabled'])) {
+                            $result["shipping_{$code}_enabled"] ??= (bool) $config['enabled'];
+                        }
+                        if ($code === 'flat_rate' && isset($config['cost'])) {
+                            $result['shipping_flat_rate_cost'] ??= $config['cost'];
+                        }
+                        if ($code === 'free_shipping' && isset($config['min_amount'])) {
+                            $result['shipping_free_shipping_min_order'] ??= $config['min_amount'];
+                        }
                     }
                 }
             }

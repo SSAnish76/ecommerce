@@ -23,7 +23,6 @@ class PaymentGatewayManagerTest extends TestCase
         $this->assertTrue($manager->has('paypal'));
         $this->assertTrue($manager->has('cod'));
         $this->assertTrue($manager->has('razorpay'));
-        $this->assertTrue($manager->has('wire'));
 
         $this->assertInstanceOf(StripePaymentGateway::class, $manager->gateway('stripe'));
     }

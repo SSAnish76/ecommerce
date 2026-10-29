@@ -87,7 +87,14 @@ interface SettingsProps extends PageProps {
             s3?: { key?: string; secret?: string; region?: string; bucket?: string; url?: string; endpoint?: string };
         };
 
+        shipping_flat_rate_enabled?: boolean;
+        shipping_flat_rate_cost?: number;
+        shipping_free_shipping_enabled?: boolean;
+        shipping_free_shipping_min_order?: number;
+
         shipping_settings?: {
+            flat_rate?: { cost?: number; enabled?: boolean };
+            free_shipping?: { min_amount?: number; enabled?: boolean };
             carrier?: { provider?: string; account_number?: string; api_key?: string; api_secret?: string };
             fedex?: { enabled?: boolean; account_number?: string; api_key?: string; api_secret?: string };
             ups?: { enabled?: boolean; account_number?: string; api_key?: string; api_secret?: string };
@@ -401,6 +408,12 @@ export default function Settings({
         storage_s3_url: storeDisk?.s3?.url ?? '',
         storage_s3_endpoint: storeDisk?.s3?.endpoint ?? '',
 
+        // Shipping Settings - Flat Rate & Free Shipping
+        shipping_flat_rate_enabled: settings?.shipping_flat_rate_enabled ?? ship?.flat_rate?.enabled ?? true,
+        shipping_flat_rate_cost: Number(settings?.shipping_flat_rate_cost ?? ship?.flat_rate?.cost ?? 10.00),
+        shipping_free_shipping_enabled: settings?.shipping_free_shipping_enabled ?? ship?.free_shipping?.enabled ?? true,
+        shipping_free_shipping_min_order: Number(settings?.shipping_free_shipping_min_order ?? ship?.free_shipping?.min_amount ?? 50.00),
+
         // Shipping Settings - Multi-Carrier Support
         shipping_fedex_enabled: ship?.fedex?.enabled ?? (ship?.carrier?.provider === 'fedex'),
         shipping_fedex_account_number: ship?.fedex?.account_number ?? (ship?.carrier?.provider === 'fedex' ? (ship?.carrier?.account_number ?? '') : ''),
@@ -519,6 +532,8 @@ export default function Settings({
     ].filter(Boolean).length;
 
     const activeShippingCount = [
+        form.data.shipping_flat_rate_enabled,
+        form.data.shipping_free_shipping_enabled,
         form.data.shipping_fedex_enabled,
         form.data.shipping_ups_enabled,
         form.data.shipping_dhl_enabled,
@@ -803,7 +818,7 @@ export default function Settings({
             category: 'payments',
             categoryLabel: 'Payments & Shipping',
             title: 'Payment & Shipping Methods',
-            description: 'Checkout payment gateways (Razorpay, Stripe, PayPal, COD) and courier shipping logistics.',
+            description: 'Checkout payment gateways (Razorpay, Stripe, PayPal, COD) and delivery logistics (Flat Rate, Free Shipping, Live Carriers).',
             icon: CreditCard,
             iconBg: 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800/60',
             iconColor: 'text-blue-600 dark:text-blue-400',
@@ -1035,19 +1050,105 @@ export default function Settings({
                     </div>
 
                     {/* Shipping & Delivery Logistics Section */}
-                    <div className="space-y-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+                    <div className="space-y-4 pt-4 border-t border-slate-200/80 dark:border-slate-800">
                         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
                             <div>
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                                    Courier & Shipping Logistics
+                                    Shipping & Delivery Logistics
                                 </span>
                                 <span className="text-2xs text-slate-400">
-                                    Enable carrier rate calculation and live parcel tracking API.
+                                    Configure store delivery methods and live carrier parcel tracking APIs.
                                 </span>
                             </div>
                             <span className="text-2xs font-medium text-slate-400">
-                                {activeShippingCount} of 3 Active
+                                {activeShippingCount} of 5 Active
                             </span>
+                        </div>
+
+                        {/* Flat Rate Shipping */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.shipping_flat_rate_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-teal-300 dark:border-teal-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800/60 shrink-0">
+                                        <Truck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                                    </div>
+                                    <div>
+                                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">Flat Rate Shipping</span>
+                                        <span className="text-2xs text-slate-400">Standard fixed delivery fee for customer orders</span>
+                                    </div>
+                                </div>
+                                <Toggle
+                                    checked={form.data.shipping_flat_rate_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('shipping_flat_rate_enabled', checked)
+                                    }
+                                />
+                            </div>
+
+                            {form.data.shipping_flat_rate_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="pt-3 max-w-xs">
+                                        <Input
+                                            label="Flat Rate Fee ($)"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            placeholder="10.00"
+                                            value={String(form.data.shipping_flat_rate_cost)}
+                                            onChange={(e) => form.setData('shipping_flat_rate_cost', parseFloat(e.target.value) || 0)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Free Shipping */}
+                        <div
+                            className={`rounded-xl border transition-all ${
+                                form.data.shipping_free_shipping_enabled
+                                    ? 'bg-white dark:bg-slate-800/90 border-green-300 dark:border-green-700 shadow-2xs'
+                                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                            <div className="p-3.5 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-green-50 dark:bg-green-950/60 border border-green-200 dark:border-green-800/60 shrink-0">
+                                        <PackageCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <div>
+                                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">Free Shipping</span>
+                                        <span className="text-2xs text-slate-400">Automatic free shipping for orders reaching cart threshold</span>
+                                    </div>
+                                </div>
+                                <Toggle
+                                    checked={form.data.shipping_free_shipping_enabled}
+                                    onChange={(checked) =>
+                                        form.setData('shipping_free_shipping_enabled', checked)
+                                    }
+                                />
+                            </div>
+
+                            {form.data.shipping_free_shipping_enabled && (
+                                <div className="p-3.5 pt-0 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                                    <div className="pt-3 max-w-xs">
+                                        <Input
+                                            label="Minimum Cart Subtotal ($)"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            placeholder="50.00"
+                                            value={String(form.data.shipping_free_shipping_min_order)}
+                                            onChange={(e) => form.setData('shipping_free_shipping_min_order', parseFloat(e.target.value) || 0)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {CARRIER_CONFIGS.map((carrier) => {
