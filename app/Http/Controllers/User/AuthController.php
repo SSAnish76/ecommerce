@@ -92,7 +92,7 @@ class AuthController extends Controller
             /** @var Customer|null $customer */
             $customer = Customer::where('email', strtolower(trim($validated['email'])))->first();
 
-            if (! $customer || ! Hash::check($validated['password'], $customer->password)) {
+            if (!$customer || !Hash::check($validated['password'], $customer->password)) {
                 return $this->returnError(
                     null,
                     'The provided credentials do not match our records.',
@@ -100,7 +100,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (! $customer->isActive()) {
+            if (!$customer->isActive()) {
                 return $this->returnError(
                     null,
                     'Your account is currently inactive. Please contact support.',
@@ -125,18 +125,17 @@ class AuthController extends Controller
         return $this->safeCall(function () use ($request): JsonResponse {
             $refreshTokenString = $request->input('refresh_token') ?? $request->bearerToken();
 
-            if (! $refreshTokenString) {
+            if (!$refreshTokenString) {
                 return $this->returnError(
                     null,
-                    'Refresh token is required.',
-                    400
+                    'Refresh token is required.'
                 );
             }
 
             /** @var PersonalAccessToken|null $tokenModel */
             $tokenModel = PersonalAccessToken::findToken($refreshTokenString);
 
-            if (! $tokenModel) {
+            if (!$tokenModel) {
                 return $this->returnError(
                     null,
                     'Invalid refresh token.',
@@ -154,7 +153,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (! $tokenModel->can('issue-access-token')) {
+            if (!$tokenModel->can('issue-access-token')) {
                 return $this->returnError(
                     null,
                     'The provided token is not a valid refresh token.',
@@ -164,7 +163,7 @@ class AuthController extends Controller
 
             $customer = $tokenModel->tokenable;
 
-            if (! ($customer instanceof Customer)) {
+            if (!($customer instanceof Customer)) {
                 return $this->returnError(
                     null,
                     'Invalid customer token.',
@@ -172,7 +171,7 @@ class AuthController extends Controller
                 );
             }
 
-            if (! $customer->isActive()) {
+            if (!$customer->isActive()) {
                 return $this->returnError(
                     null,
                     'Your account is currently inactive. Please contact support.',
@@ -271,7 +270,7 @@ class AuthController extends Controller
                 'password' => ['required', 'string', 'min:8', 'confirmed'],
             ]);
 
-            if (! Hash::check($validated['current_password'], $customer->password)) {
+            if (!Hash::check($validated['current_password'], $customer->password)) {
                 return $this->returnError(
                     ['current_password' => ['The current password provided is incorrect.']],
                     'The current password provided is incorrect.'

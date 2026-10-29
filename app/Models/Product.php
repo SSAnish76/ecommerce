@@ -207,7 +207,7 @@ class Product extends Model
             ? $this->status
             : ProductStatus::tryFrom((string) $this->status);
 
-        return ($status?->isPurchasable() ?? false) && ! $this->shouldHideWhenOutOfStock();
+        return ($status?->isPurchasable() ?? false) && !$this->shouldHideWhenOutOfStock();
     }
 
     /**
@@ -251,14 +251,14 @@ class Product extends Model
                         $sub->where('stock_visibility', '!=', StockVisibility::Hide->value)
                             ->where(function (Builder $sq): void {
                                 $sq->where('stock_quantity', '>', 0)
-                                    ->orWhereHas('variants', fn (Builder $vq) => $vq->where('stock_quantity', '>', 0));
+                                    ->orWhereHas('variants', fn(Builder $vq) => $vq->where('stock_quantity', '>', 0));
                             });
                     });
             } else {
                 $q->where('stock_visibility', '!=', StockVisibility::Hide->value)
                     ->orWhere(function (Builder $sub): void {
                         $sub->where('stock_quantity', '>', 0)
-                            ->orWhereHas('variants', fn (Builder $vq) => $vq->where('stock_quantity', '>', 0));
+                            ->orWhereHas('variants', fn(Builder $vq) => $vq->where('stock_quantity', '>', 0));
                     });
             }
         });
@@ -344,11 +344,11 @@ class Product extends Model
         if ($this->has_variants) {
             if ($this->relationLoaded('variants')) {
                 return $this->variants->isNotEmpty()
-                    && $this->variants->every(fn (ProductVariant $v): bool => (int) $v->stock_quantity <= 0);
+                    && $this->variants->every(fn(ProductVariant $v): bool => (int) $v->stock_quantity <= 0);
             }
 
             return $this->variants()->exists()
-                && ! $this->variants()->where('stock_quantity', '>', 0)->exists();
+                && !$this->variants()->where('stock_quantity', '>', 0)->exists();
         }
 
         return (int) $this->stock_quantity <= 0;
@@ -390,7 +390,7 @@ class Product extends Model
      */
     public static function resolveWishlistProductIds(iterable $products, ?Customer $customer = null): array
     {
-        if (! $customer) {
+        if (!$customer) {
             return [];
         }
 
@@ -418,7 +418,7 @@ class Product extends Model
             'brand:id,name,slug',
             'category:id,name,slug',
             'primaryImage.media',
-            'variants' => fn ($q) => $q->active()->select([
+            'variants' => fn($q) => $q->active()->select([
                 'id',
                 'product_id',
                 'name',
@@ -439,7 +439,7 @@ class Product extends Model
      */
     public static function loadMissingSummaryRelations(iterable $products): void
     {
-        $models = collect($products)->filter(fn ($item): bool => $item instanceof Product)->values()->all();
+        $models = collect($products)->filter(fn($item): bool => $item instanceof Product)->values()->all();
         if ($models === []) {
             return;
         }
@@ -450,7 +450,7 @@ class Product extends Model
             'brand:id,name,slug',
             'category:id,name,slug',
             'primaryImage.media',
-            'variants' => fn ($q) => $q->active()->select([
+            'variants' => fn($q) => $q->active()->select([
                 'id',
                 'product_id',
                 'name',
@@ -472,7 +472,7 @@ class Product extends Model
      */
     public static function formatSummaries(iterable $products, ?Customer $customer = null): array
     {
-        $items = collect($products)->filter(fn ($item): bool => $item instanceof Product)->values()->all();
+        $items = collect($products)->filter(fn($item): bool => $item instanceof Product)->values()->all();
         if ($items === []) {
             return [];
         }
@@ -481,7 +481,7 @@ class Product extends Model
         $wishlistProductIds = static::resolveWishlistProductIds($items, $customer);
 
         return array_map(
-            fn (Product $product): array => $product->toSummaryArray(isset($wishlistProductIds[$product->id])),
+            fn(Product $product): array => $product->toSummaryArray(isset($wishlistProductIds[$product->id])),
             $items
         );
     }
@@ -495,23 +495,25 @@ class Product extends Model
     {
         $simpleVariants = [];
         if ($this->has_variants) {
-            if (! $this->relationLoaded('variants')) {
-                $this->load(['variants' => fn ($q) => $q->active()->select([
-                    'id',
-                    'product_id',
-                    'name',
-                    'sku',
-                    'price',
-                    'sale_price',
-                    'stock_quantity',
-                    'is_active',
-                    'attributes',
-                ])]);
+            if (!$this->relationLoaded('variants')) {
+                $this->load([
+                    'variants' => fn($q) => $q->active()->select([
+                        'id',
+                        'product_id',
+                        'name',
+                        'sku',
+                        'price',
+                        'sale_price',
+                        'stock_quantity',
+                        'is_active',
+                        'attributes',
+                    ])
+                ]);
             }
 
             $simpleVariants = $this->variants
-                ->filter(fn (ProductVariant $v): bool => (bool) $v->is_active)
-                ->map(fn (ProductVariant $v): array => [
+                ->filter(fn(ProductVariant $v): bool => (bool) $v->is_active)
+                ->map(fn(ProductVariant $v): array => [
                     'id' => $v->id,
                     'name' => $v->name,
                     'sku' => $v->sku,
@@ -548,7 +550,7 @@ class Product extends Model
             'has_variants' => (bool) $this->has_variants,
             'variants' => $simpleVariants,
             'stock_quantity' => (int) $this->stock_quantity,
-            'is_in_stock' => $this->has_variants ? ! $this->isOutOfStock() : $this->stock_quantity > 0,
+            'is_in_stock' => $this->has_variants ? !$this->isOutOfStock() : $this->stock_quantity > 0,
             'stock_visibility' => $this->effectiveStockVisibility()->value,
             'allows_backorder' => $this->allowsBackorder(),
             'is_wishlist' => $isWishlist,
