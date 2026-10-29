@@ -511,8 +511,16 @@ class Product extends Model
                 ]);
             }
 
+            $allowsBackorder = $this->allowsBackorder();
+
             $simpleVariants = $this->variants
-                ->filter(fn(ProductVariant $v): bool => (bool) $v->is_active)
+                ->filter(function (ProductVariant $v) use ($allowsBackorder): bool {
+                    if (! (bool) $v->is_active) {
+                        return false;
+                    }
+
+                    return $v->stock_quantity > 0 || $allowsBackorder;
+                })
                 ->map(function (ProductVariant $v): array {
                     $rawAttributes = $v->getAttribute('attributes');
                     if (is_string($rawAttributes)) {

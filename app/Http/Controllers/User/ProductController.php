@@ -12,6 +12,7 @@ use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -188,7 +189,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Format full product detail including variants and attributes.
+     * Format full product detail including variants and attributes for frontend consumption.
      *
      * @return array<string, mixed>
      */
@@ -201,26 +202,102 @@ class ProductController extends Controller
             'sort_order' => (int) $img->sort_order,
         ]);
 
-        $variants = $product->variants->map(function ($variant): array {
-            $rawAttributes = $variant->getAttribute('attributes');
-            if (is_string($rawAttributes)) {
-                $rawAttributes = json_decode($rawAttributes, true);
+        $allowsBackorder = $product->allowsBackorder();
+
+        // 1. Clean variants list - only variants with stock or allowing backorders based on stock policy
+        $variants = $product->variants
+            ->filter(function ($variant) use ($allowsBackorder): bool {
+                if (! (bool) $variant->is_active) {
+                    return false;
+                }
+
+                return $variant->stock_quantity > 0 || $allowsBackorder;
+            })
+            ->map(function ($variant): array {
+                $attrs = $variant->getAttribute('attributes');
+                if (is_string($attrs)) {
+                    $attrs = json_decode($attrs, true);
+                }
+
+                return [
+                    'id' => $variant->id,
+                    'name' => $variant->name,
+                    'sku' => $variant->sku,
+                    'mrp' => (float) $variant->mrp,
+                    'price' => (float) $variant->price,
+                    'sale_price' => $variant->sale_price !== null ? (float) $variant->sale_price : null,
+                    'effective_price' => $variant->effectivePrice(),
+                    'stock_quantity' => (int) $variant->stock_quantity,
+                    'is_in_stock' => $variant->stock_quantity > 0,
+                    'image_url' => $variant->image_url,
+                    'attributes' => is_array($attrs) ? $attrs : [],
+                ];
+            })->values();
+
+        // 2. Clean and simple attributes list (options for frontend buttons)
+        $attributes = [];
+
+        if ($product->attributes->isNotEmpty()) {
+            $productValIds = $product->relationLoaded('attributeValues')
+                ? $product->attributeValues->pluck('id')->flip()->all()
+                : [];
+
+            // Values present across this product's variants
+            $variantValuesMap = [];
+            foreach ($variants as $v) {
+                foreach ($v['attributes'] as $val) {
+                    $variantValuesMap[(string) $val] = true;
+                }
             }
 
-            return [
-                'id' => $variant->id,
-                'name' => $variant->name,
-                'sku' => $variant->sku,
-                'attributes' => is_array($rawAttributes) ? $rawAttributes : null,
-                'mrp' => (float) $variant->mrp,
-                'price' => (float) $variant->price,
-                'sale_price' => $variant->sale_price !== null ? (float) $variant->sale_price : null,
-                'effective_price' => $variant->effectivePrice(),
-                'stock_quantity' => (int) $variant->stock_quantity,
-                'is_in_stock' => $variant->stock_quantity > 0,
-                'image_url' => $variant->image_url,
-            ];
-        });
+            foreach ($product->attributes as $attr) {
+                // Only include values that actually belong to this specific product or its variants
+                $values = $attr->values
+                    ->filter(function ($v) use ($productValIds, $variantValuesMap): bool {
+                        if (! empty($productValIds)) {
+                            return isset($productValIds[$v->id]);
+                        }
+                        if (! empty($variantValuesMap)) {
+                            return isset($variantValuesMap[(string) $v->value]);
+                        }
+
+                        return false;
+                    })
+                    ->values()
+                    ->map(fn ($v): array => [
+                        'id' => $v->id,
+                        'value' => $v->value,
+                        'color_code' => $v->color_code,
+                    ])->all();
+
+                if (! empty($values)) {
+                    $attributes[] = [
+                        'name' => $attr->name,
+                        'type' => $attr->type?->value ?? (string) $attr->type,
+                        'values' => $values,
+                    ];
+                }
+            }
+        } else {
+            // Fallback: extract attributes directly from variants if no relational attributes
+            $grouped = [];
+            foreach ($variants as $v) {
+                foreach ($v['attributes'] as $name => $val) {
+                    $grouped[$name][$val] = true;
+                }
+            }
+            foreach ($grouped as $name => $vals) {
+                $attributes[] = [
+                    'name' => (string) $name,
+                    'type' => 'button',
+                    'values' => collect(array_keys($vals))->map(fn ($val): array => [
+                        'id' => (string) $val,
+                        'value' => (string) $val,
+                        'color_code' => null,
+                    ])->all(),
+                ];
+            }
+        }
 
         return array_merge($product->toSummaryArray($isWishlist), [
             'description' => $product->description,
@@ -230,17 +307,7 @@ class ProductController extends Controller
             'delivery_radius_km' => $product->delivery_radius_km !== null ? (float) $product->delivery_radius_km : null,
             'images' => $galleryImages,
             'variants' => $variants,
-            'attributes' => $product->attributes->map(fn ($attr): array => [
-                'id' => $attr->id,
-                'name' => $attr->name,
-                'code' => $attr->code,
-                'type' => $attr->type?->value ?? (string) $attr->type,
-                'values' => $attr->values->map(fn ($v): array => [
-                    'id' => $v->id,
-                    'value' => $v->value,
-                    'color_code' => $v->color_code,
-                ]),
-            ]),
+            'attributes' => $attributes,
         ]);
     }
 }
