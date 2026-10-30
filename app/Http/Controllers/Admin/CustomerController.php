@@ -37,7 +37,7 @@ class CustomerController extends Controller
                 $query->where('status', '!=', OrderStatus::Cancelled->value);
             }], 'total')
             ->with(['addresses' => function ($query): void {
-                $query->where('is_default', true)->limit(1);
+                $query->where('is_default', true);
             }])
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $q) use ($search): void {

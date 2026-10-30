@@ -31,7 +31,7 @@ class SettingController extends Controller
         // Payment individual keys
         'payment_cod_enabled', 'payment_cod_instructions',
         'payment_stripe_enabled', 'payment_stripe_publishable_key', 'payment_stripe_secret_key', 'payment_stripe_webhook_secret',
-        'payment_paypal_enabled', 'payment_paypal_mode', 'payment_paypal_client_id', 'payment_paypal_client_secret',
+        'payment_paypal_enabled', 'payment_paypal_mode', 'payment_paypal_client_id', 'payment_paypal_client_secret', 'payment_paypal_webhook_id',
         'payment_razorpay_enabled', 'payment_razorpay_key_id', 'payment_razorpay_key_secret', 'payment_razorpay_webhook_secret',
         'payment_bank_transfer_enabled', 'payment_bank_name', 'payment_bank_account_name', 'payment_bank_account_number',
         'payment_bank_routing_number', 'payment_bank_swift_code', 'payment_bank_instructions',
@@ -124,6 +124,7 @@ class SettingController extends Controller
             'payment_paypal_mode' => ['sometimes', 'nullable', 'string', 'in:sandbox,live'],
             'payment_paypal_client_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'payment_paypal_client_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'payment_paypal_webhook_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'payment_razorpay_enabled' => ['sometimes', 'boolean'],
             'payment_razorpay_key_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'payment_razorpay_key_secret' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -318,6 +319,7 @@ class SettingController extends Controller
                 'mode' => $input['payment_paypal_mode'] ?? ($existing['paypal']['mode'] ?? 'sandbox'),
                 'client_id' => $input['payment_paypal_client_id'] ?? ($existing['paypal']['client_id'] ?? ''),
                 'client_secret' => $this->isFreshSecret($input['payment_paypal_client_secret'] ?? null) ? $input['payment_paypal_client_secret'] : ($existing['paypal']['client_secret'] ?? ''),
+                'webhook_id' => $input['payment_paypal_webhook_id'] ?? ($existing['paypal']['webhook_id'] ?? ''),
             ],
             'cod' => [
                 'enabled' => isset($input['payment_cod_enabled']) ? (bool) $input['payment_cod_enabled'] : ($existing['cod']['enabled'] ?? true),

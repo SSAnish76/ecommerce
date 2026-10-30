@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Services\Payments\Gateways\PaypalClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
@@ -41,6 +42,9 @@ class UserCheckoutPaymentShippingTest extends TestCase
         Setting::set('payment_stripe_enabled', true);
         Setting::set('payment_stripe_secret_key', 'sk_test_123');
         Setting::set('payment_stripe_publishable_key', 'pk_test_123');
+        Setting::set('payment_paypal_enabled', true);
+        Setting::set('payment_paypal_client_id', 'mock_paypal_client_id');
+        Setting::set('payment_paypal_client_secret', 'mock_paypal_client_secret');
         Setting::set('shipping_flat_rate_enabled', true);
         Setting::set('shipping_flat_rate_cost', 15.00);
         Setting::set('shipping_free_shipping_enabled', true);
@@ -413,6 +417,100 @@ class UserCheckoutPaymentShippingTest extends TestCase
                         'status' => 'captured',
                     ],
                 ],
+            ],
+        ]);
+
+        $webhookResponse->assertOk()
+            ->assertJson([
+                'received' => true,
+                'status' => 'paid',
+            ]);
+
+        $this->assertEquals(PaymentStatus::Paid, $payment->fresh()->status);
+        $this->assertEquals(PaymentStatus::Paid, $order->fresh()->payment_status);
+    }
+
+    /**
+     * Test PayPal checkout creates a pending order with redirect URL.
+     */
+    public function test_paypal_checkout_creates_pending_order_and_redirect_url(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        $mockPaypal = Mockery::mock(PaypalClient::class);
+        $mockPaypal->shouldReceive('createOrder')
+            ->once()
+            ->andReturn([
+                'id' => 'PAYPAL_ORDER_FEATURE_123',
+                'status' => 'CREATED',
+                'links' => [
+                    [
+                        'rel' => 'approve',
+                        'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL_ORDER_FEATURE_123',
+                    ],
+                ],
+            ]);
+        $this->app->instance(PaypalClient::class, $mockPaypal);
+
+        $response = $this->postJson('/api/user/checkout', [
+            'shipping_address' => '456 Market St, San Francisco, CA',
+            'billing_address' => '456 Market St, San Francisco, CA',
+            'payment_method' => 'paypal',
+            'shipping_carrier' => 'flat_rate',
+            'items' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'payment_method' => 'paypal',
+                    'payment_status' => 'pending',
+                    'redirect_url' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL_ORDER_FEATURE_123',
+                ],
+            ]);
+    }
+
+    /**
+     * Test PayPal gateway webhook triggers payment update.
+     */
+    public function test_paypal_webhook_updates_payment(): void
+    {
+        $order = Order::create([
+            'order_number' => 'ORD-PP-WEBHOOK-001',
+            'customer_id' => $this->customer->id,
+            'customer_name' => $this->customer->name,
+            'customer_email' => $this->customer->email,
+            'customer_phone' => $this->customer->phone,
+            'shipping_address' => '789 Elm St',
+            'billing_address' => '789 Elm St',
+            'status' => OrderStatus::Pending,
+            'payment_status' => PaymentStatus::Pending,
+            'payment_method' => 'paypal',
+            'subtotal' => 60.00,
+            'total' => 60.00,
+        ]);
+
+        $payment = Payment::create([
+            'order_id' => $order->id,
+            'customer_id' => $this->customer->id,
+            'transaction_id' => 'PAYPAL_TX_HOOK_789',
+            'gateway' => 'paypal',
+            'amount' => 60.00,
+            'currency' => 'USD',
+            'status' => PaymentStatus::Pending,
+            'type' => 'charge',
+        ]);
+
+        $webhookResponse = $this->postJson('/api/user/payments/webhook/paypal', [
+            'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+            'resource' => [
+                'id' => 'PAYPAL_TX_HOOK_789',
             ],
         ]);
 
