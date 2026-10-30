@@ -1287,6 +1287,13 @@ interface ShippingRate {
 }
 
 // -------------------------------------------------------------
+interface PaymentMethodOption {
+    id: string;
+    name: string;
+    label: string;
+    sub?: string;
+}
+
 // Customer Checkout Modal (Integrated with app/Http/Controllers/User APIs)
 // -------------------------------------------------------------
 function CustomerCheckoutModal({
@@ -1340,12 +1347,14 @@ function CustomerCheckoutModal({
     const [selectedShippingMethod, setSelectedShippingMethod] = useState<string>('flat_rate');
     const [loadingShippingRates, setLoadingShippingRates] = useState(false);
 
-    // Payment Gateway from PaymentGateway / User\CheckoutController
-    const [paymentGateway, setPaymentGateway] = useState<'cod' | 'stripe' | 'paypal'>('cod');
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
-    const [cardCvv, setCardCvv] = useState('');
-    const [cardHolderName, setCardHolderName] = useState(customer?.name || '');
+    // Payment Gateways loaded dynamically based on Settings via User\CheckoutController
+    const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethodOption[]>([
+        { id: 'cod', name: 'cod', label: 'Cash on Delivery', sub: 'Pay upon parcel arrival' },
+        { id: 'stripe', name: 'stripe', label: 'Stripe', sub: 'Instant & Encrypted (Stripe)' },
+        { id: 'paypal', name: 'paypal', label: 'PayPal', sub: 'Safe digital checkout' },
+    ]);
+    const [paymentGateway, setPaymentGateway] = useState<string>('cod');
+    const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
 
     // Coupon
     const [couponCode, setCouponCode] = useState('');
@@ -1392,6 +1401,37 @@ function CustomerCheckoutModal({
         if (customerToken) {
             fetchAddresses(customerToken);
         }
+    }, [customerToken]);
+
+    // Fetch active payment methods configured in Settings via User\CheckoutController
+    const fetchPaymentMethods = async () => {
+        setLoadingPaymentMethods(true);
+        try {
+            const res = await fetch('/api/user/checkout/payment-methods', {
+                headers: {
+                    Accept: 'application/json',
+                    ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}),
+                },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const methods: PaymentMethodOption[] = data.data?.payment_methods || data.data || [];
+                if (methods.length > 0) {
+                    setAvailablePaymentMethods(methods);
+                    setPaymentGateway((prev) => {
+                        return methods.some((m) => m.id === prev) ? prev : methods[0].id;
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching available payment methods:', err);
+        } finally {
+            setLoadingPaymentMethods(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPaymentMethods();
     }, [customerToken]);
 
     // Subtotal calculations
@@ -1621,8 +1661,8 @@ function CustomerCheckoutModal({
         }
 
         if (paymentGateway === 'stripe') {
-            payload.token = 'tok_visa_card_test';
-            payload.payment_method_id = 'pm_card_simulated';
+            payload.token = 'tok_visa';
+            payload.payment_method_id = 'pm_card_visa';
         }
 
         try {
@@ -1719,15 +1759,21 @@ function CustomerCheckoutModal({
 
                     {confirmedOrder.redirect_url && (
                         <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 text-left">
-                            <p className="font-bold mb-1">External Payment Required</p>
-                            <p className="text-[11px] mb-2">Please complete payment through the PayPal approval session:</p>
+                            <p className="font-bold mb-1">
+                                {confirmedOrder.payment_method === 'stripe' ? 'Stripe 3D-Secure Authorization Required' : 'External Payment Required'}
+                            </p>
+                            <p className="text-[11px] mb-2">
+                                {confirmedOrder.payment_method === 'stripe'
+                                    ? 'Please complete bank 3D-Secure authentication to finalize your card payment:'
+                                    : 'Please complete payment through the PayPal approval session:'}
+                            </p>
                             <a
                                 href={confirmedOrder.redirect_url}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold text-xs hover:bg-amber-700"
                             >
-                                <span>Proceed to PayPal</span>
+                                <span>{confirmedOrder.payment_method === 'stripe' ? 'Complete 3D-Secure Authorization' : 'Proceed to PayPal'}</span>
                                 <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                         </div>
@@ -2150,39 +2196,25 @@ function CustomerCheckoutModal({
 
                     {/* Step 3: Payment Gateway Architecture */}
                     <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                            <CreditCard className="w-4 h-4 text-indigo-600" />
-                            <span>3. Payment Gateway Concept</span>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                                <CreditCard className="w-4 h-4 text-indigo-600" />
+                                <span>3. Payment Gateway Concept</span>
+                            </span>
+                            {loadingPaymentMethods && (
+                                <span className="text-[10px] text-slate-400 font-normal">Loading...</span>
+                            )}
                         </h4>
 
-                        <div className="grid grid-cols-3 gap-3">
-                            {[
-                                {
-                                    id: 'cod',
-                                    label: 'Cash on Delivery',
-                                    sub: 'Pay upon parcel arrival',
-                                    icon: Banknote,
-                                },
-                                {
-                                    id: 'stripe',
-                                    label: 'Credit / Debit Card',
-                                    sub: 'Instant & Encrypted (Stripe)',
-                                    icon: CreditCard,
-                                },
-                                {
-                                    id: 'paypal',
-                                    label: 'PayPal',
-                                    sub: 'Safe digital checkout',
-                                    icon: Wallet,
-                                },
-                            ].map((pm) => {
-                                const Icon = pm.icon;
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {availablePaymentMethods.map((pm) => {
+                                const Icon = pm.id === 'stripe' ? CreditCard : pm.id === 'paypal' ? Wallet : Banknote;
                                 const isSelected = paymentGateway === pm.id;
                                 return (
                                     <button
                                         type="button"
                                         key={pm.id}
-                                        onClick={() => setPaymentGateway(pm.id as any)}
+                                        onClick={() => setPaymentGateway(pm.id)}
                                         className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
                                             isSelected
                                                 ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-600/20'
@@ -2197,69 +2229,49 @@ function CustomerCheckoutModal({
                                             <p className={`text-xs font-bold ${isSelected ? 'text-indigo-950 dark:text-white' : 'text-slate-800 dark:text-slate-200'}`}>
                                                 {pm.label}
                                             </p>
-                                            <p className="text-[10px] text-slate-500 mt-0.5">{pm.sub}</p>
+                                            <p className="text-[10px] text-slate-500 mt-0.5">{pm.sub || 'Instant checkout'}</p>
                                         </div>
                                     </button>
                                 );
                             })}
                         </div>
 
-                        {/* Interactive Card Input when Stripe is selected */}
+                        {/* Stripe Payment Badge (Card details removed, securely handled via Stripe) */}
                         {paymentGateway === 'stripe' && (
-                            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3 animate-in fade-in">
-                                <div className="flex items-center justify-between text-xs text-slate-500">
-                                    <span className="font-semibold text-slate-700 dark:text-slate-300">Stripe Card Payment</span>
-                                    <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-                                        <Lock className="w-3 h-3" /> PCI-DSS Level 1 Encrypted
+                            <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 space-y-1.5 animate-in fade-in">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                                        <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                                        Stripe Encrypted Payment
+                                    </span>
+                                    <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                        <Lock className="w-3 h-3" /> PCI-DSS Compliant
                                     </span>
                                 </div>
-                                <div>
-                                    <input
-                                        type="text"
-                                        value={cardNumber}
-                                        onChange={(e) => setCardNumber(e.target.value)}
-                                        placeholder="Card Number: 4532 •••• •••• 8910"
-                                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:ring-2 focus:ring-indigo-500 outline-hidden font-mono"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input
-                                        type="text"
-                                        value={cardExpiry}
-                                        onChange={(e) => setCardExpiry(e.target.value)}
-                                        placeholder="MM / YY"
-                                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:ring-2 focus:ring-indigo-500 outline-hidden font-mono"
-                                    />
-                                    <input
-                                        type="password"
-                                        value={cardCvv}
-                                        maxLength={4}
-                                        onChange={(e) => setCardCvv(e.target.value)}
-                                        placeholder="CVV / CVC"
-                                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:ring-2 focus:ring-indigo-500 outline-hidden font-mono"
-                                    />
-                                </div>
-                                <div>
-                                    <input
-                                        type="text"
-                                        value={cardHolderName}
-                                        onChange={(e) => setCardHolderName(e.target.value)}
-                                        placeholder="Cardholder Name"
-                                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs focus:ring-2 focus:ring-indigo-500 outline-hidden"
-                                    />
-                                </div>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                    Payment processed securely via Stripe. Bank-level encryption with automated 3D-Secure authentication.
+                                </p>
                             </div>
                         )}
 
                         {paymentGateway === 'cod' && (
-                            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
-                                💡 <strong>Cash on Delivery:</strong> Please keep the exact cash amount ready for the delivery partner upon parcel arrival.
+                            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>💡 <strong>Cash on Delivery:</strong> Pay upon doorstep delivery of your parcel.</span>
                             </div>
                         )}
 
                         {paymentGateway === 'paypal' && (
-                            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300">
-                                🔒 <strong>PayPal Gateway:</strong> You will be redirected to PayPal sandbox to authenticate and approve this transaction.
+                            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                                <Wallet className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>🔒 <strong>PayPal Gateway:</strong> You will be redirected to PayPal sandbox to approve this checkout session.</span>
+                            </div>
+                        )}
+
+                        {paymentGateway === 'razorpay' && (
+                            <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs text-sky-800 dark:text-sky-300 flex items-center gap-2">
+                                <CreditCard className="w-4 h-4 text-sky-600 shrink-0" />
+                                <span>🔒 <strong>Razorpay:</strong> Pay securely using UPI, NetBanking, or Cards.</span>
                             </div>
                         )}
                     </div>

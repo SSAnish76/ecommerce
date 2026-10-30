@@ -207,6 +207,7 @@ class CheckoutController extends Controller
         });
     }
 
+
     /**
      * Get real-time shipping rate quotes from all enabled shipping carriers.
      */
@@ -586,6 +587,8 @@ class CheckoutController extends Controller
                 $payment = Payment::where('transaction_id', $result->transactionId)->first();
                 if ($payment && $result->success && $result->status === 'paid') {
                     $payment->markAsPaid($result->transactionId, $result->data);
+                } elseif ($payment && $result->status === 'refunded') {
+                    $payment->markAsRefunded($result->transactionId, $result->data);
                 } elseif ($payment && ! $result->success) {
                     $payment->markAsFailed($result->message ?? 'Webhook indicated payment failure', $result->data);
                 }
