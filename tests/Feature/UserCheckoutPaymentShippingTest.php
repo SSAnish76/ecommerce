@@ -15,6 +15,12 @@ use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
+use Mockery;
+use Stripe\Charge;
+use Stripe\Refund;
+use Stripe\Service\ChargeService;
+use Stripe\Service\RefundService;
+use Stripe\StripeClient;
 use Tests\TestCase;
 
 class UserCheckoutPaymentShippingTest extends TestCase
@@ -41,6 +47,21 @@ class UserCheckoutPaymentShippingTest extends TestCase
         Setting::set('shipping_free_min_amount', 100.00);
         Setting::set('shipping_fedex_enabled', true);
         Setting::set('allow_customer_cancellation', true);
+
+        $mockStripe = Mockery::mock(StripeClient::class);
+        $mockCharges = Mockery::mock(ChargeService::class);
+        $mockCharges->shouldReceive('retrieve')->byDefault()->andReturn(
+            Charge::constructFrom(['id' => 'ch_stripe_pending', 'paid' => true])
+        );
+        $mockStripe->charges = $mockCharges;
+
+        $mockRefunds = Mockery::mock(RefundService::class);
+        $mockRefunds->shouldReceive('create')->byDefault()->andReturn(
+            Refund::constructFrom(['id' => 're_test_refund_123', 'status' => 'succeeded'])
+        );
+        $mockStripe->refunds = $mockRefunds;
+
+        $this->app->instance(StripeClient::class, $mockStripe);
 
         $this->customer = Customer::create([
             'name' => 'John Doe',

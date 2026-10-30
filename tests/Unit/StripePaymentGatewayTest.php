@@ -8,7 +8,15 @@ use App\Models\Order;
 use App\Models\Setting;
 use App\Services\Payments\Gateways\StripePaymentGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
+use Mockery;
+use Stripe\Checkout\Session;
+use Stripe\PaymentIntent;
+use Stripe\Refund;
+use Stripe\Service\Checkout\CheckoutServiceFactory;
+use Stripe\Service\Checkout\SessionService;
+use Stripe\Service\PaymentIntentService;
+use Stripe\Service\RefundService;
+use Stripe\StripeClient;
 use Tests\TestCase;
 
 class StripePaymentGatewayTest extends TestCase
@@ -54,15 +62,29 @@ class StripePaymentGatewayTest extends TestCase
 
     public function test_charge_creates_and_confirms_payment_intent(): void
     {
-        Http::fake([
-            'https://api.stripe.com/v1/payment_intents' => Http::response([
-                'id' => 'pi_test_intent_123',
-                'object' => 'payment_intent',
-                'status' => 'succeeded',
-                'amount' => 50000,
-                'currency' => 'inr',
-            ], 200),
+        $mockClient = Mockery::mock(StripeClient::class);
+        $piService = Mockery::mock(PaymentIntentService::class);
+        $mockClient->paymentIntents = $piService;
+
+        $intent = PaymentIntent::constructFrom([
+            'id' => 'pi_test_intent_123',
+            'object' => 'payment_intent',
+            'status' => 'succeeded',
+            'amount' => 50000,
+            'currency' => 'inr',
         ]);
+
+        $piService->shouldReceive('create')
+            ->once()
+            ->with(Mockery::on(function (array $params): bool {
+                return $params['amount'] === 50000
+                    && $params['currency'] === 'inr'
+                    && $params['confirm'] === true
+                    && $params['payment_method'] === 'pm_card_visa';
+            }))
+            ->andReturn($intent);
+
+        $this->gateway->setClient($mockClient);
 
         $order = new Order([
             'order_number' => 'ORD-12345',
@@ -81,30 +103,30 @@ class StripePaymentGatewayTest extends TestCase
         $this->assertSame('pi_test_intent_123', $result->transactionId);
         $this->assertSame('paid', $result->status);
         $this->assertSame('Stripe charge captured successfully.', $result->message);
-
-        Http::assertSent(function ($request) {
-            return $request->url() === 'https://api.stripe.com/v1/payment_intents'
-                && (int) $request['amount'] === 50000
-                && $request['currency'] === 'inr'
-                && (string) $request['confirm'] === 'true'
-                && $request['payment_method'] === 'pm_card_visa';
-        });
     }
 
     public function test_charge_handles_3ds_requires_action(): void
     {
-        Http::fake([
-            'https://api.stripe.com/v1/payment_intents' => Http::response([
-                'id' => 'pi_test_intent_3ds',
-                'object' => 'payment_intent',
-                'status' => 'requires_action',
-                'next_action' => [
-                    'redirect_to_url' => [
-                        'url' => 'https://hooks.stripe.com/3d_secure_2/hosted?test=1',
-                    ],
+        $mockClient = Mockery::mock(StripeClient::class);
+        $piService = Mockery::mock(PaymentIntentService::class);
+        $mockClient->paymentIntents = $piService;
+
+        $intent = PaymentIntent::constructFrom([
+            'id' => 'pi_test_intent_3ds',
+            'object' => 'payment_intent',
+            'status' => 'requires_action',
+            'next_action' => [
+                'redirect_to_url' => [
+                    'url' => 'https://hooks.stripe.com/3d_secure_2/hosted?test=1',
                 ],
-            ], 200),
+            ],
         ]);
+
+        $piService->shouldReceive('create')
+            ->once()
+            ->andReturn($intent);
+
+        $this->gateway->setClient($mockClient);
 
         $order = new Order([
             'order_number' => 'ORD-12346',
@@ -124,14 +146,24 @@ class StripePaymentGatewayTest extends TestCase
 
     public function test_charge_creates_checkout_session_flow(): void
     {
-        Http::fake([
-            'https://api.stripe.com/v1/checkout/sessions' => Http::response([
-                'id' => 'cs_test_session_999',
-                'object' => 'checkout.session',
-                'url' => 'https://checkout.stripe.com/c/pay/cs_test_session_999',
-                'payment_status' => 'unpaid',
-            ], 200),
+        $mockClient = Mockery::mock(StripeClient::class);
+        $checkoutFactory = Mockery::mock(CheckoutServiceFactory::class);
+        $sessionService = Mockery::mock(SessionService::class);
+        $checkoutFactory->sessions = $sessionService;
+        $mockClient->checkout = $checkoutFactory;
+
+        $session = Session::constructFrom([
+            'id' => 'cs_test_session_999',
+            'object' => 'checkout.session',
+            'url' => 'https://checkout.stripe.com/c/pay/cs_test_session_999',
+            'payment_status' => 'unpaid',
         ]);
+
+        $sessionService->shouldReceive('create')
+            ->once()
+            ->andReturn($session);
+
+        $this->gateway->setClient($mockClient);
 
         $order = new Order([
             'order_number' => 'ORD-12347',
@@ -152,12 +184,21 @@ class StripePaymentGatewayTest extends TestCase
 
     public function test_verify_payment_with_payment_intent(): void
     {
-        Http::fake([
-            'https://api.stripe.com/v1/payment_intents/pi_check_123' => Http::response([
-                'id' => 'pi_check_123',
-                'status' => 'succeeded',
-            ], 200),
+        $mockClient = Mockery::mock(StripeClient::class);
+        $piService = Mockery::mock(PaymentIntentService::class);
+        $mockClient->paymentIntents = $piService;
+
+        $intent = PaymentIntent::constructFrom([
+            'id' => 'pi_check_123',
+            'status' => 'succeeded',
         ]);
+
+        $piService->shouldReceive('retrieve')
+            ->with('pi_check_123')
+            ->once()
+            ->andReturn($intent);
+
+        $this->gateway->setClient($mockClient);
 
         $result = $this->gateway->verifyPayment('pi_check_123');
 
@@ -168,13 +209,24 @@ class StripePaymentGatewayTest extends TestCase
 
     public function test_verify_payment_with_checkout_session(): void
     {
-        Http::fake([
-            'https://api.stripe.com/v1/checkout/sessions/cs_check_456' => Http::response([
-                'id' => 'cs_check_456',
-                'payment_status' => 'paid',
-                'payment_intent' => 'pi_resolved_789',
-            ], 200),
+        $mockClient = Mockery::mock(StripeClient::class);
+        $checkoutFactory = Mockery::mock(CheckoutServiceFactory::class);
+        $sessionService = Mockery::mock(SessionService::class);
+        $checkoutFactory->sessions = $sessionService;
+        $mockClient->checkout = $checkoutFactory;
+
+        $session = Session::constructFrom([
+            'id' => 'cs_check_456',
+            'payment_status' => 'paid',
+            'payment_intent' => 'pi_resolved_789',
         ]);
+
+        $sessionService->shouldReceive('retrieve')
+            ->with('cs_check_456')
+            ->once()
+            ->andReturn($session);
+
+        $this->gateway->setClient($mockClient);
 
         $result = $this->gateway->verifyPayment('cs_check_456');
 
@@ -185,13 +237,21 @@ class StripePaymentGatewayTest extends TestCase
 
     public function test_refund_executes_successfully(): void
     {
-        Http::fake([
-            'https://api.stripe.com/v1/refunds' => Http::response([
-                'id' => 're_test_refund_111',
-                'status' => 'succeeded',
-                'amount' => 50000,
-            ], 200),
+        $mockClient = Mockery::mock(StripeClient::class);
+        $refundService = Mockery::mock(RefundService::class);
+        $mockClient->refunds = $refundService;
+
+        $refund = Refund::constructFrom([
+            'id' => 're_test_refund_111',
+            'status' => 'succeeded',
+            'amount' => 50000,
         ]);
+
+        $refundService->shouldReceive('create')
+            ->once()
+            ->andReturn($refund);
+
+        $this->gateway->setClient($mockClient);
 
         $order = new Order([
             'order_number' => 'ORD-REF-01',
