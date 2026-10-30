@@ -138,8 +138,9 @@ class UserCheckoutPaymentShippingTest extends TestCase
                 'success' => true,
             ]);
 
-        $orderData = $checkoutResponse->json('data.order');
-        $orderNumber = $orderData['order_number'];
+        $orderNumber = $checkoutResponse->json('data.order_number');
+        $this->assertNotNull($orderNumber);
+        $this->assertNotNull($checkoutResponse->json('data.order_id'));
 
         // Verify order attributes
         $order = Order::where('order_number', $orderNumber)->firstOrFail();
@@ -356,6 +357,61 @@ class UserCheckoutPaymentShippingTest extends TestCase
             'data' => [
                 'object' => [
                     'id' => 'evt_12345',
+                ],
+            ],
+        ]);
+
+        $webhookResponse->assertOk()
+            ->assertJson([
+                'received' => true,
+                'status' => 'paid',
+            ]);
+
+        $this->assertEquals(PaymentStatus::Paid, $payment->fresh()->status);
+        $this->assertEquals(PaymentStatus::Paid, $order->fresh()->payment_status);
+    }
+
+    /**
+     * Test Razorpay gateway webhook triggers payment update.
+     */
+    public function test_razorpay_webhook_updates_payment(): void
+    {
+        $order = Order::create([
+            'order_number' => 'ORD-RZP-WEBHOOK-001',
+            'customer_id' => $this->customer->id,
+            'customer_name' => $this->customer->name,
+            'customer_email' => $this->customer->email,
+            'customer_phone' => $this->customer->phone,
+            'shipping_address' => '789 Elm St',
+            'billing_address' => '789 Elm St',
+            'status' => OrderStatus::Pending,
+            'payment_status' => PaymentStatus::Pending,
+            'payment_method' => 'razorpay',
+            'subtotal' => 120.00,
+            'total' => 120.00,
+        ]);
+
+        $payment = Payment::create([
+            'order_id' => $order->id,
+            'customer_id' => $this->customer->id,
+            'transaction_id' => 'order_rzp_hook_123',
+            'gateway' => 'razorpay',
+            'amount' => 120.00,
+            'currency' => 'INR',
+            'status' => PaymentStatus::Pending,
+            'type' => 'charge',
+        ]);
+
+        $webhookResponse = $this->postJson('/api/user/payments/webhook/razorpay', [
+            'event' => 'payment.captured',
+            'payload' => [
+                'payment' => [
+                    'entity' => [
+                        'id' => 'pay_rzp_hook_456',
+                        'order_id' => 'order_rzp_hook_123',
+                        'amount' => 12000,
+                        'status' => 'captured',
+                    ],
                 ],
             ],
         ]);

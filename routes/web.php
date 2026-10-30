@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CollectionController;
 use App\Http\Controllers\Admin\CouponController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\MenuController;
@@ -215,9 +216,50 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/orders', [OrderController::class, 'index'])
             ->middleware('permission:orders.view')
             ->name('orders.index');
+        Route::get('/orders/{order}', [OrderController::class, 'show'])
+            ->middleware('permission:orders.view')
+            ->name('orders.show');
         Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])
             ->middleware('permission:orders.edit')
             ->name('orders.update-status');
+        Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])
+            ->middleware('permission:orders.edit')
+            ->name('orders.cancel');
+        Route::post('/orders/{order}/refund', [OrderController::class, 'refund'])
+            ->middleware('permission:orders.edit')
+            ->name('orders.refund');
+
+        // Sales: Customers & Addresses Management
+        Route::get('/customers', [CustomerController::class, 'index'])
+            ->middleware('permission:customers.view')
+            ->name('customers.index');
+        Route::post('/customers', [CustomerController::class, 'store'])
+            ->middleware('permission:customers.create')
+            ->name('customers.store');
+        Route::get('/customers/{customer}', [CustomerController::class, 'show'])
+            ->middleware('permission:customers.view')
+            ->name('customers.show');
+        Route::put('/customers/{customer}', [CustomerController::class, 'update'])
+            ->middleware('permission:customers.edit')
+            ->name('customers.update');
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
+            ->middleware('permission:customers.delete')
+            ->name('customers.destroy');
+        Route::patch('/customers/{customer}/toggle-status', [CustomerController::class, 'toggleStatus'])
+            ->middleware('permission:customers.edit')
+            ->name('customers.toggle-status');
+        Route::post('/customers/{customer}/addresses', [CustomerController::class, 'storeAddress'])
+            ->middleware('permission:customers.edit')
+            ->name('customers.addresses.store');
+        Route::put('/customers/{customer}/addresses/{address}', [CustomerController::class, 'updateAddress'])
+            ->middleware('permission:customers.edit')
+            ->name('customers.addresses.update');
+        Route::delete('/customers/{customer}/addresses/{address}', [CustomerController::class, 'destroyAddress'])
+            ->middleware('permission:customers.edit')
+            ->name('customers.addresses.destroy');
+        Route::patch('/customers/{customer}/addresses/{address}/default', [CustomerController::class, 'setDefaultAddress'])
+            ->middleware('permission:customers.edit')
+            ->name('customers.addresses.default');
 
         // Sales: Coupons & Deals Management
         Route::get('/coupons', [CouponController::class, 'index'])

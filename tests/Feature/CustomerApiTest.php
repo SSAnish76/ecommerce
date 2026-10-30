@@ -660,7 +660,7 @@ class CustomerApiTest extends TestCase
                 'success' => true,
             ]);
 
-        $orderNumber = $checkoutResponse->json('data.order.order_number');
+        $orderNumber = $checkoutResponse->json('data.order_number');
         $this->assertNotNull($orderNumber);
 
         // Verify stock decremented
@@ -715,7 +715,7 @@ class CustomerApiTest extends TestCase
         ]);
 
         $response1->assertCreated();
-        $this->assertSame('INV-7500', $response1->json('data.order.order_number'));
+        $this->assertSame('INV-7500', $response1->json('data.order_number'));
 
         $response2 = $this->postJson('/api/user/checkout', [
             'shipping_address' => '123 Test St, Boston, MA',
@@ -729,7 +729,7 @@ class CustomerApiTest extends TestCase
         ]);
 
         $response2->assertCreated();
-        $this->assertSame('INV-7501', $response2->json('data.order.order_number'));
+        $this->assertSame('INV-7501', $response2->json('data.order_number'));
     }
 
     /**
@@ -765,11 +765,13 @@ class CustomerApiTest extends TestCase
                 'success' => true,
             ]);
 
-        $orderData = $response->json('data.order');
-        $this->assertStringContainsString('456 Elm St', $orderData['shipping_address']);
-        $this->assertStringContainsString('789 Commercial Blvd', $orderData['billing_address']);
-        $this->assertSame($this->customer->name, $orderData['customer_name']);
-        $this->assertSame($this->customer->email, $orderData['customer_email']);
+        $orderNumber = $response->json('data.order_number');
+        $this->assertNotNull($orderNumber);
+        $order = Order::where('order_number', $orderNumber)->firstOrFail();
+        $this->assertStringContainsString('456 Elm St', $order->shipping_address);
+        $this->assertStringContainsString('789 Commercial Blvd', $order->billing_address);
+        $this->assertSame($this->customer->name, $order->customer_name);
+        $this->assertSame($this->customer->email, $order->customer_email);
 
         // Assert address saved to addresses table for future use
         $this->assertDatabaseHas('addresses', [
@@ -801,9 +803,12 @@ class CustomerApiTest extends TestCase
         ]);
 
         $subsequentResponse->assertCreated();
-        $this->assertSame($savedAddress->formatted_address, $subsequentResponse->json('data.order.shipping_address'));
+        $subsequentOrderNumber = $subsequentResponse->json('data.order_number');
+        $this->assertNotNull($subsequentOrderNumber);
+        $subsequentOrder = Order::where('order_number', $subsequentOrderNumber)->firstOrFail();
+        $this->assertSame($savedAddress->formatted_address, $subsequentOrder->shipping_address);
         // Billing defaults to shipping when billing_same_as_shipping is not specified
-        $this->assertSame($savedAddress->formatted_address, $subsequentResponse->json('data.order.billing_address'));
+        $this->assertSame($savedAddress->formatted_address, $subsequentOrder->billing_address);
     }
 
     /**

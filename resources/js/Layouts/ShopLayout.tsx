@@ -1661,8 +1661,7 @@ function CustomerCheckoutModal({
         }
 
         if (paymentGateway === 'stripe') {
-            payload.token = 'tok_visa';
-            payload.payment_method_id = 'pm_card_visa';
+            payload.flow = 'checkout_session';
         }
 
         try {
@@ -1739,7 +1738,9 @@ function CustomerCheckoutModal({
                                 {confirmedOrder.payment_method === 'cod'
                                     ? 'Cash on Delivery (Pending)'
                                     : confirmedOrder.payment_method === 'stripe'
-                                    ? 'Stripe Credit Card (Paid)'
+                                    ? (confirmedOrder.redirect_url ? 'Stripe Checkout (Action Required)' : 'Stripe Credit Card (Paid)')
+                                    : confirmedOrder.payment_method === 'razorpay'
+                                    ? (confirmedOrder.redirect_url ? 'Razorpay (Action Required)' : 'Razorpay (Paid)')
                                     : 'PayPal Gateway'}
                             </span>
                         </div>
@@ -1758,22 +1759,34 @@ function CustomerCheckoutModal({
                     </div>
 
                     {confirmedOrder.redirect_url && (
-                        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 text-left">
+                        <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 text-left">
                             <p className="font-bold mb-1">
-                                {confirmedOrder.payment_method === 'stripe' ? 'Stripe 3D-Secure Authorization Required' : 'External Payment Required'}
-                            </p>
-                            <p className="text-[11px] mb-2">
                                 {confirmedOrder.payment_method === 'stripe'
-                                    ? 'Please complete bank 3D-Secure authentication to finalize your card payment:'
+                                    ? 'Stripe Card Payment Required'
+                                    : confirmedOrder.payment_method === 'razorpay'
+                                    ? 'Razorpay Payment Required'
+                                    : 'External Payment Required'}
+                            </p>
+                            <p className="text-[11px] mb-2 text-slate-600 dark:text-slate-400">
+                                {confirmedOrder.payment_method === 'stripe'
+                                    ? 'Please proceed to Stripe secure checkout to enter your card details and complete payment:'
+                                    : confirmedOrder.payment_method === 'razorpay'
+                                    ? 'Please proceed to Razorpay secure checkout to complete payment via UPI, NetBanking, or Card:'
                                     : 'Please complete payment through the PayPal approval session:'}
                             </p>
                             <a
                                 href={confirmedOrder.redirect_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold text-xs hover:bg-amber-700"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-md shadow-indigo-600/20"
                             >
-                                <span>{confirmedOrder.payment_method === 'stripe' ? 'Complete 3D-Secure Authorization' : 'Proceed to PayPal'}</span>
+                                <span>
+                                    {confirmedOrder.payment_method === 'stripe'
+                                        ? 'Pay on Stripe (Enter Card Details)'
+                                        : confirmedOrder.payment_method === 'razorpay'
+                                        ? 'Pay with Razorpay (UPI, Card, NetBanking)'
+                                        : 'Proceed to PayPal'}
+                                </span>
                                 <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                         </div>

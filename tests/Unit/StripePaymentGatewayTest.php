@@ -96,6 +96,7 @@ class StripePaymentGatewayTest extends TestCase
         $order->id = '00000000-0000-0000-0000-000000000001';
 
         $result = $this->gateway->charge($order, [
+            'flow' => 'payment_intent',
             'payment_method_id' => 'pm_card_visa',
         ]);
 
@@ -136,7 +137,9 @@ class StripePaymentGatewayTest extends TestCase
         ]);
         $order->id = '00000000-0000-0000-0000-000000000002';
 
-        $result = $this->gateway->charge($order);
+        $result = $this->gateway->charge($order, [
+            'flow' => 'payment_intent',
+        ]);
 
         $this->assertTrue($result->success);
         $this->assertSame('pi_test_intent_3ds', $result->transactionId);
@@ -180,6 +183,43 @@ class StripePaymentGatewayTest extends TestCase
         $this->assertTrue($result->success);
         $this->assertSame('cs_test_session_999', $result->transactionId);
         $this->assertSame('https://checkout.stripe.com/c/pay/cs_test_session_999', $result->redirectUrl);
+    }
+
+    public function test_charge_defaults_to_checkout_session_without_explicit_flow(): void
+    {
+        $mockClient = Mockery::mock(StripeClient::class);
+        $checkoutFactory = Mockery::mock(CheckoutServiceFactory::class);
+        $sessionService = Mockery::mock(SessionService::class);
+        $checkoutFactory->sessions = $sessionService;
+        $mockClient->checkout = $checkoutFactory;
+
+        $session = Session::constructFrom([
+            'id' => 'cs_test_default_123',
+            'object' => 'checkout.session',
+            'url' => 'https://checkout.stripe.com/c/pay/cs_test_default_123',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $sessionService->shouldReceive('create')
+            ->once()
+            ->andReturn($session);
+
+        $this->gateway->setClient($mockClient);
+
+        $order = new Order([
+            'order_number' => 'ORD-DEF-01',
+            'total' => 150.00,
+            'customer_name' => 'Default Flow User',
+            'customer_email' => 'default@example.com',
+        ]);
+        $order->id = '00000000-0000-0000-0000-000000000004';
+
+        // Calling charge without any flow options should default to checkout session redirect
+        $result = $this->gateway->charge($order);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('cs_test_default_123', $result->transactionId);
+        $this->assertSame('https://checkout.stripe.com/c/pay/cs_test_default_123', $result->redirectUrl);
     }
 
     public function test_verify_payment_with_payment_intent(): void

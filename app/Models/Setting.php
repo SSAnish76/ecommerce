@@ -186,19 +186,23 @@ class Setting extends Model
      */
     public static function get(string $key, mixed $default = null): mixed
     {
-        /** @var array<string, mixed> $all */
-        $all = static::getAllKeyValues();
+        try {
+            /** @var array<string, mixed> $all */
+            $all = static::getAllKeyValues();
 
-        if (array_key_exists($key, $all)) {
-            return $all[$key];
+            if (array_key_exists($key, $all)) {
+                return $all[$key];
+            }
+
+            // Support dot notation: e.g. Setting::get('mail_settings.host')
+            if (str_contains($key, '.')) {
+                return data_get($all, $key, $default);
+            }
+
+            return $default;
+        } catch (Throwable) {
+            return $default;
         }
-
-        // Support dot notation: e.g. Setting::get('mail_settings.host')
-        if (str_contains($key, '.')) {
-            return data_get($all, $key, $default);
-        }
-
-        return $default;
     }
 
     /**

@@ -521,8 +521,13 @@ class CheckoutController extends Controller
             ]);
 
             return $this->returnSuccess([
-                'order' => $order->load(['items', 'payments']),
-                'payment' => $payment,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status instanceof OrderStatus ? $order->status->value : (string) $order->status,
+                'total' => (float) $order->total,
+                'payment_method' => $paymentMethod,
+                'payment_status' => $order->payment_status instanceof PaymentStatus ? $order->payment_status->value : (string) $order->payment_status,
+                'payment_url' => $paymentResult->redirectUrl,
                 'redirect_url' => $paymentResult->redirectUrl,
             ], "Order #{$order->order_number} placed successfully!", 201);
         });

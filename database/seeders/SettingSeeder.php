@@ -148,7 +148,7 @@ class SettingSeeder extends Seeder
                 'value' => json_encode([
                     'stripe' => [
                         'enabled' => true,
-                        'name' => 'Credit / Debit Card (Stripe)',
+                        'name' => 'Stripe',
                         'publishable_key' => '',
                         'secret_key' => Setting::encryptSensitive(''),
                         'webhook_secret' => Setting::encryptSensitive(''),

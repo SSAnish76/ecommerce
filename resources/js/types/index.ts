@@ -376,26 +376,89 @@ export interface OrderItem {
     subtotal: number | string;
     attributes?: Record<string, string> | null;
     image_url?: string | null;
+    product?: Product;
+    variant?: ProductVariant;
+}
+
+export interface PaymentTransaction {
+    id: string;
+    order_id: string;
+    customer_id?: string | null;
+    transaction_id?: string | null;
+    gateway: string;
+    amount: number | string;
+    currency: string;
+    status: string;
+    type: string;
+    payload?: Record<string, any> | null;
+    error_message?: string | null;
+    paid_at?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Address {
+    id: string;
+    customer_id: string;
+    type: 'shipping' | 'billing' | 'home' | 'office' | 'other' | string;
+    name: string;
+    phone?: string | null;
+    address_line_1: string;
+    address_line_2?: string | null;
+    city: string;
+    state?: string | null;
+    postal_code: string;
+    country: string;
+    is_default: boolean;
+    formatted_address?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Customer {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    status: 'active' | 'inactive' | 'suspended' | string;
+    email_verified_at?: string | null;
+    last_login_at?: string | null;
+    orders_count?: number;
+    total_spent?: number;
+    addresses?: Address[];
+    orders?: Order[];
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Order {
     id: string;
+    customer_id?: string | null;
     order_number: string;
     customer_name: string;
     customer_email: string;
     customer_phone?: string | null;
     shipping_address: string;
+    billing_address?: string | null;
     subtotal: number | string;
     coupon_code?: string | null;
     discount_amount?: number | string;
     tax: number | string;
     shipping_fee: number | string;
+    shipping_carrier?: string | null;
+    shipping_method?: string | null;
+    tracking_number?: string | null;
+    shipping_label_url?: string | null;
     total: number | string;
-    status: 'pending' | 'processing' | 'completed' | 'cancelled' | string;
+    total_amount?: number | string;
+    status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | string;
     payment_method: string;
-    payment_status: string;
+    payment_status: 'pending' | 'paid' | 'failed' | 'refunded' | string;
     notes?: string | null;
     items?: OrderItem[];
+    payments?: PaymentTransaction[];
+    customer?: Customer | null;
+    coupon?: Coupon | null;
     created_at?: string;
     updated_at?: string;
 }

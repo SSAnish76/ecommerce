@@ -412,10 +412,38 @@ class ShopController extends Controller
                 'shipping_address' => $order->shipping_address,
             ]);
 
+            $redirectUrl = null;
+            $paymentMethod = is_string($order->payment_method) ? $order->payment_method : $order->payment_method?->value;
+            if (\App\Facades\PaymentGateway::has((string) $paymentMethod)) {
+                $gateway = \App\Facades\PaymentGateway::gateway((string) $paymentMethod);
+                $paymentResult = $gateway->charge($order, $request->all());
+
+                \App\Models\Payment::create([
+                    'order_id' => $order->id,
+                    'customer_id' => $order->customer_id,
+                    'transaction_id' => $paymentResult->transactionId,
+                    'gateway' => (string) $paymentMethod,
+                    'amount' => $order->total,
+                    'currency' => (string) Setting::get('currency_code', 'USD'),
+                    'status' => $paymentResult->status === 'paid' ? \App\Enums\Order\PaymentStatus::Paid : \App\Enums\Order\PaymentStatus::Pending,
+                    'type' => 'charge',
+                    'payload' => $paymentResult->data,
+                    'error_message' => ! $paymentResult->success ? $paymentResult->message : null,
+                    'paid_at' => $paymentResult->status === 'paid' ? now() : null,
+                ]);
+
+                if ($paymentResult->success && $paymentResult->status === 'paid') {
+                    $order->update(['payment_status' => \App\Enums\Order\PaymentStatus::Paid]);
+                }
+
+                $redirectUrl = $paymentResult->redirectUrl;
+            }
+
             return response()->json([
                 'success' => true,
                 'order' => $order,
                 'order_number' => $order->order_number,
+                'redirect_url' => $redirectUrl,
                 'message' => "Order #{$order->order_number} placed successfully!",
             ]);
         } catch (\Throwable $e) {
