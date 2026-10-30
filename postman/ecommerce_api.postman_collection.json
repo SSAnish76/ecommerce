@@ -1,0 +1,1897 @@
+{
+    "info": {
+        "_postman_id": "8e0c3d9a-5264-4bf8-b8ce-321175ea1001",
+        "name": "eCommerce Storefront API",
+        "description": "Complete Postman collection for the eCommerce REST API.\n\n### Features:\n- Customer Storefront Essentials & Enums\n- Full Customer Authentication (Register, Login, Token Refresh, Password Update, Profile)\n- Catalog browsing (Products, Categories, Collections, Search & Autocomplete)\n- Customer Shopping Cart management\n- Customer Wishlist management\n- Customer Shipping & Billing Address Book\n- Full Checkout flow (Summary calculations, Shipping rates, Coupon validation, Order placement)\n- Order tracking & Cancellation\n- Payment gateway webhook simulations\n\n### Authentication:\nAll protected endpoints use Laravel Sanctum Bearer tokens. Registering or logging in automatically sets the `access_token` and `refresh_token` collection variables.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{access_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000",
+            "type": "string",
+            "description": "Base application URL"
+        },
+        {
+            "key": "access_token",
+            "value": "",
+            "type": "string",
+            "description": "Bearer access token automatically saved after login/register"
+        },
+        {
+            "key": "auth_token",
+            "value": "",
+            "type": "string",
+            "description": "Alias for access_token"
+        },
+        {
+            "key": "refresh_token",
+            "value": "",
+            "type": "string",
+            "description": "Refresh token for rotating access tokens"
+        }
+    ],
+    "item": [
+        {
+            "name": "01. Essentials",
+            "description": "Public storefront configuration, enum options, currencies, timezones, and active payment gateway options.",
+            "item": [
+                {
+                    "name": "Storefront Essentials & Settings",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/essentials",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "essentials"
+                            ]
+                        },
+                        "description": "Retrieves public storefront settings, store branding, payment gateway toggles, and system enum options (orders, coupons, addresses)."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "02. Authentication",
+            "description": "Customer registration, login, token refresh, and profile management.",
+            "item": [
+                {
+                    "name": "Register Customer",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 200 || pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    var token = jsonData.data?.access_token || jsonData.data?.token || jsonData.access_token || jsonData.token;",
+                                    "    var refreshToken = jsonData.data?.refresh_token || jsonData.refresh_token;",
+                                    "    if (token) {",
+                                    "        pm.collectionVariables.set(\"access_token\", token);",
+                                    "        pm.collectionVariables.set(\"auth_token\", token);",
+                                    "        pm.environment.set(\"access_token\", token);",
+                                    "        pm.environment.set(\"auth_token\", token);",
+                                    "        console.log(\"✓ Saved access_token & auth_token to collection and environment variables\");",
+                                    "    }",
+                                    "    if (refreshToken) {",
+                                    "        pm.collectionVariables.set(\"refresh_token\", refreshToken);",
+                                    "        pm.environment.set(\"refresh_token\", refreshToken);",
+                                    "        console.log(\"✓ Saved refresh_token to collection and environment variables\");",
+                                    "    }",
+                                    "    if (jsonData.data?.customer?.id) {",
+                                    "        pm.collectionVariables.set(\"customer_id\", String(jsonData.data.customer.id));",
+                                    "        pm.environment.set(\"customer_id\", String(jsonData.data.customer.id));",
+                                    "    }",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Jane Doe\",\n    \"email\": \"jane.doe@example.com\",\n    \"phone\": \"+1234567890\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Registers a new customer account and automatically generates Sanctum access and refresh tokens."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login Customer",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 200 || pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    var token = jsonData.data?.access_token || jsonData.data?.token || jsonData.access_token || jsonData.token;",
+                                    "    var refreshToken = jsonData.data?.refresh_token || jsonData.refresh_token;",
+                                    "    if (token) {",
+                                    "        pm.collectionVariables.set(\"access_token\", token);",
+                                    "        pm.collectionVariables.set(\"auth_token\", token);",
+                                    "        pm.environment.set(\"access_token\", token);",
+                                    "        pm.environment.set(\"auth_token\", token);",
+                                    "        console.log(\"✓ Saved access_token & auth_token to collection and environment variables\");",
+                                    "    }",
+                                    "    if (refreshToken) {",
+                                    "        pm.collectionVariables.set(\"refresh_token\", refreshToken);",
+                                    "        pm.environment.set(\"refresh_token\", refreshToken);",
+                                    "        console.log(\"✓ Saved refresh_token to collection and environment variables\");",
+                                    "    }",
+                                    "    if (jsonData.data?.customer?.id) {",
+                                    "        pm.collectionVariables.set(\"customer_id\", String(jsonData.data.customer.id));",
+                                    "        pm.environment.set(\"customer_id\", String(jsonData.data.customer.id));",
+                                    "    }",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"jane.doe@example.com\",\n    \"password\": \"Password123!\",\n    \"device_name\": \"postman-app\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Authenticates customer credentials and saves access & refresh tokens to collection variables."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh Access Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "if (pm.response.code === 200 || pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    var token = jsonData.data?.access_token || jsonData.data?.token || jsonData.access_token || jsonData.token;",
+                                    "    var refreshToken = jsonData.data?.refresh_token || jsonData.refresh_token;",
+                                    "    if (token) {",
+                                    "        pm.collectionVariables.set(\"access_token\", token);",
+                                    "        pm.collectionVariables.set(\"auth_token\", token);",
+                                    "        pm.environment.set(\"access_token\", token);",
+                                    "        pm.environment.set(\"auth_token\", token);",
+                                    "        console.log(\"✓ Saved access_token & auth_token to collection and environment variables\");",
+                                    "    }",
+                                    "    if (refreshToken) {",
+                                    "        pm.collectionVariables.set(\"refresh_token\", refreshToken);",
+                                    "        pm.environment.set(\"refresh_token\", refreshToken);",
+                                    "        console.log(\"✓ Saved refresh_token to collection and environment variables\");",
+                                    "    }",
+                                    "    if (jsonData.data?.customer?.id) {",
+                                    "        pm.collectionVariables.set(\"customer_id\", String(jsonData.data.customer.id));",
+                                    "        pm.environment.set(\"customer_id\", String(jsonData.data.customer.id));",
+                                    "    }",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\",\n    \"device_name\": \"postman-app\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/refresh",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "refresh"
+                            ]
+                        },
+                        "description": "Rotates the refresh token and returns a fresh access token for continued authenticated sessions."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Profile Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "profile"
+                            ]
+                        },
+                        "description": "Returns authenticated customer profile information, default address, and order/wishlist summary counters."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Profile Details",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Jane Updated\",\n    \"email\": \"jane.doe@example.com\",\n    \"phone\": \"+1987654321\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/profile",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "profile"
+                            ]
+                        },
+                        "description": "Updates the authenticated customer name, email, or telephone number."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"current_password\": \"Password123!\",\n    \"password\": \"NewSecurePassword123!\",\n    \"password_confirmation\": \"NewSecurePassword123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/password",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "password"
+                            ]
+                        },
+                        "description": "Updates customer password upon verifying the current password."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"all\": false,\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Revokes the current access token and refresh token. Pass all: true to revoke tokens on all devices."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "03. Products",
+            "description": "Browse, filter, and view detailed product catalog with pricing, stock, attributes, and variants.",
+            "item": [
+                {
+                    "name": "List Products (Filtered & Paginated)",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/products?q=&category_id=1&category=electronics&brand_id=1&brand=apple&collection_id=1&collection=featured-deals&min_price=10.00&max_price=500.00&in_stock=1&featured=1&sort=latest&per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "products"
+                            ],
+                            "query": [
+                                {
+                                    "key": "q",
+                                    "value": "",
+                                    "disabled": true,
+                                    "description": "Search term by name, SKU, or description"
+                                },
+                                {
+                                    "key": "category_id",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter by category ID"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "electronics",
+                                    "disabled": true,
+                                    "description": "Filter by category slug"
+                                },
+                                {
+                                    "key": "brand_id",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter by brand ID"
+                                },
+                                {
+                                    "key": "brand",
+                                    "value": "apple",
+                                    "disabled": true,
+                                    "description": "Filter by brand slug"
+                                },
+                                {
+                                    "key": "collection_id",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter by collection ID"
+                                },
+                                {
+                                    "key": "collection",
+                                    "value": "featured-deals",
+                                    "disabled": true,
+                                    "description": "Filter by collection slug"
+                                },
+                                {
+                                    "key": "min_price",
+                                    "value": "10.00",
+                                    "disabled": true,
+                                    "description": "Minimum price threshold"
+                                },
+                                {
+                                    "key": "max_price",
+                                    "value": "500.00",
+                                    "disabled": true,
+                                    "description": "Maximum price threshold"
+                                },
+                                {
+                                    "key": "in_stock",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter only in-stock products (1 or 0)"
+                                },
+                                {
+                                    "key": "featured",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter featured products (1 or 0)"
+                                },
+                                {
+                                    "key": "sort",
+                                    "value": "latest",
+                                    "description": "Sorting options: latest, price_asc, price_desc, name_asc, name_desc, popular, rating"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "15",
+                                    "description": "Items per page (max 100)"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                }
+                            ]
+                        },
+                        "description": "Returns active storefront products with optional multi-attribute filters, sorting, and pagination."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Product Details",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/products/:slugOrId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "products",
+                                ":slugOrId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "slugOrId",
+                                    "value": "1",
+                                    "description": "Product Slug or Numeric ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves complete product details including brand, category, image gallery, variants, and attribute options."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Related Products",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/products/:slugOrId/related",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "products",
+                                ":slugOrId",
+                                "related"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "slugOrId",
+                                    "value": "1",
+                                    "description": "Product Slug or Numeric ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves up to 6 related active products matching the target category or brand."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "04. Categories",
+            "description": "Browse product categories as tree hierarchy or flat list.",
+            "item": [
+                {
+                    "name": "List Categories",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/categories?tree=false",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "categories"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tree",
+                                    "value": "false",
+                                    "description": "Set to true for nested hierarchy tree or false for flat list"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves active categories with product counts and images."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Category Details & Products",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/categories/:slugOrId?per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "categories",
+                                ":slugOrId"
+                            ],
+                            "query": [
+                                {
+                                    "key": "per_page",
+                                    "value": "15",
+                                    "description": "Products per page"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                }
+                            ],
+                            "variable": [
+                                {
+                                    "key": "slugOrId",
+                                    "value": "electronics",
+                                    "description": "Category Slug or Numeric ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves specified category details along with subcategories and paginated product listings."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "05. Collections",
+            "description": "Curated collections (e.g., Summer Sale, Trending Brands, Featured).",
+            "item": [
+                {
+                    "name": "List Collections",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/collections",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "collections"
+                            ]
+                        },
+                        "description": "Retrieves all active promotional or curated collections."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Collection Details & Items",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/collections/:slugOrId?per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "collections",
+                                ":slugOrId"
+                            ],
+                            "query": [
+                                {
+                                    "key": "per_page",
+                                    "value": "15",
+                                    "description": "Products per page if collection type is product"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                }
+                            ],
+                            "variable": [
+                                {
+                                    "key": "slugOrId",
+                                    "value": "summer-sale",
+                                    "description": "Collection Slug or Numeric ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves collection metadata and associated products, brands, or categories depending on collection type."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "06. Search & Autocomplete",
+            "description": "Fast search and autocomplete suggestions.",
+            "item": [
+                {
+                    "name": "Search Products",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/search?q=phone&category_id=1&brand_id=1&min_price=50&max_price=1000&in_stock=1&sort_by=relevance&per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "search"
+                            ],
+                            "query": [
+                                {
+                                    "key": "q",
+                                    "value": "phone",
+                                    "description": "Search query string (Required)"
+                                },
+                                {
+                                    "key": "category_id",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter by category ID"
+                                },
+                                {
+                                    "key": "brand_id",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Filter by brand ID"
+                                },
+                                {
+                                    "key": "min_price",
+                                    "value": "50",
+                                    "disabled": true,
+                                    "description": "Minimum price"
+                                },
+                                {
+                                    "key": "max_price",
+                                    "value": "1000",
+                                    "disabled": true,
+                                    "description": "Maximum price"
+                                },
+                                {
+                                    "key": "in_stock",
+                                    "value": "1",
+                                    "disabled": true,
+                                    "description": "Only in-stock products"
+                                },
+                                {
+                                    "key": "sort_by",
+                                    "value": "relevance",
+                                    "description": "Sort: relevance, price_asc, price_desc, name_asc, name_desc"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "15",
+                                    "description": "Results per page"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                }
+                            ]
+                        },
+                        "description": "Full-text search across active catalog products."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Search Suggestions (Autocomplete)",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/search/suggestions?q=pho&limit=6",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "search",
+                                "suggestions"
+                            ],
+                            "query": [
+                                {
+                                    "key": "q",
+                                    "value": "pho",
+                                    "description": "Prefix search term (Required)"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "6",
+                                    "description": "Max number of suggestions to return"
+                                }
+                            ]
+                        },
+                        "description": "Returns quick search autocomplete suggestions, matching products, and categories."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "07. Cart Management",
+            "description": "Customer shopping cart operations (Requires Bearer token).",
+            "item": [
+                {
+                    "name": "Get Shopping Cart",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/cart",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "cart"
+                            ]
+                        },
+                        "description": "Retrieves all items in the customer cart with calculated item subtotals, quantity, and overall cart total."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add Item to Cart",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"product_id\": \"1\",\n    \"product_variant_id\": null,\n    \"quantity\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/cart",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "cart"
+                            ]
+                        },
+                        "description": "Adds a product or variant to the shopping cart. Checks stock availability and prevents over-ordering."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Cart Item Quantity",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"quantity\": 3\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/cart/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "cart",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1",
+                                    "description": "Cart item ID"
+                                }
+                            ]
+                        },
+                        "description": "Updates the quantity of an existing item in the shopping cart."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Item from Cart",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/cart/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "cart",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1",
+                                    "description": "Cart item ID to remove"
+                                }
+                            ]
+                        },
+                        "description": "Removes an item completely from customer cart."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Clear Cart",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/cart",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "cart"
+                            ]
+                        },
+                        "description": "Empties the customer shopping cart completely."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "08. Wishlist",
+            "description": "Customer wishlist and favorites (Requires Bearer token).",
+            "item": [
+                {
+                    "name": "Get Wishlist Items",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/wishlist?per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "wishlist"
+                            ],
+                            "query": [
+                                {
+                                    "key": "per_page",
+                                    "value": "15",
+                                    "description": "Items per page"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves all items bookmarked in customer wishlist with product details."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add to Wishlist",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"product_id\": \"1\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/wishlist",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "wishlist"
+                            ]
+                        },
+                        "description": "Adds a product to customer wishlist if not already present."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Toggle Wishlist Item",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"product_id\": \"1\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/wishlist/toggle",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "wishlist",
+                                "toggle"
+                            ]
+                        },
+                        "description": "Toggles wishlist status: adds product if missing, removes if already present."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Check Product in Wishlist",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/wishlist/check/:productId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "wishlist",
+                                "check",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "1",
+                                    "description": "Product ID to check"
+                                }
+                            ]
+                        },
+                        "description": "Quick boolean check whether a specific product is saved in wishlist."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove from Wishlist",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/wishlist/:productId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "wishlist",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "1",
+                                    "description": "Product ID or Wishlist Item ID to remove"
+                                }
+                            ]
+                        },
+                        "description": "Removes a specific product from customer wishlist."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "09. Customer Addresses",
+            "description": "Manage shipping and billing addresses for fast checkout (Requires Bearer token).",
+            "item": [
+                {
+                    "name": "List Addresses",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/addresses",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "addresses"
+                            ]
+                        },
+                        "description": "Returns all saved addresses for the authenticated customer ordered with default address first."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Address",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"type\": \"shipping\",\n    \"name\": \"Jane Doe\",\n    \"phone\": \"+1234567890\",\n    \"address_line_1\": \"742 Evergreen Terrace\",\n    \"address_line_2\": \"Apt 2B\",\n    \"city\": \"Springfield\",\n    \"state\": \"OR\",\n    \"postal_code\": \"97477\",\n    \"country\": \"US\",\n    \"is_default\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/addresses",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "addresses"
+                            ]
+                        },
+                        "description": "Creates a new address in customer address book. Marking as default unsets previous default."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Address Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/addresses/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "addresses",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1",
+                                    "description": "Address ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves a single address by its ID."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Address",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Jane Doe (Office)\",\n    \"phone\": \"+1234567890\",\n    \"address_line_1\": \"100 Tech Blvd\",\n    \"city\": \"Portland\",\n    \"state\": \"OR\",\n    \"postal_code\": \"97201\",\n    \"country\": \"US\",\n    \"is_default\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/addresses/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "addresses",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1",
+                                    "description": "Address ID"
+                                }
+                            ]
+                        },
+                        "description": "Updates address fields. Supports partial or complete updates."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Set Address as Default",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/addresses/:id/default",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "addresses",
+                                ":id",
+                                "default"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1",
+                                    "description": "Address ID"
+                                }
+                            ]
+                        },
+                        "description": "Quickly sets this address as the default shipping address."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Address",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/addresses/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "addresses",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1",
+                                    "description": "Address ID"
+                                }
+                            ]
+                        },
+                        "description": "Deletes an address from the customer address book."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "10. Orders & Tracking",
+            "description": "View customer order history, details, shipment tracking, and cancellation (Requires Bearer token).",
+            "item": [
+                {
+                    "name": "List Customer Orders",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/orders?status=pending&per_page=15&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "orders"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "disabled": true,
+                                    "description": "Filter by OrderStatus enum (e.g. pending, processing, shipped, delivered, cancelled)"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "15",
+                                    "description": "Orders per page"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves all orders placed by the authenticated customer with order status, tracking, and item previews."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Order Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/orders/:orderNumberOrId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "orders",
+                                ":orderNumberOrId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "orderNumberOrId",
+                                    "value": "1",
+                                    "description": "Order Number (e.g. ORD-20261030-0001) or Order ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves complete order breakdown including line items, shipping address, billing address, carrier, tracking number, and payments."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Track Order Shipment",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/user/orders/:orderNumberOrId/track",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "orders",
+                                ":orderNumberOrId",
+                                "track"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "orderNumberOrId",
+                                    "value": "1",
+                                    "description": "Order Number or Order ID"
+                                }
+                            ]
+                        },
+                        "description": "Retrieves live carrier tracking status, estimated delivery dates, and checkpoints."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel Order",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reason\": \"Changed my mind before shipment\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/orders/:orderNumberOrId/cancel",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "orders",
+                                ":orderNumberOrId",
+                                "cancel"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "orderNumberOrId",
+                                    "value": "1",
+                                    "description": "Order Number or Order ID"
+                                }
+                            ]
+                        },
+                        "description": "Cancels an eligible pending order and automatically restores reserved inventory back into stock."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "11. Checkout Flow",
+            "description": "Order calculation, rates calculation, coupon discounts, order placement, and payment verification (Requires Bearer token).",
+            "item": [
+                {
+                    "name": "Checkout Summary & Calculation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"use_cart\": true,\n    \"shipping_address_id\": \"1\",\n    \"billing_same_as_shipping\": true,\n    \"coupon_code\": \"WELCOME10\",\n    \"shipping_method\": \"flat_rate\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/checkout/summary",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "checkout",
+                                "summary"
+                            ]
+                        },
+                        "description": "Calculates cart or explicit items summary, applicable shipping rates, coupon discount, and totals prior to final checkout submission."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Real-Time Shipping Rates",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"shipping_address_id\": \"1\",\n    \"subtotal\": 125,\n    \"items\": [\n        {\n            \"product_id\": \"1\",\n            \"quantity\": 2\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/checkout/shipping-rates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "checkout",
+                                "shipping-rates"
+                            ]
+                        },
+                        "description": "Calculates live shipping quotes across all enabled shipping providers (Flat Rate, Free Shipping, FedEx, etc.)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Validate & Apply Coupon",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"SAVE20\",\n    \"subtotal\": 100,\n    \"items\": [\n        {\n            \"product_id\": \"1\",\n            \"price\": 50,\n            \"quantity\": 2\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/checkout/apply-coupon",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "checkout",
+                                "apply-coupon"
+                            ]
+                        },
+                        "description": "Validates promo or coupon code against subtotal, customer eligibility, and cart items."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Place Order (Checkout)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"use_cart\": true,\n    \"shipping_address_id\": \"1\",\n    \"billing_same_as_shipping\": true,\n    \"shipping_method\": \"flat_rate\",\n    \"payment_method\": \"cod\",\n    \"coupon_code\": \"WELCOME10\",\n    \"notes\": \"Please leave package at the front porch.\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/checkout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "checkout"
+                            ]
+                        },
+                        "description": "Processes checkout atomically: decrements product/variant stock, creates order, records payment transaction, and initiates payment gateway session."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Verify Payment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"gateway\": \"stripe\",\n    \"transaction_id\": \"pi_test_1234567890\",\n    \"order_id\": \"1\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/checkout/verify-payment",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "checkout",
+                                "verify-payment"
+                            ]
+                        },
+                        "description": "Verifies completed payment transaction with gateway and updates order payment status to paid."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "12. Payment Webhooks",
+            "description": "Public asynchronous callback handlers for external payment gateways.",
+            "item": [
+                {
+                    "name": "Payment Webhook Callback",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"event\": \"payment_intent.succeeded\",\n    \"data\": {\n        \"object\": {\n            \"id\": \"pi_test_1234567890\",\n            \"status\": \"succeeded\",\n            \"amount\": 12500,\n            \"currency\": \"usd\"\n        }\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/user/payments/webhook/:gateway",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "user",
+                                "payments",
+                                "webhook",
+                                ":gateway"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "gateway",
+                                    "value": "stripe",
+                                    "description": "Payment gateway code (e.g. stripe, razorpay, etc.)"
+                                }
+                            ]
+                        },
+                        "description": "Asynchronous webhook handler called by payment processors to verify and reconcile order payment states."
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}
