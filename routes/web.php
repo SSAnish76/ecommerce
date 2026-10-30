@@ -301,7 +301,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 Route::get('/media/view/{mediaFile}', [MediaController::class, 'view'])->name('media.view');
 Route::get('/media/download/{mediaFile}', [MediaController::class, 'download'])->name('media.download');
 
-// Customer Storefront: Reactive Product View & Instant Checkout
+// Customer Storefront: Catalog, Reactive Product View & Instant Checkout
+Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
 Route::get('/product/{product:slug}', [ShopController::class, 'show'])->name('shop.product');
 Route::get('/products/{product:slug}', [ShopController::class, 'show']);
 Route::post('/checkout', [ShopController::class, 'checkout'])

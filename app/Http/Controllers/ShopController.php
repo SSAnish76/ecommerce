@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Events\Order\OrderPlaced;
+use App\Models\Brand;
+use App\Models\Category;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -23,6 +25,98 @@ class ShopController extends Controller
     public function __construct(
         protected CouponService $couponService
     ) {}
+
+    /**
+     * Display the dynamic customer storefront catalog with search, filtering, and sorting.
+     */
+    public function index(Request $request): Response
+    {
+        $query = Product::query()
+            ->active()
+            ->catalogVisible();
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('short_description', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        if ($categoryId = $request->query('category_id')) {
+            $query->where('category_id', $categoryId);
+        } elseif ($categorySlug = $request->query('category')) {
+            $category = Category::where('slug', $categorySlug)->first();
+            if ($category) {
+                $catIds = Category::where('parent_id', $category->id)->pluck('id')->push($category->id);
+                $query->whereIn('category_id', $catIds);
+            }
+        }
+
+        if ($brandId = $request->query('brand_id')) {
+            $query->where('brand_id', $brandId);
+        } elseif ($brandSlug = $request->query('brand')) {
+            $brand = Brand::where('slug', $brandSlug)->first();
+            if ($brand) {
+                $query->where('brand_id', $brand->id);
+            }
+        }
+
+        if ($minPrice = $request->query('min_price')) {
+            $query->where(DB::raw('COALESCE(sale_price, retail_price)'), '>=', (float) $minPrice);
+        }
+        if ($maxPrice = $request->query('max_price')) {
+            $query->where(DB::raw('COALESCE(sale_price, retail_price)'), '<=', (float) $maxPrice);
+        }
+
+        $sort = (string) $request->query('sort', 'latest');
+        match ($sort) {
+            'price_asc' => $query->orderBy(DB::raw('COALESCE(sale_price, retail_price)'), 'asc'),
+            'price_desc' => $query->orderBy(DB::raw('COALESCE(sale_price, retail_price)'), 'desc'),
+            'name' => $query->orderBy('name', 'asc'),
+            default => $query->latest('id'),
+        };
+
+        $products = $query->with([
+            'brand:id,name,slug',
+            'category:id,name,slug',
+            'primaryImage.media',
+            'images.media',
+            'variants' => fn ($vq) => $vq->active(),
+        ])->paginate(12)->withQueryString();
+
+        $categories = Category::query()
+            ->where('is_active', true)
+            ->whereNull('parent_id')
+            ->withCount(['products' => fn ($q) => $q->active()])
+            ->with(['children' => fn ($q) => $q->where('is_active', true)->withCount(['products' => fn ($pq) => $pq->active()])])
+            ->get();
+
+        $brands = Brand::query()
+            ->where('is_active', true)
+            ->withCount(['products' => fn ($q) => $q->active()])
+            ->get();
+
+        $featuredProducts = Product::query()
+            ->active()
+            ->catalogVisible()
+            ->with([
+                'brand:id,name,slug',
+                'category:id,name,slug',
+                'primaryImage.media',
+            ])
+            ->latest('id')
+            ->take(4)
+            ->get();
+
+        return Inertia::render('Shop/Index', [
+            'products' => $products,
+            'categories' => $categories,
+            'brands' => $brands,
+            'featuredProducts' => $featuredProducts,
+            'filters' => $request->only(['search', 'category', 'category_id', 'brand', 'brand_id', 'sort', 'min_price', 'max_price']),
+        ]);
+    }
     /**
      * Display the dynamic customer product detail page with reactive variant selection.
      */
@@ -71,7 +165,7 @@ class ShopController extends Controller
             'customer_email' => ['required', 'email', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'shipping_address' => ['required', 'string', 'max:1000'],
-            'payment_method' => ['required', 'string', 'in:cod,card,wire'],
+            'payment_method' => ['required', 'string', 'in:cod,card,wire,stripe,paypal,razorpay'],
             'notes' => ['nullable', 'string', 'max:500'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'items' => ['required', 'array', 'min:1'],
@@ -80,8 +174,40 @@ class ShopController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
 
+        $customerId = null;
+
+        // 1. Resolve customer via personal access token if bearer token is provided
+        $bearerToken = $request->bearerToken();
+        if ($bearerToken) {
+            $personalToken = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+            if ($personalToken && $personalToken->tokenable instanceof \App\Models\Customer) {
+                $customerId = $personalToken->tokenable->id;
+            }
+        }
+
+        // 2. Check sanctum user if not resolved yet
+        if (! $customerId) {
+            $sanctumUser = $request->user('sanctum');
+            if ($sanctumUser instanceof \App\Models\Customer) {
+                $customerId = $sanctumUser->id;
+            }
+        }
+
+        // 3. Fallback: Lookup by customer_email in customers table
+        if (! $customerId && ! empty($validated['customer_email'])) {
+            $customerByEmail = \App\Models\Customer::where('email', strtolower(trim($validated['customer_email'])))->first();
+            if ($customerByEmail) {
+                $customerId = $customerByEmail->id;
+            }
+        }
+
+        // Safety verification: Never insert an ID that doesn't exist in customers table
+        if ($customerId !== null && ! \App\Models\Customer::where('id', $customerId)->exists()) {
+            $customerId = null;
+        }
+
         try {
-            $order = DB::transaction(function () use ($validated): Order {
+            $order = DB::transaction(function () use ($validated, $customerId): Order {
                 $subtotal = 0.0;
                 $processedItems = [];
 
@@ -141,6 +267,49 @@ class ShopController extends Controller
                             throw new \RuntimeException('Product is no longer available.');
                         }
 
+                        // If product has variants but customer didn't specify variant, auto-resolve first active variant
+                        if ($product->has_variants) {
+                            /** @var ProductVariant|null $autoVariant */
+                            $autoVariant = ProductVariant::where('product_id', $product->id)
+                                ->where('is_active', true)
+                                ->where('stock_quantity', '>=', $qty)
+                                ->lockForUpdate()
+                                ->first()
+                                ?? ProductVariant::where('product_id', $product->id)
+                                    ->where('is_active', true)
+                                    ->lockForUpdate()
+                                    ->first();
+
+                            if ($autoVariant) {
+                                $allowsBackorder = $product->allowsBackorder();
+                                if (! $allowsBackorder && $autoVariant->stock_quantity < $qty) {
+                                    throw new \RuntimeException("Insufficient stock for '{$autoVariant->name}'. Only {$autoVariant->stock_quantity} available.");
+                                }
+
+                                $autoVariant->decrement('stock_quantity', $qty);
+                                $product->decrement('stock_quantity', min($product->stock_quantity, $qty));
+
+                                $unitPrice = $autoVariant->effectivePrice();
+                                $lineSubtotal = round($unitPrice * $qty, 2);
+                                $subtotal += $lineSubtotal;
+
+                                $processedItems[] = [
+                                    'product_id' => $product->id,
+                                    'product_variant_id' => $autoVariant->id,
+                                    'product_name' => $product->name,
+                                    'variant_name' => $autoVariant->name,
+                                    'sku' => $autoVariant->sku,
+                                    'price' => $unitPrice,
+                                    'quantity' => $qty,
+                                    'subtotal' => $lineSubtotal,
+                                    'attributes' => $autoVariant->attributes,
+                                    'image_url' => $autoVariant->image_url ?: $product->primaryImage?->media?->url,
+                                ];
+
+                                continue;
+                            }
+                        }
+
                         $allowsBackorder = $product->allowsBackorder();
                         if (! $allowsBackorder && $product->stock_quantity < $qty) {
                             throw new \RuntimeException("Insufficient stock for '{$product->name}'. Only {$product->stock_quantity} available.");
@@ -196,6 +365,7 @@ class ShopController extends Controller
                 $orderNumber = Order::generateOrderNumber();
 
                 $order = Order::create([
+                    'customer_id' => $customerId,
                     'order_number' => $orderNumber,
                     'customer_name' => $validated['customer_name'],
                     'customer_email' => $validated['customer_email'],
@@ -245,6 +415,7 @@ class ShopController extends Controller
             return response()->json([
                 'success' => true,
                 'order' => $order,
+                'order_number' => $order->order_number,
                 'message' => "Order #{$order->order_number} placed successfully!",
             ]);
         } catch (\Throwable $e) {
