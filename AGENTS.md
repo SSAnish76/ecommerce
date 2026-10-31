@@ -146,3 +146,6 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
 </laravel-boost-guidelines>
+
+
+UI must be mobile first responsive and mobile native. Before writing any ui search for available skills and read the appropriate skill for the task.
