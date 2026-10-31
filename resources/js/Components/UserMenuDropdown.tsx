@@ -7,7 +7,6 @@ import {
     ShieldCheck,
     LogOut,
     ChevronRight,
-    Sparkles,
 } from 'lucide-react';
 import { PageProps } from '../types';
 
@@ -25,7 +24,6 @@ export default function UserMenuDropdown({
     const user = props.auth?.user;
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Close on Escape key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -47,7 +45,6 @@ export default function UserMenuDropdown({
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     };
 
-    // Position mapping
     const getDropdownPositionClasses = () => {
         switch (align) {
             case 'top-right':
@@ -64,42 +61,38 @@ export default function UserMenuDropdown({
 
     return (
         <div className="relative inline-block text-left" ref={menuRef}>
-            {/* 3-Dot Trigger Button */}
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
                 aria-haspopup="true"
                 aria-label="Account Settings Menu"
-                title="Account Settings (Profile, Password, 2FA)"
                 className={
                     buttonClassName ||
-                    `p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100/90 dark:bg-slate-800/70 hover:bg-slate-200/70 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/60 rounded-xl transition-all shadow-xs cursor-pointer ${
-                        isOpen ? 'ring-2 ring-indigo-500/25 border-indigo-500' : ''
+                    `p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100/80 dark:bg-slate-800/70 hover:bg-slate-200/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-2xl transition-all shadow-xs cursor-pointer tap-bounce ${
+                        isOpen ? 'ring-2 ring-[var(--admin-primary)]/30 border-[var(--admin-primary)]' : ''
                     }`
                 }
             >
                 <MoreVertical className="w-4 h-4" />
             </button>
 
-            {/* Backdrop for click outside */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 z-40"
+                    className="fixed inset-0 z-40 bg-black/20 backdrop-blur-2xs"
                     onClick={() => setIsOpen(false)}
                     aria-hidden="true"
                 />
             )}
 
-            {/* Menu Popover */}
             {isOpen && (
                 <div
-                    className={`absolute z-50 w-72 sm:w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl shadow-slate-900/15 dark:shadow-black/60 p-2 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${getDropdownPositionClasses()}`}
+                    className={`absolute z-50 w-72 sm:w-80 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 shadow-2xl p-2.5 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 ${getDropdownPositionClasses()}`}
                 >
                     {/* User Profile Header */}
-                    <div className="p-3 mb-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                    <div className="p-3 mb-1.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 flex items-center gap-3">
                         <div className="relative shrink-0">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+                            <div className="w-10 h-10 rounded-2xl bg-linear-to-tr from-[var(--admin-primary)] to-indigo-700 flex items-center justify-center text-white font-bold text-xs shadow-xs">
                                 {getInitials(user?.name)}
                             </div>
                             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
@@ -114,7 +107,7 @@ export default function UserMenuDropdown({
                                 {user?.email || 'admin@store.com'}
                             </p>
                             <div className="mt-1 flex items-center gap-1">
-                                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-500/20">
+                                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)] border border-[var(--admin-primary)]/20">
                                     {user?.role || (user?.is_super_admin ? 'Super Admin' : 'Admin')}
                                 </span>
                             </div>
@@ -123,18 +116,17 @@ export default function UserMenuDropdown({
 
                     {/* Menu Items List */}
                     <div className="space-y-1">
-                        {/* 1. Profile Update */}
                         <Link
                             href="/admin/profile#section-profile"
                             onClick={() => setIsOpen(false)}
-                            className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors cursor-pointer"
+                            className="group flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer tap-bounce"
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
+                                <div className="p-2 rounded-xl bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)] group-hover:scale-105 transition-transform">
                                     <UserIcon className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-[var(--admin-primary)] transition-colors">
                                         Profile Details
                                     </span>
                                     <span className="block text-[10px] text-slate-500 dark:text-slate-400">
@@ -142,21 +134,20 @@ export default function UserMenuDropdown({
                                     </span>
                                 </div>
                             </div>
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[var(--admin-primary)] group-hover:translate-x-0.5 transition-all" />
                         </Link>
 
-                        {/* 2. Change Password */}
                         <Link
                             href="/admin/profile#section-password"
                             onClick={() => setIsOpen(false)}
-                            className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors cursor-pointer"
+                            className="group flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer tap-bounce"
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+                                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
                                     <KeyRound className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                                         Change Password
                                     </span>
                                     <span className="block text-[10px] text-slate-500 dark:text-slate-400">
@@ -167,18 +158,17 @@ export default function UserMenuDropdown({
                             <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
                         </Link>
 
-                        {/* 3. Two-Factor Authentication (inside profile) */}
                         <Link
                             href="/admin/profile#section-two-factor"
                             onClick={() => setIsOpen(false)}
-                            className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors cursor-pointer"
+                            className="group flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer tap-bounce"
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
                                     <ShieldCheck className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
-                                    <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                                         Two-Factor Auth (2FA)
                                     </span>
                                     <span className="block text-[10px] text-slate-500 dark:text-slate-400">
@@ -189,8 +179,8 @@ export default function UserMenuDropdown({
                             <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                     Boolean(user?.is_2fa)
-                                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
-                                        : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
+                                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
                                 }`}
                             >
                                 {user?.is_2fa ? 'Active' : 'Not Set'}
@@ -198,19 +188,17 @@ export default function UserMenuDropdown({
                         </Link>
                     </div>
 
-                    {/* Divider */}
-                    <div className="my-1.5 border-t border-slate-100 dark:border-slate-800" />
+                    <div className="my-1.5 border-t border-slate-100 dark:border-white/5" />
 
-                    {/* Sign Out Option */}
                     <Link
                         href="/admin/logout"
                         method="post"
                         as="button"
                         onClick={() => setIsOpen(false)}
-                        className="w-full group flex items-center justify-between p-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        className="w-full group flex items-center justify-between p-2.5 rounded-2xl text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer tap-bounce"
                     >
                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
+                            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
                                 <LogOut className="w-4 h-4" />
                             </div>
                             <div className="min-w-0 text-left">
@@ -222,7 +210,7 @@ export default function UserMenuDropdown({
                                 </span>
                             </div>
                         </div>
-                        <span className="text-[10px] font-semibold text-rose-400 group-hover:translate-x-0.5 transition-transform">
+                        <span className="text-xs font-bold text-rose-400 group-hover:translate-x-0.5 transition-transform">
                             →
                         </span>
                     </Link>

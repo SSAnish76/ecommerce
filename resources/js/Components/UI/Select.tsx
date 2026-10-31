@@ -52,7 +52,6 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     ) => {
         const [searchQuery, setSearchQuery] = useState('');
 
-        // Normalize options from options prop or from children (<option> / <optgroup>)
         const allOptions: SelectOption[] = useMemo(() => {
             if (options && options.length > 0) return options;
             if (!children) return [];
@@ -87,7 +86,6 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             return extracted;
         }, [options, children]);
 
-        // Current internal/controlled value
         const isControlled = value !== undefined;
         const [internalValue, setInternalValue] = useState<string | number>(
             defaultValue !== undefined
@@ -96,10 +94,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         );
         const currentValue = String(isControlled ? (value ?? '') : internalValue);
 
-        // Auto-search if options >= 7 or searchable prop passed
         const shouldSearch = searchable ?? allOptions.length >= 7;
 
-        // Filter options
         const filteredOptions = useMemo(() => {
             if (!searchQuery.trim()) return allOptions;
             const q = searchQuery.toLowerCase().trim();
@@ -115,7 +111,6 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             return allOptions.find((opt) => String(opt.value) === currentValue);
         }, [allOptions, currentValue]);
 
-        // Handle selection
         const handleSelect = (newVal: string) => {
             if (!isControlled) {
                 setInternalValue(newVal);
@@ -136,9 +131,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         };
 
         const sizeClasses = {
-            sm: 'h-8.5 px-3 text-xs rounded-lg',
-            md: 'h-10 px-3.5 text-xs sm:text-sm rounded-xl',
-            lg: 'h-11 px-4 text-sm rounded-xl',
+            sm: 'h-9 px-3 text-xs rounded-xl',
+            md: 'h-11 sm:h-10 px-3.5 text-xs sm:text-sm rounded-2xl',
+            lg: 'h-12 px-4 text-sm sm:text-base rounded-2xl',
         }[size];
 
         const isValueEmpty = currentValue === '' || currentValue === null || currentValue === undefined;
@@ -146,12 +141,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         return (
             <div className="w-full space-y-1.5">
                 {label && (
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-200">
                         {label} {required && <span className="text-rose-500">*</span>}
                     </label>
                 )}
 
-                {/* Hidden native select for form integration */}
                 <select
                     ref={ref}
                     name={name}
@@ -178,11 +172,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                             <ListboxButton
                                 className={cn(
                                     'w-full flex items-center justify-between text-left transition-all duration-150 cursor-pointer select-none',
-                                    'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 shadow-2xs',
-                                    'hover:border-slate-400 dark:hover:border-slate-600 focus:outline-none',
-                                    open && 'ring-2 ring-indigo-500/20 border-indigo-600 dark:border-indigo-500 shadow-xs',
-                                    error && 'border-rose-400 dark:border-rose-500/60 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20',
-                                    disabled && 'opacity-60 bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed border-slate-200 dark:border-slate-800',
+                                    'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-white/10 shadow-2xs',
+                                    'hover:border-slate-400 dark:hover:border-white/20 focus:outline-none',
+                                    open && 'ring-2 ring-[var(--admin-primary)]/20 border-[var(--admin-primary)] shadow-xs',
+                                    error && 'border-rose-500 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20',
+                                    disabled && 'opacity-60 bg-slate-100 dark:bg-slate-800/60 cursor-not-allowed',
                                     sizeClasses,
                                     className
                                 )}
@@ -199,7 +193,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                             'truncate',
                                             isValueEmpty
                                                 ? 'text-slate-400 dark:text-slate-500 font-normal'
-                                                : 'text-slate-900 dark:text-slate-100 font-medium'
+                                                : 'text-slate-900 dark:text-slate-100 font-semibold'
                                         )}
                                     >
                                         {selectedOption ? selectedOption.label : placeholder}
@@ -221,7 +215,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                     <ChevronDown
                                         className={cn(
                                             'w-4 h-4 transition-transform duration-200',
-                                            open && 'rotate-180 text-indigo-500'
+                                            open && 'rotate-180 text-[var(--admin-primary)]'
                                         )}
                                     />
                                 </div>
@@ -231,13 +225,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                 anchor={{ to: 'bottom start', gap: 6 }}
                                 transition
                                 className={cn(
-                                    'z-50 w-[var(--button-width)] min-w-[200px] max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xl backdrop-blur-md p-1.5 space-y-0.5',
+                                    'z-50 w-[var(--button-width)] min-w-[200px] max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl backdrop-blur-xl p-1.5 space-y-0.5',
                                     'transition duration-150 ease-out data-[closed]:scale-95 data-[closed]:opacity-0 focus:outline-none'
                                 )}
                             >
                                 {shouldSearch && (
                                     <div
-                                        className="sticky top-0 z-10 -m-1.5 mb-1 p-2 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm"
+                                        className="sticky top-0 z-10 -m-1.5 mb-1 p-2 border-b border-slate-100 dark:border-white/5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm"
                                         onClick={(e) => e.stopPropagation()}
                                         onKeyDown={(e) => e.stopPropagation()}
                                     >
@@ -248,7 +242,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 placeholder="Search options..."
-                                                className="w-full h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                className="w-full h-8 pl-8 pr-7 text-xs bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-[var(--admin-primary)]"
                                             />
                                             {searchQuery && (
                                                 <button
@@ -275,11 +269,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                                             disabled={opt.disabled}
                                             className={({ active, selected, disabled: optDisabled }) =>
                                                 cn(
-                                                    'relative flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-colors cursor-pointer select-none text-xs sm:text-sm',
+                                                    'relative flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer select-none text-xs sm:text-sm',
                                                     selected
-                                                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold'
+                                                        ? 'bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)] font-bold'
                                                         : active
-                                                        ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
+                                                        ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white'
                                                         : 'text-slate-700 dark:text-slate-300',
                                                     optDisabled && 'opacity-40 cursor-not-allowed'
                                                 )
@@ -301,12 +295,12 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
                                                     <div className="flex items-center gap-2 shrink-0">
                                                         {opt.badge && (
-                                                            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                                                                 {opt.badge}
                                                             </span>
                                                         )}
                                                         {selected && (
-                                                            <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                                            <Check className="w-4 h-4 text-[var(--admin-primary)] shrink-0" />
                                                         )}
                                                     </div>
                                                 </>
@@ -320,7 +314,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 </Listbox>
 
                 {error ? (
-                    <p className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium">
+                    <p className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-semibold">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>{error}</span>
                     </p>

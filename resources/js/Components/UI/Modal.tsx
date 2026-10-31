@@ -30,7 +30,6 @@ export function lockScroll() {
         previousHtmlOverflow = document.documentElement.style.overflow;
         previousBodyPaddingRight = document.body.style.paddingRight;
 
-        // Calculate scrollbar width to prevent page content layout shift
         const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
         if (scrollbarWidth > 0) {
             document.body.style.paddingRight = `${scrollbarWidth}px`;
@@ -97,22 +96,16 @@ export const Modal: React.FC<ModalProps> = ({
     useEffect(() => {
         if (!isOpen) return;
 
-        // 1. Capture previously focused element to return focus after modal closes
         triggerRef.current = (document.activeElement as HTMLElement) || null;
-
-        // 2. Lock scrolling globally
         lockScroll();
 
-        // 3. Focus into modal on mount only if focus is not already inside
         const timer = setTimeout(() => {
             if (!dialogRef.current) return;
 
-            // Do not steal focus if an element inside the dialog is already focused
             if (dialogRef.current.contains(document.activeElement)) {
                 return;
             }
 
-            // Check if there is an element with explicit autofocus
             const autoFocusEl = dialogRef.current.querySelector<HTMLElement>('[autofocus], [data-autofocus]');
             if (autoFocusEl && isElementVisible(autoFocusEl)) {
                 autoFocusEl.focus();
@@ -123,7 +116,6 @@ export const Modal: React.FC<ModalProps> = ({
                 dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
             ).filter(isElementVisible);
 
-            // Prefer focusing the first editable input/select/textarea if present inside the dialog body
             const firstInput = focusables.find((el) =>
                 ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)
             );
@@ -137,7 +129,6 @@ export const Modal: React.FC<ModalProps> = ({
             }
         }, 50);
 
-        // 4. Trap Tab and Shift+Tab key navigation inside modal, handle Escape
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && closeOnEscapeRef.current) {
                 e.preventDefault();
@@ -163,7 +154,6 @@ export const Modal: React.FC<ModalProps> = ({
                 const lastElement = focusables[focusables.length - 1];
 
                 if (e.shiftKey) {
-                    // Shift + Tab (backward)
                     if (
                         document.activeElement === firstElement ||
                         !dialogRef.current.contains(document.activeElement)
@@ -172,7 +162,6 @@ export const Modal: React.FC<ModalProps> = ({
                         lastElement.focus();
                     }
                 } else {
-                    // Tab (forward)
                     if (
                         document.activeElement === lastElement ||
                         !dialogRef.current.contains(document.activeElement)
@@ -189,11 +178,8 @@ export const Modal: React.FC<ModalProps> = ({
         return () => {
             clearTimeout(timer);
             window.removeEventListener('keydown', handleKeyDown);
-
-            // Unlock scrolling globally
             unlockScroll();
 
-            // Restore focus back to previous active element
             const elementToRestore = triggerRef.current;
             if (elementToRestore && typeof elementToRestore.focus === 'function') {
                 setTimeout(() => {
@@ -202,7 +188,7 @@ export const Modal: React.FC<ModalProps> = ({
                             elementToRestore.focus();
                         }
                     } catch {
-                        // ignore if element is detached
+                        // ignore
                     }
                 }, 0);
             }
@@ -212,18 +198,18 @@ export const Modal: React.FC<ModalProps> = ({
     if (!isOpen) return null;
 
     const maxWidths = {
-        sm: 'max-w-sm',
-        md: 'max-w-md',
-        lg: 'max-w-lg',
-        xl: 'max-w-xl',
-        '2xl': 'max-w-2xl',
-        '3xl': 'max-w-3xl',
+        sm: 'sm:max-w-sm',
+        md: 'sm:max-w-md',
+        lg: 'sm:max-w-lg',
+        xl: 'sm:max-w-xl',
+        '2xl': 'sm:max-w-2xl',
+        '3xl': 'sm:max-w-3xl',
     };
 
     return (
         <div
             ref={overlayRef}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto overscroll-contain"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto overscroll-contain"
             onWheel={(e) => e.stopPropagation()}
             onClick={(e) => {
                 if (closeOnBackdrop && e.target === overlayRef.current) {
@@ -238,12 +224,12 @@ export const Modal: React.FC<ModalProps> = ({
                 aria-hidden="true"
             />
 
-            {/* Modal Dialog */}
+            {/* Modal Dialog: Mobile Bottom Sheet + Desktop Floating Dialog */}
             <div
                 ref={dialogRef}
                 tabIndex={-1}
                 className={cn(
-                    'relative w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 outline-hidden overscroll-contain',
+                    'relative w-full rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 border-t sm:border border-slate-200/90 dark:border-white/10 shadow-2xl text-slate-900 dark:text-slate-100 flex flex-col max-h-[92dvh] sm:max-h-[90vh] my-0 sm:my-auto overflow-hidden animate-sheet-up sm:animate-in sm:zoom-in-95 duration-200 outline-none overscroll-contain',
                     maxWidths[maxWidth || size || 'lg'],
                     className
                 )}
@@ -252,9 +238,12 @@ export const Modal: React.FC<ModalProps> = ({
                 aria-labelledby={title ? headingId : undefined}
                 aria-describedby={description ? descId : undefined}
             >
+                {/* Mobile Drag Indicator Handle */}
+                <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto my-2.5 sm:hidden shrink-0" />
+
                 {/* Header */}
                 {(title || description) && (
-                    <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-start justify-between gap-4 shrink-0 bg-white/95 dark:bg-slate-900/95">
+                    <div className="px-5 sm:px-6 py-3.5 sm:py-5 border-b border-slate-100 dark:border-white/5 flex items-start justify-between gap-4 shrink-0 bg-white/95 dark:bg-slate-900/95">
                         <div>
                             {title && (
                                 <h2
@@ -265,7 +254,7 @@ export const Modal: React.FC<ModalProps> = ({
                                 </h2>
                             )}
                             {description && (
-                                <p id={descId} className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                <p id={descId} className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
                                     {description}
                                 </p>
                             )}
@@ -273,7 +262,7 @@ export const Modal: React.FC<ModalProps> = ({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer shrink-0"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors cursor-pointer shrink-0 tap-bounce"
                             aria-label="Close modal"
                         >
                             <X className="w-4 h-4" />
@@ -282,13 +271,13 @@ export const Modal: React.FC<ModalProps> = ({
                 )}
 
                 {/* Body Content */}
-                <div className="p-6 overflow-y-auto space-y-4 text-xs sm:text-sm overscroll-contain">
+                <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm overscroll-contain flex-1">
                     {children}
                 </div>
 
                 {/* Footer Actions */}
                 {footer && (
-                    <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0">
+                    <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-white/5 bg-slate-50/70 dark:bg-slate-950/50 pb-safe sm:pb-4 flex items-center justify-end gap-2.5 shrink-0">
                         {footer}
                     </div>
                 )}
@@ -296,4 +285,3 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
     );
 };
-

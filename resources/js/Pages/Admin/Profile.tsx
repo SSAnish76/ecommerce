@@ -235,13 +235,13 @@ export default function Profile() {
                 </div>
 
                 {/* Sub-navigation tabs */}
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 overflow-x-auto scrollbar-none">
                     <button
                         type="button"
                         onClick={() => setActiveTab('profile')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none whitespace-nowrap tap-bounce ${
                             activeTab === 'profile'
-                                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                                ? 'bg-white dark:bg-slate-800 text-[var(--admin-primary)] shadow-xs'
                                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
@@ -252,9 +252,9 @@ export default function Profile() {
                     <button
                         type="button"
                         onClick={() => setActiveTab('password')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none whitespace-nowrap tap-bounce ${
                             activeTab === 'password'
-                                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                                ? 'bg-white dark:bg-slate-800 text-[var(--admin-primary)] shadow-xs'
                                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
@@ -265,9 +265,9 @@ export default function Profile() {
                     <button
                         type="button"
                         onClick={() => setActiveTab('security')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none whitespace-nowrap tap-bounce ${
                             activeTab === 'security'
-                                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                                ? 'bg-white dark:bg-slate-800 text-[var(--admin-primary)] shadow-xs'
                                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >

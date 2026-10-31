@@ -7,12 +7,213 @@
 @source '../views/**/*.blade.php';
 @source '../js/**/*.{ts,tsx,js,jsx}';
 
+/* ==========================================================================
+   AURA ADMIN REUSABLE DESIGN TOKENS
+   Three-layer Architecture:
+   1. Primitives (sizes, dimensions, scale)
+   2. Semantics (intent-based colors, light & dark theme surfaces, status, shadows)
+   3. Component Utilities & Mobile-Native Parameters
+   Tweak any variable below to instantly customize the Admin UI.
+   ========================================================================== */
+
+:root {
+    /* --- 1. Dimensions & Mobile Ergonomics --- */
+    --admin-font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --admin-tap-min: 44px;
+    --admin-top-bar-h: 60px;
+    --admin-bottom-nav-h: 66px;
+
+    /* --- 2. Geometry & Corner Radii --- */
+    --admin-radius-xs: 6px;
+    --admin-radius-sm: 8px;
+    --admin-radius-md: 12px;
+    --admin-radius-lg: 16px;
+    --admin-radius-xl: 20px;
+    --admin-radius-2xl: 24px;
+    --admin-radius-3xl: 32px;
+    --admin-radius-full: 9999px;
+
+    /* --- 3. Light Theme Surfaces & Borders --- */
+    --admin-bg: #f8fafc;
+    --admin-surface: #ffffff;
+    --admin-surface-subtle: #f1f5f9;
+    --admin-surface-elevated: #ffffff;
+    --admin-surface-glass: rgba(255, 255, 255, 0.85);
+
+    --admin-border: #e2e8f0;
+    --admin-border-subtle: #f1f5f9;
+    --admin-border-strong: #cbd5e1;
+    --admin-border-focus: #6366f1;
+
+    /* --- 4. Light Theme Typography Colors --- */
+    --admin-text-primary: #0f172a;
+    --admin-text-secondary: #475569;
+    --admin-text-muted: #94a3b8;
+    --admin-text-inverted: #ffffff;
+
+    /* --- 5. Brand Accent Colors (Default: Electric Indigo) --- */
+    --admin-primary: #4f46e5;
+    --admin-primary-hover: #4338ca;
+    --admin-primary-active: #3730a3;
+    --admin-primary-subtle: rgba(79, 70, 229, 0.08);
+    --admin-primary-fg: #ffffff;
+    --admin-primary-ring: rgba(79, 70, 229, 0.25);
+
+    --admin-accent: #06b6d4;
+    --admin-accent-subtle: rgba(6, 182, 212, 0.08);
+
+    /* --- 6. Semantic Status Colors --- */
+    --admin-success: #10b981;
+    --admin-success-subtle: rgba(16, 185, 129, 0.1);
+    --admin-success-fg: #065f46;
+
+    --admin-warning: #f59e0b;
+    --admin-warning-subtle: rgba(245, 158, 11, 0.1);
+    --admin-warning-fg: #92400e;
+
+    --admin-danger: #ef4444;
+    --admin-danger-subtle: rgba(239, 68, 68, 0.1);
+    --admin-danger-fg: #991b1b;
+
+    --admin-info: #0284c7;
+    --admin-info-subtle: rgba(2, 132, 199, 0.1);
+    --admin-info-fg: #075985;
+
+    /* --- 7. Elevation Shadows --- */
+    --admin-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+    --admin-shadow-sm: 0 2px 4px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+    --admin-shadow-md: 0 8px 16px -2px rgba(15, 23, 42, 0.06), 0 3px 6px -2px rgba(15, 23, 42, 0.04);
+    --admin-shadow-lg: 0 16px 28px -4px rgba(15, 23, 42, 0.08), 0 6px 10px -3px rgba(15, 23, 42, 0.04);
+    --admin-shadow-glow: 0 0 20px -2px rgba(79, 70, 229, 0.22);
+}
+
+/* --- Dark Theme Semantics --- */
+.dark {
+    --admin-bg: #090d16;
+    --admin-surface: #101625;
+    --admin-surface-subtle: #161f32;
+    --admin-surface-elevated: #151d2e;
+    --admin-surface-glass: rgba(16, 22, 37, 0.85);
+
+    --admin-border: rgba(255, 255, 255, 0.08);
+    --admin-border-subtle: rgba(255, 255, 255, 0.04);
+    --admin-border-strong: rgba(255, 255, 255, 0.16);
+    --admin-border-focus: #818cf8;
+
+    --admin-text-primary: #f8fafc;
+    --admin-text-secondary: #94a3b8;
+    --admin-text-muted: #64748b;
+    --admin-text-inverted: #0f172a;
+
+    --admin-primary: #6366f1;
+    --admin-primary-hover: #818cf8;
+    --admin-primary-active: #4f46e5;
+    --admin-primary-subtle: rgba(99, 102, 241, 0.16);
+    --admin-primary-fg: #ffffff;
+    --admin-primary-ring: rgba(99, 102, 241, 0.35);
+
+    --admin-accent: #22d3ee;
+    --admin-accent-subtle: rgba(34, 211, 238, 0.12);
+
+    --admin-success: #34d399;
+    --admin-success-subtle: rgba(52, 211, 153, 0.12);
+    --admin-success-fg: #a7f3d0;
+
+    --admin-warning: #fbbf24;
+    --admin-warning-subtle: rgba(251, 191, 36, 0.12);
+    --admin-warning-fg: #fde68a;
+
+    --admin-danger: #f87171;
+    --admin-danger-subtle: rgba(248, 113, 113, 0.12);
+    --admin-danger-fg: #fecaca;
+
+    --admin-info: #38bdf8;
+    --admin-info-subtle: rgba(56, 189, 248, 0.12);
+    --admin-info-fg: #bae6fd;
+
+    --admin-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --admin-shadow-sm: 0 2px 6px 0 rgba(0, 0, 0, 0.4);
+    --admin-shadow-md: 0 10px 24px -2px rgba(0, 0, 0, 0.5);
+    --admin-shadow-lg: 0 20px 36px -4px rgba(0, 0, 0, 0.6);
+    --admin-shadow-glow: 0 0 24px 0 rgba(99, 102, 241, 0.3);
+}
+
+/* --- Tailwind v4 @theme Integration --- */
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-admin-bg: var(--admin-bg);
+    --color-admin-surface: var(--admin-surface);
+    --color-admin-surface-subtle: var(--admin-surface-subtle);
+    --color-admin-surface-elevated: var(--admin-surface-elevated);
+    --color-admin-border: var(--admin-border);
+    --color-admin-border-subtle: var(--admin-border-subtle);
+    --color-admin-border-strong: var(--admin-border-strong);
+    --color-admin-text-primary: var(--admin-text-primary);
+    --color-admin-text-secondary: var(--admin-text-secondary);
+    --color-admin-text-muted: var(--admin-text-muted);
+    --color-admin-primary: var(--admin-primary);
+    --color-admin-primary-hover: var(--admin-primary-hover);
+    --color-admin-primary-subtle: var(--admin-primary-subtle);
+    --color-admin-accent: var(--admin-accent);
 }
 
-/* Global scroll lock styles for modals & dialogs */
+/* --- Mobile Safe-Area & Mobile-Native Patterns --- */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .pb-safe {
+        padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+    }
+    .pt-safe {
+        padding-top: max(env(safe-area-inset-top), 0.5rem);
+    }
+}
+
+/* Native bottom-sheet spring animations */
+@keyframes sheetSlideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes sheetFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-sheet-up {
+    animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-sheet-backdrop {
+    animation: sheetFadeIn 0.2s ease-out forwards;
+}
+
+/* Horizontal scroll without scrollbars for mobile tab bars & filters */
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+
+/* Tactile mobile tap-bounce feedback */
+.tap-bounce {
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tap-bounce:active {
+    transform: scale(0.96);
+}
+
+/* Global scroll lock styles for modals, sheets & dialogs */
 html.modal-open,
 body.modal-open {
     overflow: hidden !important;
@@ -30,4 +231,3 @@ input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield;
 }
-

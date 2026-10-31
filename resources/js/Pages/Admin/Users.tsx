@@ -224,7 +224,7 @@ export default function UsersPage({
 
 
             {/* Search & Filter Bar */}
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 mb-6 shadow-xs">
+            <div className="rounded-3xl bg-[var(--admin-surface)] border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4 mb-6 shadow-xs">
                 <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
                     <div className="relative flex-1">
                         <Input

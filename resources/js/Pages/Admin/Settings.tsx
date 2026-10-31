@@ -1831,21 +1831,21 @@ export default function Settings({
                 />
 
                 {/* Search & Category Filter Bar */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-3xl bg-[var(--admin-surface)] border border-slate-200/80 dark:border-white/10 shadow-xs">
                     <div className="relative flex-1">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                             type="text"
                             placeholder="Filter settings..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-8 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-white placeholder-slate-400"
+                            className="w-full pl-9 pr-8 py-2 rounded-2xl text-xs sm:text-sm font-semibold bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-[var(--admin-primary)]/20 focus:border-[var(--admin-primary)] text-slate-900 dark:text-white placeholder-slate-400"
                         />
                         {searchQuery && (
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                             >
                                 <X className="w-3.5 h-3.5" />
                             </button>
@@ -1860,10 +1860,10 @@ export default function Settings({
                                     key={cat.id}
                                     type="button"
                                     onClick={() => setSelectedCategory(cat.id)}
-                                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer tap-bounce ${
                                         isSelected
-                                            ? 'bg-indigo-600 text-white shadow-xs'
-                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                            ? 'bg-[var(--admin-primary)] text-white shadow-xs'
+                                            : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 >
                                     {cat.label}
@@ -1876,7 +1876,7 @@ export default function Settings({
                 {/* The Settings List */}
                 <div className="space-y-3">
                     {filteredSettings.length === 0 ? (
-                        <div className="p-8 text-center rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="p-8 text-center rounded-3xl bg-[var(--admin-surface)] border border-dashed border-slate-200 dark:border-white/10">
                             <SlidersHorizontal className="w-6 h-6 text-slate-400 mx-auto mb-2" />
                             <h4 className="text-xs font-bold text-slate-900 dark:text-white">
                                 No matching settings found
@@ -1904,10 +1904,10 @@ export default function Settings({
                             return (
                                 <div
                                     key={item.id}
-                                    className={`rounded-2xl border transition-all duration-200 bg-white dark:bg-slate-900 ${
+                                    className={`rounded-3xl border transition-all duration-200 bg-[var(--admin-surface)] ${
                                         isOpen
-                                            ? 'border-indigo-300 dark:border-indigo-800 shadow-sm ring-1 ring-indigo-500/10'
-                                            : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'
+                                            ? 'border-[var(--admin-primary)] shadow-sm ring-1 ring-[var(--admin-primary)]/20'
+                                            : 'border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-xs'
                                     }`}
                                 >
                                     {/* List Row Header */}

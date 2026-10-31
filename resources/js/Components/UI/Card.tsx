@@ -5,7 +5,7 @@ export function Card({ className, children, ...props }: React.HTMLAttributes<HTM
     return (
         <div
             className={cn(
-                'rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/80 shadow-xs transition-colors',
+                'rounded-3xl bg-[var(--admin-surface)] border border-slate-200/80 dark:border-white/10 shadow-xs transition-colors overflow-hidden',
                 className
             )}
             {...props}
@@ -23,7 +23,7 @@ export function CardHeader({
     return (
         <div
             className={cn(
-                'px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex flex-col space-y-1',
+                'px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-100 dark:border-white/5 flex flex-col space-y-1',
                 className
             )}
             {...props}
@@ -57,7 +57,7 @@ export function CardDescription({
     ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
     return (
-        <p className={cn('text-xs text-slate-500 dark:text-slate-400', className)} {...props}>
+        <p className={cn('text-xs text-slate-500 dark:text-slate-400 leading-relaxed', className)} {...props}>
             {children}
         </p>
     );
@@ -69,7 +69,7 @@ export function CardContent({
     ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
     return (
-        <div className={cn('p-6', className)} {...props}>
+        <div className={cn('p-4 sm:p-6', className)} {...props}>
             {children}
         </div>
     );
@@ -83,7 +83,7 @@ export function CardFooter({
     return (
         <div
             className={cn(
-                'px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-2xl flex items-center justify-between',
+                'px-5 sm:px-6 py-4 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/40 rounded-b-3xl flex items-center justify-between',
                 className
             )}
             {...props}

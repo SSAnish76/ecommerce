@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { THEME_PRESETS, ThemePreset, applyThemePreset, getSavedThemePreset } from '../lib/tokens';
 
 type Theme = 'light' | 'dark';
 
@@ -6,15 +7,19 @@ interface ThemeContextType {
     theme: Theme;
     toggleTheme: () => void;
     setTheme: (theme: Theme) => void;
+    preset: string;
+    setPreset: (presetKey: string) => void;
+    availablePresets: typeof THEME_PRESETS;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setThemeState] = useState<Theme>('light');
+    const [preset, setPresetState] = useState<string>('indigo');
 
     useEffect(() => {
-        // Check stored theme or check current HTML class
+        // 1. Initialize dark/light mode
         const storedTheme = localStorage.getItem('theme') as Theme | null;
         if (storedTheme === 'dark' || document.documentElement.classList.contains('dark')) {
             setThemeState('dark');
@@ -23,6 +28,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             setThemeState('light');
             document.documentElement.classList.remove('dark');
         }
+
+        // 2. Initialize color preset tokens
+        const savedPreset = getSavedThemePreset();
+        setPresetState(savedPreset);
+        applyThemePreset(savedPreset as keyof typeof THEME_PRESETS);
     }, []);
 
     const setTheme = (newTheme: Theme) => {
@@ -39,8 +49,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setTheme(theme === 'light' ? 'dark' : 'light');
     };
 
+    const setPreset = (newPreset: string) => {
+        setPresetState(newPreset);
+        applyThemePreset(newPreset as keyof typeof THEME_PRESETS);
+    };
+
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+        <ThemeContext.Provider
+            value={{
+                theme,
+                toggleTheme,
+                setTheme,
+                preset,
+                setPreset,
+                availablePresets: THEME_PRESETS,
+            }}
+        >
             {children}
         </ThemeContext.Provider>
     );
@@ -49,7 +73,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
     const context = useContext(ThemeContext);
     if (!context) {
-        // Fallback if rendered outside provider
         const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
         return {
             theme: isDark ? ('dark' as Theme) : ('light' as Theme),
@@ -66,6 +89,9 @@ export function useTheme() {
                     document.documentElement.classList.toggle('dark', t === 'dark');
                 }
             },
+            preset: 'indigo',
+            setPreset: (p: string) => applyThemePreset(p as keyof typeof THEME_PRESETS),
+            availablePresets: THEME_PRESETS,
         };
     }
     return context;

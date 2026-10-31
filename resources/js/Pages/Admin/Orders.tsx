@@ -19,6 +19,7 @@ import {
     PackageCheck,
     Send,
     AlertCircle,
+    ChevronRight,
 } from 'lucide-react';
 
 interface PaginatedOrders {
@@ -44,44 +45,44 @@ const ORDER_STATUS_CONFIG: Record<
 > = {
     pending: {
         label: 'Pending',
-        bg: 'bg-amber-50 dark:bg-amber-950/40',
-        text: 'text-amber-700 dark:text-amber-400',
-        border: 'border-amber-200 dark:border-amber-800/60',
+        bg: 'bg-amber-500/10',
+        text: 'text-amber-700 dark:text-amber-300',
+        border: 'border-amber-500/20',
         icon: Clock,
     },
     processing: {
         label: 'Processing',
-        bg: 'bg-sky-50 dark:bg-sky-950/40',
-        text: 'text-sky-700 dark:text-sky-400',
-        border: 'border-sky-200 dark:border-sky-800/60',
+        bg: 'bg-sky-500/10',
+        text: 'text-sky-700 dark:text-sky-300',
+        border: 'border-sky-500/20',
         icon: Truck,
     },
     shipped: {
         label: 'Shipped',
-        bg: 'bg-indigo-50 dark:bg-indigo-950/40',
-        text: 'text-indigo-700 dark:text-indigo-400',
-        border: 'border-indigo-200 dark:border-indigo-800/60',
+        bg: 'bg-[var(--admin-primary-subtle)]',
+        text: 'text-[var(--admin-primary)]',
+        border: 'border-[var(--admin-primary)]/20',
         icon: Send,
     },
     delivered: {
         label: 'Delivered',
-        bg: 'bg-teal-50 dark:bg-teal-950/40',
-        text: 'text-teal-700 dark:text-teal-400',
-        border: 'border-teal-200 dark:border-teal-800/60',
+        bg: 'bg-teal-500/10',
+        text: 'text-teal-700 dark:text-teal-300',
+        border: 'border-teal-500/20',
         icon: PackageCheck,
     },
     completed: {
         label: 'Completed',
-        bg: 'bg-emerald-50 dark:bg-emerald-950/40',
-        text: 'text-emerald-700 dark:text-emerald-400',
-        border: 'border-emerald-200 dark:border-emerald-800/60',
+        bg: 'bg-emerald-500/10',
+        text: 'text-emerald-700 dark:text-emerald-300',
+        border: 'border-emerald-500/20',
         icon: CheckCircle2,
     },
     cancelled: {
         label: 'Cancelled',
-        bg: 'bg-rose-50 dark:bg-rose-950/40',
-        text: 'text-rose-700 dark:text-rose-400',
-        border: 'border-rose-200 dark:border-rose-800/60',
+        bg: 'bg-rose-500/10',
+        text: 'text-rose-700 dark:text-rose-300',
+        border: 'border-rose-500/20',
         icon: XCircle,
     },
 };
@@ -135,7 +136,7 @@ export default function OrdersPage({
     ];
 
     return (
-        <AdminLayout>
+        <AdminLayout title="Orders">
             <Head title="Orders Management - Admin" />
 
             <div className="space-y-6">
@@ -143,15 +144,15 @@ export default function OrdersPage({
                     title="Orders & Fulfillment"
                     description="Track storefront purchases, variant SKU breakdowns, fulfillment states, and customer deliveries."
                     breadcrumbs={[
-                        { label: 'Admin', href: '/admin/dashboard' },
+                        { label: 'Admin', href: '/admin' },
                         { label: 'Sales' },
                         { label: 'Orders' },
                     ]}
                 />
 
                 {/* Filter and Search Bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-                    <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-3 w-full">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--admin-surface)] p-3 sm:p-4 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-xs">
+                    <form onSubmit={handleSearchSubmit} className="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full">
                         <div className="relative flex-1">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
@@ -159,53 +160,125 @@ export default function OrdersPage({
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search by Order #, Customer Name, Email, or Phone..."
-                                className="w-full text-xs pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                className="w-full text-xs sm:text-sm pl-10 pr-4 h-11 sm:h-10 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--admin-primary)]/20 focus:border-[var(--admin-primary)]"
                             />
                         </div>
 
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                router.get(
-                                    '/admin/orders',
-                                    { search, status: e.target.value },
-                                    { preserveState: true }
-                                );
-                            }}
-                            className="text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                        >
-                            <option value="">All Statuses</option>
-                            {availableStatuses.map((s) => (
-                                <option key={s.value} value={s.value}>
-                                    {s.label}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    router.get(
+                                        '/admin/orders',
+                                        { search, status: e.target.value },
+                                        { preserveState: true }
+                                    );
+                                }}
+                                className="flex-1 sm:flex-initial text-xs font-semibold h-11 sm:h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[var(--admin-primary)] cursor-pointer"
+                            >
+                                <option value="">All Statuses</option>
+                                {availableStatuses.map((s) => (
+                                    <option key={s.value} value={s.value}>
+                                        {s.label}
+                                    </option>
+                                ))}
+                            </select>
 
-                        <Button type="submit" variant="secondary" size="sm" className="hidden sm:inline-flex">
-                            Search
-                        </Button>
+                            <Button type="submit" variant="secondary" size="md" className="hidden sm:inline-flex">
+                                Filter
+                            </Button>
+                        </div>
                     </form>
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-1 shrink-0 text-right sm:text-left">
                         Total: <span className="font-bold text-slate-900 dark:text-white">{orders.total}</span> orders
                     </div>
                 </div>
 
-                {/* Orders Table */}
+                {/* Orders View */}
                 {orders.data.length === 0 ? (
                     <EmptyState
-                        icon={<ShoppingCart className="w-10 h-10 text-slate-400" />}
+                        icon={<ShoppingCart className="w-8 h-8 text-[var(--admin-primary)]" />}
                         title="No Orders Found"
                         description="Customer checkout orders and variant transactions will automatically appear here."
                     />
                 ) : (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
-                        <div className="overflow-x-auto">
+                    <div className="bg-[var(--admin-surface)] rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-xs overflow-hidden">
+                        {/* Mobile Native Order Cards (< md) */}
+                        <div className="md:hidden divide-y divide-slate-100 dark:divide-white/5">
+                            {orders.data.map((order) => {
+                                const config = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.pending;
+                                const isUpdating = updatingOrderId === order.id;
+
+                                return (
+                                    <div key={order.id} className="p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Link
+                                                href={`/admin/orders/${order.id}`}
+                                                className="font-mono text-sm font-extrabold text-[var(--admin-primary)] flex items-center gap-1.5"
+                                            >
+                                                <span>#{order.order_number}</span>
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </Link>
+                                            <div className="text-sm font-black text-slate-900 dark:text-white">
+                                                {currency}{Number(order.total).toFixed(2)}
+                                            </div>
+                                        </div>
+
+                                        <div className="text-xs">
+                                            <div className="font-bold text-slate-900 dark:text-white">{order.customer_name}</div>
+                                            <div className="text-slate-400 text-[11px] truncate">{order.customer_email}</div>
+                                        </div>
+
+                                        {order.items && order.items.length > 0 && (
+                                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-white/5 p-2.5 rounded-2xl">
+                                                <span className="font-semibold">{order.items[0].quantity}x {order.items[0].product_name}</span>
+                                                {order.items.length > 1 && (
+                                                    <span className="text-[11px] text-slate-400 ml-1 font-bold">
+                                                        +{order.items.length - 1} more
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-between pt-1 gap-2">
+                                            <div className="relative inline-flex items-center gap-1.5">
+                                                <select
+                                                    value={order.status}
+                                                    disabled={isUpdating}
+                                                    onChange={(e) => handleStatusChange(order, e.target.value)}
+                                                    className={`text-xs font-bold py-1.5 pl-3 pr-7 rounded-full border appearance-none cursor-pointer ${config.bg} ${config.text} ${config.border} disabled:opacity-50`}
+                                                >
+                                                    {availableStatuses.map((s) => (
+                                                        <option key={s.value} value={s.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                                                            {s.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {isUpdating && (
+                                                    <span className="inline-block w-3 h-3 border-2 border-[var(--admin-primary)] border-t-transparent rounded-full animate-spin" />
+                                                )}
+                                            </div>
+
+                                            <Link
+                                                href={`/admin/orders/${order.id}`}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 transition-colors"
+                                            >
+                                                <Eye className="w-3.5 h-3.5 text-[var(--admin-primary)]" />
+                                                <span>Details</span>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop Table (>= md) */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                    <tr className="border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/40 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                                         <th className="py-3.5 px-5">Order #</th>
                                         <th className="py-3.5 px-5">Customer</th>
                                         <th className="py-3.5 px-5">Items &amp; Details</th>
@@ -216,21 +289,20 @@ export default function OrdersPage({
                                         <th className="py-3.5 px-5 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                                <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-xs">
                                     {orders.data.map((order) => {
                                         const config = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.pending;
-                                        const StatusIcon = config.icon;
                                         const isUpdating = updatingOrderId === order.id;
 
                                         return (
                                             <tr
                                                 key={order.id}
-                                                className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                                                className="hover:bg-slate-50/70 dark:hover:bg-white/5 transition-colors"
                                             >
                                                 <td className="py-4 px-5">
                                                     <Link
                                                         href={`/admin/orders/${order.id}`}
-                                                        className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline block"
+                                                        className="font-mono font-bold text-[var(--admin-primary)] hover:underline block"
                                                     >
                                                         {order.order_number}
                                                     </Link>
@@ -240,7 +312,7 @@ export default function OrdersPage({
                                                 </td>
 
                                                 <td className="py-4 px-5">
-                                                    <div className="font-semibold text-slate-900 dark:text-white">
+                                                    <div className="font-bold text-slate-900 dark:text-white">
                                                         {order.customer_name}
                                                     </div>
                                                     <div className="text-[11px] text-slate-400 truncate max-w-[180px]">
@@ -256,7 +328,7 @@ export default function OrdersPage({
                                                                     {item.quantity}x {item.product_name}
                                                                 </span>
                                                                 {item.variant_name && (
-                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 font-mono">
+                                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)] border border-[var(--admin-primary)]/20 font-mono">
                                                                         {item.variant_name}
                                                                     </span>
                                                                 )}
@@ -275,14 +347,13 @@ export default function OrdersPage({
                                                     {Number(order.total).toFixed(2)}
                                                 </td>
 
-                                                {/* Order-Wise Status Changer */}
                                                 <td className="py-4 px-5">
                                                     <div className="relative inline-flex items-center gap-1.5">
                                                         <select
                                                             value={order.status}
                                                             disabled={isUpdating}
                                                             onChange={(e) => handleStatusChange(order, e.target.value)}
-                                                            className={`text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-xl border appearance-none cursor-pointer transition-colors focus:ring-2 focus:ring-indigo-500/20 ${config.bg} ${config.text} ${config.border} disabled:opacity-50`}
+                                                            className={`text-xs font-bold py-1.5 pl-3 pr-7 rounded-full border appearance-none cursor-pointer transition-colors focus:ring-2 focus:ring-[var(--admin-primary)]/20 ${config.bg} ${config.text} ${config.border} disabled:opacity-50`}
                                                         >
                                                             {availableStatuses.map((s) => (
                                                                 <option key={s.value} value={s.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
@@ -291,18 +362,18 @@ export default function OrdersPage({
                                                             ))}
                                                         </select>
                                                         {isUpdating && (
-                                                            <span className="inline-block w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                                            <span className="inline-block w-3 h-3 border-2 border-[var(--admin-primary)] border-t-transparent rounded-full animate-spin" />
                                                         )}
                                                     </div>
                                                 </td>
 
                                                 <td className="py-4 px-5">
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                                         order.payment_status === 'paid'
-                                                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
                                                             : order.payment_status === 'refunded'
-                                                            ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
-                                                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                                                            ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20'
+                                                            : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
                                                     }`}>
                                                         {order.payment_status || 'Pending'}
                                                     </span>
@@ -315,10 +386,10 @@ export default function OrdersPage({
                                                 <td className="py-4 px-5 text-right">
                                                     <Link
                                                         href={`/admin/orders/${order.id}`}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors shadow-2xs"
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 transition-colors shadow-2xs tap-bounce"
                                                     >
-                                                        <Eye className="w-3.5 h-3.5 text-indigo-500" />
-                                                        <span>View Details</span>
+                                                        <Eye className="w-3.5 h-3.5 text-[var(--admin-primary)]" />
+                                                        <span>View</span>
                                                     </Link>
                                                 </td>
                                             </tr>
@@ -330,22 +401,22 @@ export default function OrdersPage({
 
                         {/* Pagination */}
                         {orders.last_page > 1 && (
-                            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                <div className="text-xs text-slate-500">
+                            <div className="p-4 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <div className="text-xs text-slate-500 font-medium">
                                     Showing page {orders.current_page} of {orders.last_page}
                                 </div>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1 flex-wrap justify-center">
                                     {orders.links.map((link, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
                                             disabled={!link.url || link.active}
                                             dangerouslySetInnerHTML={{ __html: link.label }}
-                                            className={`px-3 py-1.5 text-xs rounded-xl font-medium transition-colors ${
+                                            className={`px-3 py-1.5 text-xs rounded-xl font-bold transition-colors tap-bounce ${
                                                 link.active
-                                                    ? 'bg-indigo-600 text-white shadow-2xs'
+                                                    ? 'bg-[var(--admin-primary)] text-white shadow-2xs'
                                                     : link.url
-                                                    ? 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                                    ? 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'
                                                     : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
                                             }`}
                                         />

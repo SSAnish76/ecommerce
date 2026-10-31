@@ -25,15 +25,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             )}
         >
             {Icon && (
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center mb-4 shadow-2xs">
+                <div className="w-14 h-14 rounded-3xl bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)] border border-[var(--admin-primary)]/20 flex items-center justify-center mb-4 shadow-sm shadow-indigo-500/10">
                     {React.isValidElement(Icon) ? (
                         Icon
                     ) : typeof Icon === 'function' ? (
-                        <Icon className="w-6 h-6" />
+                        <Icon className="w-6 h-6 stroke-[2]" />
                     ) : null}
                 </div>
             )}
-            <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+            <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                 {title}
             </h4>
             {description && (

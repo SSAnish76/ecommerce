@@ -310,13 +310,13 @@ export default function InventoryPage({
 
             <div className="space-y-4">
                 {/* Header with Bulk Update Mode Toggle Button */}
-                <div className="flex items-center justify-between gap-4 bg-white dark:bg-slate-900 px-5 py-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-[var(--admin-surface)] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-xs">
                     <div className="flex items-center gap-3">
-                        <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                        <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                             Inventory
                         </h1>
-                        <Badge variant="amber" size="sm" className="font-semibold">
-                            {products.total}
+                        <Badge variant="amber" size="sm" className="font-bold">
+                            {products.total} Products
                         </Badge>
                     </div>
 
@@ -326,20 +326,16 @@ export default function InventoryPage({
                             <Button
                                 type="button"
                                 variant={isBulkEditMode ? 'primary' : 'secondary'}
-                                size="sm"
+                                size="md"
                                 onClick={toggleBulkEditMode}
                                 leftIcon={
                                     isBulkEditMode ? (
                                         <Check className="w-3.5 h-3.5" />
                                     ) : (
-                                        <TableProperties className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                        <TableProperties className="w-3.5 h-3.5 text-[var(--admin-primary)]" />
                                     )
                                 }
-                                className={`text-xs font-semibold px-3.5 py-1.5 rounded-xl border transition-all ${
-                                    isBulkEditMode
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                }`}
+                                className="tap-bounce"
                             >
                                 {isBulkEditMode ? 'Exit Bulk Edit' : 'Bulk Update'}
                             </Button>
@@ -349,10 +345,10 @@ export default function InventoryPage({
                             <Link href="/admin/products/create">
                                 <Button
                                     variant="primary"
-                                    size="sm"
+                                    size="md"
                                     pill
                                     leftIcon={<Plus className="w-4 h-4 stroke-[2.5]" />}
-                                    className="shadow-xs font-medium px-4 py-1.5 rounded-full"
+                                    className="shadow-sm shadow-indigo-500/20 font-bold tap-bounce"
                                 >
                                     Add Product
                                 </Button>
@@ -362,7 +358,7 @@ export default function InventoryPage({
                 </div>
 
                 {/* Filters Bar */}
-                <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <div className="bg-[var(--admin-surface)] p-3 sm:p-4 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-xs">
                     <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2.5">
                         <div className="relative flex-1 w-full">
                             <Input

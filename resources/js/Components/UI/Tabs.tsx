@@ -26,7 +26,7 @@ export function Tabs<T extends string = string>({
 }: TabsProps<T>) {
     if (variant === 'underline') {
         return (
-            <div className={cn('border-b border-slate-200 dark:border-slate-800 flex items-center gap-6 overflow-x-auto scrollbar-none', className)}>
+            <div className={cn('border-b border-slate-200/80 dark:border-white/10 flex items-center gap-6 overflow-x-auto scrollbar-none -webkit-overflow-scrolling-touch', className)}>
                 {tabs.map((tab) => {
                     const active = tab.id === activeTab;
                     const Icon = tab.icon;
@@ -37,10 +37,10 @@ export function Tabs<T extends string = string>({
                             type="button"
                             onClick={() => onChange(tab.id)}
                             className={cn(
-                                'flex items-center gap-2 py-3 px-1 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap cursor-pointer select-none',
+                                'flex items-center gap-2 py-3 px-1 text-xs sm:text-sm font-bold border-b-2 -mb-px transition-colors whitespace-nowrap cursor-pointer select-none tap-bounce',
                                 active
-                                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700'
+                                    ? 'border-[var(--admin-primary)] text-[var(--admin-primary)]'
+                                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20'
                             )}
                         >
                             {Icon && <Icon className="w-4 h-4 shrink-0" />}
@@ -50,8 +50,8 @@ export function Tabs<T extends string = string>({
                                     className={cn(
                                         'px-2 py-0.5 text-[10px] font-bold rounded-full',
                                         active
-                                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300'
-                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                            ? 'bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)]'
+                                            : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400'
                                     )}
                                 >
                                     {tab.count}
@@ -67,7 +67,7 @@ export function Tabs<T extends string = string>({
     return (
         <div
             className={cn(
-                'inline-flex p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 overflow-x-auto max-w-full',
+                'inline-flex p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/10 overflow-x-auto max-w-full scrollbar-none -webkit-overflow-scrolling-touch',
                 className
             )}
         >
@@ -81,7 +81,7 @@ export function Tabs<T extends string = string>({
                         type="button"
                         onClick={() => onChange(tab.id)}
                         className={cn(
-                            'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
+                            'flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer select-none tap-bounce',
                             active
                                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -91,7 +91,7 @@ export function Tabs<T extends string = string>({
                             <Icon
                                 className={cn(
                                     'w-3.5 h-3.5 shrink-0',
-                                    active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
+                                    active ? 'text-[var(--admin-primary)]' : 'text-slate-400'
                                 )}
                             />
                         )}
@@ -99,10 +99,10 @@ export function Tabs<T extends string = string>({
                         {typeof tab.count === 'number' && (
                             <span
                                 className={cn(
-                                    'px-1.5 py-0.2 text-[10px] font-bold rounded-full',
+                                    'px-2 py-0.5 text-[10px] font-bold rounded-full',
                                     active
-                                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                                        : 'bg-slate-200/60 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                        ? 'bg-[var(--admin-primary-subtle)] text-[var(--admin-primary)]'
+                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                                 )}
                             >
                                 {tab.count}

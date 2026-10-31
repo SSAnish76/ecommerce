@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import Sidebar from '../Components/Sidebar';
 import Navbar from '../Components/Navbar';
+import MobileNav from '../Components/MobileNav';
 import { PageProps } from '../types';
-import { CheckCircle2, AlertCircle, X, Info, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
 import { ThemeProvider } from '../Contexts/ThemeContext';
 
 interface AdminLayoutProps {
@@ -19,29 +20,31 @@ function AdminLayoutInner({ children, title, breadcrumbs }: AdminLayoutProps) {
     const appName = store?.name || app_name || 'E-Commerce';
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-200">
-            {/* Sidebar component */}
+        <div className="min-h-[100dvh] bg-[var(--admin-bg)] text-slate-800 dark:text-slate-100 flex flex-col font-sans selection:bg-[var(--admin-primary)] selection:text-white transition-colors duration-200">
+            {/* Desktop Sidebar & Mobile Bottom-Sheet Drawer */}
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
             {/* Main content wrapper shifted on desktop for fixed sidebar */}
-            <div className="lg:pl-72 flex flex-col flex-1 min-h-screen">
-                {/* Navbar */}
+            <div className="lg:pl-72 flex flex-col flex-1 min-h-[100dvh]">
+                {/* Navbar / Mobile Top App Bar */}
                 <Navbar
                     onMenuClick={() => setSidebarOpen(true)}
                     title={title}
                     breadcrumbs={breadcrumbs}
                 />
 
-                {/* Flash Messages */}
+                {/* Flash Messages with Modern Token Styles */}
                 {flash?.success && !dismissFlash && (
-                    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200 flex items-center justify-between shadow-2xs animate-in fade-in">
+                    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-950 dark:text-emerald-200 flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-1">
                         <div className="flex items-center gap-3 min-w-0">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span className="p-1 rounded-xl bg-emerald-500 text-white shrink-0">
+                                <CheckCircle2 className="w-4 h-4" />
+                            </span>
                             <span className="text-xs sm:text-sm font-semibold truncate">{flash.success}</span>
                         </div>
                         <button
                             onClick={() => setDismissFlash(true)}
-                            className="p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-emerald-600 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                            className="p-1.5 hover:bg-emerald-500/20 rounded-xl text-emerald-700 dark:text-emerald-300 transition-colors cursor-pointer shrink-0"
                             aria-label="Close message"
                         >
                             <X className="w-4 h-4" />
@@ -50,14 +53,16 @@ function AdminLayoutInner({ children, title, breadcrumbs }: AdminLayoutProps) {
                 )}
 
                 {flash?.error && !dismissFlash && (
-                    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-500/30 text-rose-900 dark:text-rose-200 flex items-center justify-between shadow-2xs animate-in fade-in">
+                    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-3xl bg-rose-500/10 border border-rose-500/20 text-rose-950 dark:text-rose-200 flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-1">
                         <div className="flex items-center gap-3 min-w-0">
-                            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                            <span className="p-1 rounded-xl bg-rose-500 text-white shrink-0">
+                                <AlertCircle className="w-4 h-4" />
+                            </span>
                             <span className="text-xs sm:text-sm font-semibold truncate">{flash.error}</span>
                         </div>
                         <button
                             onClick={() => setDismissFlash(true)}
-                            className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 dark:text-rose-400 hover:text-rose-950 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                            className="p-1.5 hover:bg-rose-500/20 rounded-xl text-rose-700 dark:text-rose-300 transition-colors cursor-pointer shrink-0"
                             aria-label="Close message"
                         >
                             <X className="w-4 h-4" />
@@ -66,14 +71,16 @@ function AdminLayoutInner({ children, title, breadcrumbs }: AdminLayoutProps) {
                 )}
 
                 {flash?.message && !dismissFlash && (
-                    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-500/30 text-indigo-900 dark:text-indigo-200 flex items-center justify-between shadow-2xs animate-in fade-in">
+                    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-3xl bg-[var(--admin-primary-subtle)] border border-[var(--admin-primary)]/20 text-slate-900 dark:text-white flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-1">
                         <div className="flex items-center gap-3 min-w-0">
-                            <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span className="p-1 rounded-xl bg-[var(--admin-primary)] text-white shrink-0">
+                                <Info className="w-4 h-4" />
+                            </span>
                             <span className="text-xs sm:text-sm font-semibold truncate">{flash.message}</span>
                         </div>
                         <button
                             onClick={() => setDismissFlash(true)}
-                            className="p-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg text-indigo-600 dark:text-indigo-400 hover:text-indigo-950 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                            className="p-1.5 hover:bg-[var(--admin-primary)]/10 rounded-xl text-slate-600 dark:text-slate-300 transition-colors cursor-pointer shrink-0"
                             aria-label="Close message"
                         >
                             <X className="w-4 h-4" />
@@ -81,24 +88,30 @@ function AdminLayoutInner({ children, title, breadcrumbs }: AdminLayoutProps) {
                     </div>
                 )}
 
-                {/* Page content */}
-                <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+                {/* Page Content: pb-28 on mobile gives ample breathing room above the fixed mobile bar */}
+                <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pb-28 lg:pb-8">
                     {children}
                 </main>
 
-                {/* Footer */}
-                <footer className="px-4 sm:px-6 lg:px-8 py-4 border-t border-slate-200/80 dark:border-slate-900 bg-white/70 dark:bg-slate-950/70 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-500 dark:text-slate-400 transition-colors">
+                {/* Desktop Footer */}
+                <footer className="hidden lg:flex px-6 lg:px-8 py-4 border-t border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-slate-900/70 text-center sm:items-center sm:justify-between text-xs text-slate-500 dark:text-slate-400 transition-colors">
                     <p>© {new Date().getFullYear()} {appName}. All rights reserved.</p>
-                    <div className="flex items-center justify-center gap-3 mt-2 sm:mt-0 font-medium">
+                    <div className="flex items-center justify-center gap-3 font-medium">
                         <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            System Operational
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Operations Active
                         </span>
                         <span className="text-slate-300 dark:text-slate-700">|</span>
-                        <span>v2.4.0</span>
+                        <span>Aura Admin v3.0</span>
                     </div>
                 </footer>
             </div>
+
+            {/* Mobile Native Bottom Navigation Bar */}
+            <MobileNav
+                onOpenMore={() => setSidebarOpen(true)}
+                isMoreOpen={sidebarOpen}
+            />
         </div>
     );
 }
